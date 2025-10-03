@@ -14,6 +14,12 @@ database.sqlite
 .env
 .env.*
 
+# Sensitive utility scripts with credentials
+encode-password.ts
+get-aurora-password.ts
+test-db.mjs
+test-aurora.mjs
+
 # Documentation and guide files (non-functional)
 *.md
 **/*.md
