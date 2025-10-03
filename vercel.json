@@ -1,0 +1,39 @@
+{
+  "framework": "remix",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "outputDirectory": "build",
+  "regions": ["arn1"],
+  "env": {
+    "NODE_ENV": "production",
+    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "DATABASE_URL": "postgresql://prisma:generate@localhost:5432/placeholder"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/monthly-reset",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/usage-billing",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/tier-maintenance",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/exchange-rates",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/metrics",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

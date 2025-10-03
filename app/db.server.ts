@@ -1,16 +1,25 @@
-import { PrismaClient } from "@prisma/client";
+/**
+ * Database Client
+ * 
+ * Uses AWS Aurora Data API instead of direct database connections
+ * This prevents connection pool exhaustion in serverless environments
+ */
+
+import { createDataAPIPrismaClient } from "./utils/prisma-data-api-adapter";
 
 declare global {
-  // eslint-disable-next-line no-var
-  var prismaGlobal: PrismaClient;
+  var prisma: ReturnType<typeof createDataAPIPrismaClient> | undefined;
 }
+
+// Create the Data API client
+const prisma = global.prisma || createDataAPIPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
-  if (!global.prismaGlobal) {
-    global.prismaGlobal = new PrismaClient();
-  }
+  global.prisma = prisma;
 }
 
-const prisma = global.prismaGlobal ?? new PrismaClient();
-
 export default prisma;
+export { prisma as db };
+
+// Export helper to indicate we're using Data API
+export const isUsingDataAPI = true;
