@@ -42,7 +42,7 @@ api_version = "2025-07"
   uri = "/webhooks/orders/cancelled"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/refunded" ]
+  topics = [ "refunds/create" ]
   uri = "/webhooks/orders/refunded"
 
   [[webhooks.subscriptions]]
