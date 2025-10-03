@@ -1,39 +1,35 @@
 # Customer Portal Extension Configuration
 
-name = "customer-portal"
-type = "ui_extension"
-
-[[extensions]]
-type = "customer_account_ui"
+type = "customer_account_ui_extension"
 name = "Subscriptions Portal"
 handle = "subscriptions-portal"
 
-[[extensions.targeting]]
+[[targeting]]
 target = "customer-account.page.render"
 module = "./src/SubscriptionPortal.jsx"
 
-[extensions.capabilities]
+[capabilities]
 api_access = true
 block_progress = false
 
-[extensions.settings]
-  [[extensions.settings.fields]]
+[settings]
+  [[settings.fields]]
   key = "allow_pause"
   type = "boolean"
   name = "Allow Pause"
   description = "Allow customers to pause subscriptions"
   default = true
 
-  [[extensions.settings.fields]]
+  [[settings.fields]]
   key = "allow_skip"
   type = "boolean"
   name = "Allow Skip"
   description = "Allow customers to skip next delivery"
   default = true
 
-  [[extensions.settings.fields]]
+  [[settings.fields]]
   key = "max_pause_duration"
-  type = "number"
+  type = "number_integer"
   name = "Max Pause Duration (days)"
   description = "Maximum number of days a subscription can be paused"
   default = 90
