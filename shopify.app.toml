@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "026ce3bf073bed0e44ae8eab09d1ae3a"
-name = "rewards-pro"
+name = "Rewards Pro"
 application_url = "https://rewardspro-shopify.vercel.app"
 embedded = true
 handle = "rewards-pro"
@@ -10,73 +10,71 @@ handle = "rewards-pro"
 automatically_update_urls_on_dev = true
 
 [webhooks]
-api_version = "2025-07"
-
-  # HTTPS webhooks (for backward compatibility and local development)
-  [[webhooks.subscriptions]]
-  topics = ["customers/create"]
-  uri = "arn:aws:events:eu-north-1::event-source/aws.partner/shopify.com/275601129473/customers-create"
+api_version = "2026-01"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
+  uri = "/webhooks/compliance"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "orders/paid" ]
-  uri = "/webhooks/orders/paid"
-
-  [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
-  uri = "/webhooks/orders/create"
-
-  [[webhooks.subscriptions]]
-  topics = [ "orders/updated" ]
-  uri = "/webhooks/orders/updated"
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "orders/cancelled" ]
   uri = "/webhooks/orders/cancelled"
 
   [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "/webhooks/orders/create"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/paid" ]
+  uri = "/webhooks/orders/paid"
+
+  [[webhooks.subscriptions]]
   topics = [ "refunds/create" ]
   uri = "/webhooks/orders/refunded"
 
   [[webhooks.subscriptions]]
-  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-  uri = "/webhooks/compliance"
+  topics = [ "orders/updated" ]
+  uri = "/webhooks/orders/updated"
 
-  # Subscription webhooks (pending scope approval)
   [[webhooks.subscriptions]]
-  topics = ["subscription_contracts/create"]
-  uri = "/webhooks/subscriptions/created"
-  
-  [[webhooks.subscriptions]]
-  topics = ["subscription_contracts/update"]
-  uri = "/webhooks/subscriptions/updated"
-  
-  [[webhooks.subscriptions]]
-  topics = ["subscription_billing_attempts/success"]
-  uri = "/webhooks/subscriptions/billing_success"
-  
-  [[webhooks.subscriptions]]
-  topics = ["subscription_billing_attempts/failure"]
-  uri = "/webhooks/subscriptions/billing_failed"
-  
-  [[webhooks.subscriptions]]
-  topics = ["subscription_contracts/activate"]
+  topics = [ "subscription_contracts/activate" ]
   uri = "/webhooks/subscriptions/activated"
-  
+
   [[webhooks.subscriptions]]
-  topics = ["subscription_contracts/pause"]
-  uri = "/webhooks/subscriptions/paused"
-  
+  topics = [ "subscription_billing_attempts/failure" ]
+  uri = "/webhooks/subscriptions/billing_failed"
+
   [[webhooks.subscriptions]]
-  topics = ["subscription_contracts/cancel"]
+  topics = [ "subscription_billing_attempts/success" ]
+  uri = "/webhooks/subscriptions/billing_success"
+
+  [[webhooks.subscriptions]]
+  topics = [ "subscription_contracts/cancel" ]
   uri = "/webhooks/subscriptions/cancelled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "subscription_contracts/create" ]
+  uri = "/webhooks/subscriptions/created"
+
+  [[webhooks.subscriptions]]
+  topics = [ "subscription_contracts/pause" ]
+  uri = "/webhooks/subscriptions/paused"
+
+  [[webhooks.subscriptions]]
+  topics = [ "subscription_contracts/update" ]
+  uri = "/webhooks/subscriptions/updated"
+
+  [[webhooks.subscriptions]]
+  topics = [ "customers/create" ]
+  uri = "arn:aws:events:eu-north-1::event-source/aws.partner/shopify.com/275601129473/customers-create"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -86,13 +84,10 @@ scopes = "read_customers,write_customers,read_orders,read_all_orders,write_store
 [auth]
 redirect_urls = ["https://rewardspro-shopify.vercel.app/auth/callback", "https://rewardspro-shopify.vercel.app/auth/shopify/callback", "https://rewardspro-shopify.vercel.app/api/auth/callback"]
 
-[pos]
-embedded = false
-
-# App proxy configuration for customer-facing widget API
-# This allows the widget to securely fetch member data through Shopify's HMAC-verified proxy
-# Storefront requests to /apps/rewardspro/* are proxied to /api/proxy/*
 [app_proxy]
 url = "https://rewardspro-shopify.vercel.app/api/proxy"
 subpath = "rewardspro"
 prefix = "apps"
+
+[pos]
+embedded = false
