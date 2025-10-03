@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "f04b5854fb022d67ba9dd097767b465a"
-name = "rewardspro-production"
+client_id = "026ce3bf073bed0e44ae8eab09d1ae3a"
+name = "rewards-pro"
 application_url = "https://rewardspro-shopify.vercel.app"
 embedded = true
-handle = "rewardspro-production"
+handle = "rewards-pro"
 
 [build]
 automatically_update_urls_on_dev = true
