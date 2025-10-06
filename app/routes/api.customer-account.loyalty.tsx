@@ -22,8 +22,32 @@
  */
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import db from "../db.server";
+
+// Add early error logging
+console.log('[api.customer-account.loyalty] Module loading...');
+
+let authenticate: any;
+let db: any;
+
+try {
+  console.log('[api.customer-account.loyalty] Importing authenticate...');
+  const shopifyModule = await import("../shopify.server");
+  authenticate = shopifyModule.authenticate;
+  console.log('[api.customer-account.loyalty] authenticate imported:', typeof authenticate);
+} catch (error: any) {
+  console.error('[api.customer-account.loyalty] FAILED to import authenticate:', error.message);
+  console.error('[api.customer-account.loyalty] Stack:', error.stack);
+}
+
+try {
+  console.log('[api.customer-account.loyalty] Importing db...');
+  const dbModule = await import("../db.server");
+  db = dbModule.default || dbModule.db;
+  console.log('[api.customer-account.loyalty] db imported:', typeof db);
+} catch (error: any) {
+  console.error('[api.customer-account.loyalty] FAILED to import db:', error.message);
+  console.error('[api.customer-account.loyalty] Stack:', error.stack);
+}
 
 // Rate limiting (simple in-memory, consider Redis for production)
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
@@ -76,6 +100,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   console.log(`[${requestId}] URL: ${request.url}`);
   console.log(`[${requestId}] Method: ${request.method}`);
   console.log(`[${requestId}] Headers:`, Object.fromEntries(request.headers.entries()));
+
+  // Check if required modules are loaded
+  console.log(`[${requestId}] Checking dependencies...`);
+  console.log(`[${requestId}] - authenticate available:`, typeof authenticate);
+  console.log(`[${requestId}] - db available:`, typeof db);
+  console.log(`[${requestId}] - authenticate.public available:`, typeof authenticate?.public);
+  console.log(`[${requestId}] - authenticate.public.customerAccount available:`, typeof authenticate?.public?.customerAccount);
 
   try {
     // Step 1: Validate session token from customer account extension

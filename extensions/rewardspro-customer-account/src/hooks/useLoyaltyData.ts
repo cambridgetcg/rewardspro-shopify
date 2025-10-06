@@ -6,8 +6,8 @@ import { useState, useEffect } from 'react';
 import { useApi } from '@shopify/ui-extensions-react/customer-account';
 import type { LoyaltyData } from '../types/loyalty';
 
-// Production URL for customer account API
-const API_URL = 'https://rewardspro-production.vercel.app/api/customer-account/loyalty';
+// LOCAL DEVELOPMENT: Using tunnel URL from `shopify app dev`
+const API_URL = 'https://jose-beside-layers-rec.trycloudflare.com/api/customer-account/loyalty';
 
 export function useLoyaltyData() {
   const { sessionToken } = useApi();
