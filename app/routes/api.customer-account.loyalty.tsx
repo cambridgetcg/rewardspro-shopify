@@ -98,6 +98,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   console.log(`[${requestId}] URL: ${request.url}`);
   console.log(`[${requestId}] Method: ${request.method}`);
 
+  // Handle OPTIONS preflight immediately
+  if (request.method === 'OPTIONS') {
+    console.log(`[${requestId}] OPTIONS preflight request - returning 204 with CORS headers`);
+    return new Response(null, {
+      status: 204,
+      headers: getCorsHeaders()
+    });
+  }
+
   // Log all headers for debugging
   const headers = Object.fromEntries(request.headers.entries());
   console.log(`[${requestId}] Headers:`, JSON.stringify(headers, null, 2));
