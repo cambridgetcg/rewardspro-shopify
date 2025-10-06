@@ -1,0 +1,21 @@
+{
+  "balance": {
+    "title": "Rewards Balance",
+    "available": "Available to use",
+    "totalEarned": "Total earned: {amount}"
+  },
+  "tier": {
+    "earning": "Earning {percent}% cashback on purchases"
+  },
+  "loading": {
+    "rewards": "Loading your rewards..."
+  },
+  "errors": {
+    "title": "Unable to load rewards",
+    "noData": "No rewards data available"
+  },
+  "notEnrolled": {
+    "title": "Join RewardsPro",
+    "message": "Start earning cashback on every purchase"
+  }
+}

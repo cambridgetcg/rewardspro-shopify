@@ -2,12 +2,12 @@
 
 client_id = "026ce3bf073bed0e44ae8eab09d1ae3a"
 name = "Rewards Pro"
-application_url = "https://example.com"
+application_url = "https://rewardspro-production.vercel.app"
 embedded = true
 handle = "rewards-pro"
 
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2026-01"
@@ -37,56 +37,19 @@ api_version = "2026-01"
   uri = "/webhooks/orders/paid"
 
   [[webhooks.subscriptions]]
-  topics = [ "refunds/create" ]
-  uri = "/webhooks/orders/refunded"
-
-  [[webhooks.subscriptions]]
   topics = [ "orders/updated" ]
   uri = "/webhooks/orders/updated"
 
   [[webhooks.subscriptions]]
-  topics = [ "subscription_contracts/activate" ]
-  uri = "/webhooks/subscriptions/activated"
-
-  [[webhooks.subscriptions]]
-  topics = [ "subscription_billing_attempts/failure" ]
-  uri = "/webhooks/subscriptions/billing_failed"
-
-  [[webhooks.subscriptions]]
-  topics = [ "subscription_billing_attempts/success" ]
-  uri = "/webhooks/subscriptions/billing_success"
-
-  [[webhooks.subscriptions]]
-  topics = [ "subscription_contracts/cancel" ]
-  uri = "/webhooks/subscriptions/cancelled"
-
-  [[webhooks.subscriptions]]
-  topics = [ "subscription_contracts/create" ]
-  uri = "/webhooks/subscriptions/created"
-
-  [[webhooks.subscriptions]]
-  topics = [ "subscription_contracts/pause" ]
-  uri = "/webhooks/subscriptions/paused"
-
-  [[webhooks.subscriptions]]
-  topics = [ "subscription_contracts/update" ]
-  uri = "/webhooks/subscriptions/updated"
-
-  [[webhooks.subscriptions]]
   topics = [ "customers/create" ]
-  uri = "arn:aws:events:eu-north-1::event-source/aws.partner/shopify.com/275601129473/customers-create"
+  uri = "/webhooks/customers/create"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_customers,write_customers,read_orders,read_all_orders,write_store_credit_account_transactions,read_store_credit_accounts,write_app_proxy,write_products,read_products,write_purchase_options,read_purchase_options,read_publications"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
-
-[app_proxy]
-url = "https://rewardspro-shopify.vercel.app/api/proxy"
-subpath = "rewardspro"
-prefix = "apps"
+redirect_urls = ["https://rewardspro-production.vercel.app/auth/callback", "https://rewardspro-production.vercel.app/auth/shopify/callback", "https://rewardspro-production.vercel.app/api/auth/callback"]
 
 [pos]
 embedded = false

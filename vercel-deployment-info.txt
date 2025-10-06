@@ -1,5 +1,5 @@
 Vercel CLI 48.0.3
-Fetching deployment "rewardspro-production-nnwf.vercel.app" in cambridgetcgs-projects
+Fetching deployment "rewardspro-shopify.vercel.app" in cambridgetcgs-projects
 > Fetched deployment "rewardspro-production-orlqt7kv5-cambridgetcgs-projects.vercel.app" in cambridgetcgs-projects [399ms]
 
   General
