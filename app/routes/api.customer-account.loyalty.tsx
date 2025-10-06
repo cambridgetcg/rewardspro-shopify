@@ -70,15 +70,33 @@ function getTransactionDescription(transaction: any): string {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const startTime = Date.now();
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  console.log(`[${requestId}] ========== NEW REQUEST ==========`);
+  console.log(`[${requestId}] URL: ${request.url}`);
+  console.log(`[${requestId}] Method: ${request.method}`);
+  console.log(`[${requestId}] Headers:`, Object.fromEntries(request.headers.entries()));
 
   try {
     // Step 1: Validate session token from customer account extension
-    console.log("[Customer Account API] Authenticating request...");
+    console.log(`[${requestId}] Step 1: Authenticating request...`);
 
-    const authResult = await authenticate.public.customerAccount(request);
+    let authResult;
+    try {
+      authResult = await authenticate.public.customerAccount(request);
+      console.log(`[${requestId}] Auth result:`, JSON.stringify(authResult, null, 2));
+    } catch (authError: any) {
+      console.error(`[${requestId}] Authentication error:`, {
+        message: authError.message,
+        stack: authError.stack,
+        name: authError.name
+      });
+      throw authError;
+    }
 
     if (!authResult?.customer) {
-      console.log("[Customer Account API] Authentication failed - no customer");
+      console.error(`[${requestId}] Authentication failed - no customer in auth result`);
+      console.error(`[${requestId}] Auth result structure:`, JSON.stringify(authResult, null, 2));
       return json(
         { error: "Unauthorized", message: "Invalid session token" },
         {
@@ -92,7 +110,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const customerGid = authResult.customer.id;
     const shop = authResult.shop;
 
-    console.log(`[Customer Account API] Authenticated: ${customerGid} from ${shop}`);
+    console.log(`[${requestId}] Step 2: Authenticated successfully`);
+    console.log(`[${requestId}] Customer GID: ${customerGid}`);
+    console.log(`[${requestId}] Shop: ${shop}`);
 
     // Step 3: Rate limiting per customer
     const rateLimitKey = `customer-account:${shop}:${customerGid}`;
@@ -122,19 +142,40 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    console.log(`[Customer Account API] Looking up customer ${customerId} in shop ${shop}`);
+    console.log(`[${requestId}] Step 4: Extracted customer ID: ${customerId}`);
+    console.log(`[${requestId}] Step 5: Querying database for customer...`);
+    console.log(`[${requestId}] Query params:`, { shopifyCustomerId: customerId, shop });
 
     // Step 5: Fetch customer from database (scoped to shop!)
-    const customer = await db.customer.findFirst({
-      where: {
-        shopifyCustomerId: customerId,
-        shop: shop  // CRITICAL: Always scope to shop!
+    let customer;
+    try {
+      customer = await db.customer.findFirst({
+        where: {
+          shopifyCustomerId: customerId,
+          shop: shop  // CRITICAL: Always scope to shop!
+        }
+      });
+      console.log(`[${requestId}] Database query result:`, customer ? 'Customer found' : 'Customer not found');
+      if (customer) {
+        console.log(`[${requestId}] Customer details:`, {
+          id: customer.id,
+          email: customer.email,
+          storeCredit: customer.storeCredit,
+          currentTierId: customer.currentTierId
+        });
       }
-    });
+    } catch (dbError: any) {
+      console.error(`[${requestId}] Database query error:`, {
+        message: dbError.message,
+        stack: dbError.stack,
+        name: dbError.name
+      });
+      throw dbError;
+    }
 
     // Step 6: Handle non-enrolled customers
     if (!customer) {
-      console.log(`[Customer Account API] Customer ${customerId} not enrolled in ${shop}`);
+      console.log(`[${requestId}] Customer ${customerId} not enrolled in ${shop}`);
       return json(
         {
           success: true,
@@ -217,7 +258,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       currency: shopSettings?.storeCurrency || 'USD'
     };
 
-    console.log(`[Customer Account API] Success - returned data for ${customerId}`);
+    console.log(`[${requestId}] Step 11: Success - returning data`);
+    console.log(`[${requestId}] Response data:`, JSON.stringify(responseData, null, 2));
+    console.log(`[${requestId}] Response time: ${Date.now() - startTime}ms`);
+    console.log(`[${requestId}] ========== REQUEST COMPLETE ==========`);
 
     return json(responseData, {
       headers: {
@@ -228,7 +272,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
 
   } catch (error: any) {
-    console.error("[Customer Account API] Error:", error);
+    console.error(`[${requestId}] ========== ERROR ==========`);
+    console.error(`[${requestId}] Error type:`, error.constructor.name);
+    console.error(`[${requestId}] Error message:`, error.message);
+    console.error(`[${requestId}] Error stack:`, error.stack);
+    console.error(`[${requestId}] Error details:`, JSON.stringify(error, null, 2));
 
     // Check if error is from authentication
     if (error?.message?.includes('Unauthorized') || error?.status === 401) {
@@ -255,10 +303,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 // CORS headers for customer account extensions
 function getCorsHeaders() {
   return {
-    "Access-Control-Allow-Origin": "https://shopify.com",
+    // Allow both shopify.com and extensions.shopifycdn.com for customer account extensions
+    "Access-Control-Allow-Origin": "*", // Permissive for development; tighten in production if needed
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Max-Age": "86400"
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin" // Important for caching
   };
 }
 
