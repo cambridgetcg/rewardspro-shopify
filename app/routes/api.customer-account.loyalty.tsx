@@ -22,32 +22,30 @@
  */
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { authenticate } from "../shopify.server";
+import db from "../db.server";
 
-// Add early error logging
-console.log('[api.customer-account.loyalty] Module loading...');
+// Module initialization logging
+console.log('[INIT] api.customer-account.loyalty.tsx loading at', new Date().toISOString());
+console.log('[INIT] Environment:', {
+  NODE_ENV: process.env.NODE_ENV,
+  SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
+  AWS_REGION: process.env.AWS_REGION ? '✅ Set' : '❌ Missing',
+  AURORA_RESOURCE_ARN: process.env.AURORA_RESOURCE_ARN ? '✅ Set' : '❌ Missing',
+  AURORA_SECRET_ARN: process.env.AURORA_SECRET_ARN ? '✅ Set' : '❌ Missing',
+  AURORA_DATABASE_NAME: process.env.AURORA_DATABASE_NAME ? '✅ Set' : '❌ Missing',
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? '✅ Set' : '❌ Missing',
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? '✅ Set' : '❌ Missing'
+});
 
-let authenticate: any;
-let db: any;
-
-try {
-  console.log('[api.customer-account.loyalty] Importing authenticate...');
-  const shopifyModule = await import("../shopify.server");
-  authenticate = shopifyModule.authenticate;
-  console.log('[api.customer-account.loyalty] authenticate imported:', typeof authenticate);
-} catch (error: any) {
-  console.error('[api.customer-account.loyalty] FAILED to import authenticate:', error.message);
-  console.error('[api.customer-account.loyalty] Stack:', error.stack);
-}
-
-try {
-  console.log('[api.customer-account.loyalty] Importing db...');
-  const dbModule = await import("../db.server");
-  db = dbModule.default || dbModule.db;
-  console.log('[api.customer-account.loyalty] db imported:', typeof db);
-} catch (error: any) {
-  console.error('[api.customer-account.loyalty] FAILED to import db:', error.message);
-  console.error('[api.customer-account.loyalty] Stack:', error.stack);
-}
+// Check imports
+console.log('[INIT] Import check:', {
+  authenticate: typeof authenticate,
+  authenticatePublic: typeof authenticate?.public,
+  authenticateCustomerAccount: typeof authenticate?.public?.customerAccount,
+  db: typeof db,
+  dbCustomer: typeof db?.customer
+});
 
 // Rate limiting (simple in-memory, consider Redis for production)
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
@@ -96,17 +94,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  console.log(`[${requestId}] ========== NEW REQUEST ==========`);
+  console.log(`\n[${requestId}] ========== NEW REQUEST ==========`);
   console.log(`[${requestId}] URL: ${request.url}`);
   console.log(`[${requestId}] Method: ${request.method}`);
-  console.log(`[${requestId}] Headers:`, Object.fromEntries(request.headers.entries()));
 
-  // Check if required modules are loaded
-  console.log(`[${requestId}] Checking dependencies...`);
-  console.log(`[${requestId}] - authenticate available:`, typeof authenticate);
-  console.log(`[${requestId}] - db available:`, typeof db);
-  console.log(`[${requestId}] - authenticate.public available:`, typeof authenticate?.public);
-  console.log(`[${requestId}] - authenticate.public.customerAccount available:`, typeof authenticate?.public?.customerAccount);
+  // Log all headers for debugging
+  const headers = Object.fromEntries(request.headers.entries());
+  console.log(`[${requestId}] Headers:`, JSON.stringify(headers, null, 2));
+
+  // Check Authorization header specifically
+  const authHeader = request.headers.get('authorization');
+  console.log(`[${requestId}] Authorization header:`, authHeader ? `Bearer ${authHeader.substring(7, 27)}...` : 'MISSING');
+
+  // Error boundary for entire function
+  try {
+    // Check if required modules are loaded
+    console.log(`[${requestId}] Checking dependencies...`);
+
+    if (!authenticate) {
+      console.error(`[${requestId}] FATAL: authenticate is not defined`);
+      return json({ error: "Server configuration error", message: "Authentication module not loaded" }, { status: 500, headers: getCorsHeaders() });
+    }
+
+    if (!db) {
+      console.error(`[${requestId}] FATAL: db is not defined`);
+      return json({ error: "Server configuration error", message: "Database module not loaded" }, { status: 500, headers: getCorsHeaders() });
+    }
+
+    console.log(`[${requestId}] - authenticate type:`, typeof authenticate);
+    console.log(`[${requestId}] - authenticate.public type:`, typeof authenticate?.public);
+    console.log(`[${requestId}] - authenticate.public.customerAccount type:`, typeof authenticate?.public?.customerAccount);
+    console.log(`[${requestId}] - db type:`, typeof db);
 
   try {
     // Step 1: Validate session token from customer account extension
@@ -114,15 +132,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     let authResult;
     try {
+      // Check if authenticate.public exists
+      if (!authenticate.public) {
+        console.error(`[${requestId}] FATAL: authenticate.public is undefined`);
+        console.error(`[${requestId}] authenticate object keys:`, Object.keys(authenticate || {}));
+        return json({ error: "Configuration error", message: "Public authentication not available" }, { status: 500, headers: getCorsHeaders() });
+      }
+
+      // Check if authenticate.public.customerAccount exists
+      if (!authenticate.public.customerAccount) {
+        console.error(`[${requestId}] FATAL: authenticate.public.customerAccount is undefined`);
+        console.error(`[${requestId}] authenticate.public keys:`, Object.keys(authenticate.public || {}));
+        return json({ error: "Configuration error", message: "Customer account authentication not available" }, { status: 500, headers: getCorsHeaders() });
+      }
+
+      console.log(`[${requestId}] Calling authenticate.public.customerAccount...`);
       authResult = await authenticate.public.customerAccount(request);
-      console.log(`[${requestId}] Auth result:`, JSON.stringify(authResult, null, 2));
+      console.log(`[${requestId}] Auth result received`);
+      console.log(`[${requestId}] Auth result type:`, typeof authResult);
+      console.log(`[${requestId}] Auth result keys:`, authResult ? Object.keys(authResult) : 'null');
+      console.log(`[${requestId}] Auth result.customer:`, authResult?.customer ? 'Present' : 'Missing');
+      console.log(`[${requestId}] Auth result.shop:`, authResult?.shop || 'Missing');
     } catch (authError: any) {
-      console.error(`[${requestId}] Authentication error:`, {
-        message: authError.message,
-        stack: authError.stack,
-        name: authError.name
+      console.error(`[${requestId}] ========== AUTHENTICATION ERROR ==========`);
+      console.error(`[${requestId}] Error name:`, authError.name);
+      console.error(`[${requestId}] Error message:`, authError.message);
+      console.error(`[${requestId}] Error stack:`, authError.stack);
+      console.error(`[${requestId}] Full error object:`, JSON.stringify(authError, null, 2));
+
+      // Return specific error for authentication failures
+      return json({
+        error: "Authentication failed",
+        message: authError.message || "Unable to authenticate customer account session",
+        details: process.env.NODE_ENV === 'development' ? authError.stack : undefined
+      }, {
+        status: 401,
+        headers: getCorsHeaders()
       });
-      throw authError;
     }
 
     if (!authResult?.customer) {
@@ -303,11 +349,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
 
   } catch (error: any) {
-    console.error(`[${requestId}] ========== ERROR ==========`);
-    console.error(`[${requestId}] Error type:`, error.constructor.name);
-    console.error(`[${requestId}] Error message:`, error.message);
-    console.error(`[${requestId}] Error stack:`, error.stack);
-    console.error(`[${requestId}] Error details:`, JSON.stringify(error, null, 2));
+    console.error(`[${requestId}] ========== UNHANDLED ERROR ==========`);
+    console.error(`[${requestId}] Error type:`, error?.constructor?.name || 'Unknown');
+    console.error(`[${requestId}] Error message:`, error?.message || 'No message');
+    console.error(`[${requestId}] Error stack:`, error?.stack || 'No stack trace');
+
+    // Try to stringify the error object
+    try {
+      console.error(`[${requestId}] Error details:`, JSON.stringify(error, null, 2));
+    } catch (e) {
+      console.error(`[${requestId}] Error details: [Unable to stringify]`);
+    }
 
     // Check if error is from authentication
     if (error?.message?.includes('Unauthorized') || error?.status === 401) {
@@ -317,16 +369,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // Generic server error
+    // Generic server error with more details in development
     return json(
       {
         error: "Internal server error",
-        message: "Failed to load loyalty data"
+        message: error?.message || "Failed to load loyalty data",
+        details: process.env.NODE_ENV === 'development' ? {
+          type: error?.constructor?.name,
+          message: error?.message,
+          stack: error?.stack?.split('\n').slice(0, 5)
+        } : undefined
       },
       {
         status: 500,
         headers: getCorsHeaders()
       }
+    );
+  }
+  } catch (outerError: any) {
+    // Absolute failsafe - if even error handling fails
+    console.error(`[FATAL] Complete failure in loader:`, outerError);
+    return json(
+      { error: "Critical server error", message: "Request handler failed completely" },
+      { status: 500, headers: getCorsHeaders() }
     );
   }
 }
