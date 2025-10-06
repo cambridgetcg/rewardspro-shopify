@@ -87,7 +87,8 @@ export default defineConfig({
       "@react-spring/core",
       "@react-spring/shared",
       "@react-spring/web",
-      "@visx/xychart"
+      "@visx/xychart",
+      "@visx/vendor"
     ],
   },
 }) satisfies UserConfig;
