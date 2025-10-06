@@ -1,3 +1,21 @@
 {
-  "earnPoints": "Vous avez gagné 1,000 points avec cette commande. Vous avez été promu au niveau Platine."
+  "balance": {
+    "title": "Solde de récompenses",
+    "available": "Disponible à utiliser",
+    "totalEarned": "Total gagné: {amount}"
+  },
+  "tier": {
+    "earning": "Gagnez {percent}% de cashback sur vos achats"
+  },
+  "loading": {
+    "rewards": "Chargement de vos récompenses..."
+  },
+  "errors": {
+    "title": "Impossible de charger les récompenses",
+    "noData": "Aucune donnée de récompense disponible"
+  },
+  "notEnrolled": {
+    "title": "Rejoindre RewardsPro",
+    "message": "Commencez à gagner du cashback sur chaque achat"
+  }
 }
