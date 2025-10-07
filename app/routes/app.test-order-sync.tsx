@@ -65,6 +65,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // Step 1: Test GraphQL connection
       addLog("info", "STEP_1", "Testing GraphQL connection...");
+      addLog("info", "STEP_1", "Building test query to fetch shop information");
 
       const testQuery = `#graphql
         query {
@@ -76,30 +77,45 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       `;
 
+      addLog("info", "STEP_1", "Sending GraphQL request to Shopify Admin API");
+
       let shopData;
       try {
         const response = await admin.graphql(testQuery);
+        addLog("info", "STEP_1", "Received response from Shopify API");
+
         const result = await response.json();
+        addLog("info", "STEP_1", "Parsing JSON response");
+
         shopData = result.data?.shop;
 
         if (result.errors) {
-          addLog("error", "STEP_1", "GraphQL errors", result.errors);
+          addLog("error", "STEP_1", "GraphQL errors detected", result.errors);
           return json({ success: false, logs, error: "GraphQL connection failed" });
         }
 
-        addLog("success", "STEP_1", "GraphQL connection successful", shopData);
+        addLog("success", "STEP_1", "GraphQL connection successful - Shop data retrieved", shopData);
       } catch (error) {
-        addLog("error", "STEP_1", "GraphQL connection failed", error);
+        addLog("error", "STEP_1", "GraphQL connection failed with exception", error);
         return json({ success: false, logs, error: String(error) });
       }
 
       // Step 2: Build order query
       addLog("info", "STEP_2", "Building order query...");
+      addLog("info", "STEP_2", "Calculating date range (last 365 days)");
 
       const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // Last 1 year
       const endDate = new Date();
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
+
+      addLog("info", "STEP_2", "Date range calculated", {
+        startDate: startDateStr,
+        endDate: endDateStr,
+        daysAgo: 365
+      });
+
+      addLog("info", "STEP_2", "Building query filters for paid orders");
 
       const queryParts = [
         `created_at:>=${startDateStr}`,
@@ -108,10 +124,17 @@ export async function action({ request }: ActionFunctionArgs) {
       ];
       const query = queryParts.join(' AND ');
 
-      addLog("success", "STEP_2", "Query built", { query, startDate: startDateStr, endDate: endDateStr, rangeInDays: 365 });
+      addLog("success", "STEP_2", "Query built successfully", {
+        query,
+        startDate: startDateStr,
+        endDate: endDateStr,
+        rangeInDays: 365,
+        filters: queryParts
+      });
 
       // Step 3: Fetch first batch of orders
       addLog("info", "STEP_3", "Fetching first batch of orders (limit 10)...");
+      addLog("info", "STEP_3", "Preparing GraphQL orders query with all required fields");
 
       const ordersQuery = `#graphql
         query GetOrdersBatch($first: Int!, $query: String) {
@@ -193,27 +216,45 @@ export async function action({ request }: ActionFunctionArgs) {
 
       let ordersResult;
       try {
+        addLog("info", "STEP_3", "Sending orders query to Shopify API", {
+          limit: 10,
+          reverse: true,
+          queryFilter: query
+        });
+
         const response = await admin.graphql(ordersQuery, {
           variables: { first: 10, query }
         });
+
+        addLog("info", "STEP_3", "Received response from Shopify API");
         ordersResult = await response.json();
 
+        addLog("info", "STEP_3", "Parsing orders data from response");
+
         if (ordersResult.errors) {
-          addLog("error", "STEP_3", "Orders query failed", ordersResult.errors);
+          addLog("error", "STEP_3", "Orders query returned GraphQL errors", ordersResult.errors);
           return json({ success: false, logs, error: "Orders query failed" });
         }
 
         const orders = ordersResult.data?.orders?.edges || [];
         const pageInfo = ordersResult.data?.orders?.pageInfo || {};
 
-        addLog("success", "STEP_3", `Fetched ${orders.length} orders`, {
+        addLog("info", "STEP_3", "Extracting order data from edges", {
+          edgesFound: orders.length,
+          hasNextPage: pageInfo.hasNextPage,
+          endCursor: pageInfo.endCursor ? "present" : "none"
+        });
+
+        addLog("success", "STEP_3", `Successfully fetched ${orders.length} orders`, {
           orderCount: orders.length,
           hasNextPage: pageInfo.hasNextPage,
-          firstOrder: orders[0]?.node?.name
+          firstOrder: orders[0]?.node?.name,
+          lastOrder: orders[orders.length - 1]?.node?.name
         });
 
         // Step 4: Analyze orders
         addLog("info", "STEP_4", "Analyzing order data...");
+        addLog("info", "STEP_4", `Processing ${orders.length} orders to extract key information`);
 
         const orderSummaries = orders.map((edge: any) => {
           const order = edge.node;
@@ -231,25 +272,37 @@ export async function action({ request }: ActionFunctionArgs) {
           };
         });
 
-        addLog("success", "STEP_4", "Order analysis complete", {
+        addLog("info", "STEP_4", "Calculating statistics from order data");
+
+        const stats = {
           totalOrders: orderSummaries.length,
           ordersWithCustomers: orderSummaries.filter(o => o.hasCustomer).length,
           ordersWithoutCustomers: orderSummaries.filter(o => !o.hasCustomer).length,
+          totalValue: orderSummaries.reduce((sum, o) => sum + parseFloat(o.total), 0).toFixed(2),
+          averageOrderValue: (orderSummaries.reduce((sum, o) => sum + parseFloat(o.total), 0) / orderSummaries.length).toFixed(2)
+        };
+
+        addLog("success", "STEP_4", "Order analysis complete", {
+          ...stats,
           samples: orderSummaries.slice(0, 2)
         });
 
         // Step 5: Test customer lookup
         addLog("info", "STEP_5", "Testing customer lookup in database...");
+        addLog("info", "STEP_5", "Finding first order with customer data");
 
         const firstOrderWithCustomer = orderSummaries.find(o => o.customerId);
 
         if (firstOrderWithCustomer) {
           const shopifyCustomerId = firstOrderWithCustomer.customerId.replace('gid://shopify/Customer/', '');
 
-          addLog("info", "STEP_5", "Looking up customer", {
-            shopifyCustomerId,
-            shop: session.shop
+          addLog("info", "STEP_5", "Extracting Shopify customer ID", {
+            fullId: firstOrderWithCustomer.customerId,
+            numericId: shopifyCustomerId,
+            orderName: firstOrderWithCustomer.name
           });
+
+          addLog("info", "STEP_5", "Querying database for customer record");
 
           const { db } = await import("~/db.server");
 
@@ -265,14 +318,19 @@ export async function action({ request }: ActionFunctionArgs) {
 
           if (customer) {
             addLog("success", "STEP_5", "Customer found in database", {
+              customerId: customer.id,
               email: customer.email,
+              shopifyCustomerId: customer.shopifyCustomerId,
               hasTier: !!customer.currentTier,
-              tierName: customer.currentTier?.name
+              tierName: customer.currentTier?.name,
+              tierCashback: customer.currentTier?.cashbackPercent,
+              storeCredit: customer.storeCredit
             });
           } else {
             addLog("warning", "STEP_5", "Customer NOT found in database", {
               shopifyCustomerId,
-              suggestion: "Customer may need to be created first"
+              shop: session.shop,
+              suggestion: "Customer may need to be created via customer webhook or sync"
             });
           }
         } else {
@@ -281,10 +339,19 @@ export async function action({ request }: ActionFunctionArgs) {
 
         // Step 6: Test order creation (dry run)
         addLog("info", "STEP_6", "Testing order creation (dry run - no actual creation)...");
+        addLog("info", "STEP_6", "Checking if newest order exists in database");
 
         if (orders.length > 0) {
           const testOrder = orders[0].node;
           const shopifyOrderId = testOrder.id.replace('gid://shopify/Order/', '');
+
+          addLog("info", "STEP_6", "Extracting order ID", {
+            orderName: testOrder.name,
+            fullId: testOrder.id,
+            numericId: shopifyOrderId
+          });
+
+          addLog("info", "STEP_6", "Querying database for existing order");
 
           const { db } = await import("~/db.server");
 
@@ -299,23 +366,32 @@ export async function action({ request }: ActionFunctionArgs) {
             addLog("info", "STEP_6", "Order already exists in database", {
               orderName: testOrder.name,
               shopifyOrderId,
-              existingId: existingOrder.id
+              existingId: existingOrder.id,
+              createdAt: existingOrder.createdAt,
+              cashbackAmount: existingOrder.cashbackAmount
             });
           } else {
-            addLog("success", "STEP_6", "Order does NOT exist - would be created", {
+            addLog("success", "STEP_6", "Order does NOT exist - would be created in actual sync", {
               orderName: testOrder.name,
               shopifyOrderId,
-              totalPrice: testOrder.totalPrice,
-              customer: testOrder.customer?.email || 'Guest'
+              totalPrice: testOrder.totalPriceSet?.shopMoney?.amount,
+              currency: testOrder.currencyCode,
+              customer: testOrder.customer?.email || 'Guest',
+              status: testOrder.displayFinancialStatus
             });
           }
+        } else {
+          addLog("warning", "STEP_6", "No orders available to test");
         }
 
         // Step 7: Simulate order processing (dry run)
         addLog("info", "STEP_7", "Simulating order processing for first 5 orders (dry run)...");
+        addLog("info", "STEP_7", "This simulates full order sync logic without writing to database");
 
         const processedOrders = [];
         const ordersToProcess = orders.slice(0, 5); // Process first 5 orders
+
+        addLog("info", "STEP_7", `Processing ${ordersToProcess.length} orders with cashback calculation`);
 
         for (const edge of ordersToProcess) {
           const order = edge.node;
@@ -387,14 +463,22 @@ export async function action({ request }: ActionFunctionArgs) {
 
         // Step 8: Actually create earliest order in database (using same logic as sync service)
         addLog("info", "STEP_8", "Testing order creation - creating earliest order in database...");
+        addLog("info", "STEP_8", "⚠️ THIS STEP ACTUALLY WRITES TO DATABASE (not a dry run)");
 
         const earliestOrder = orders[orders.length - 1]?.node; // Last in array = earliest (reverse: true)
+
+        addLog("info", "STEP_8", "Selecting earliest order from batch", {
+          earliestOrderName: earliestOrder?.name,
+          totalOrdersInBatch: orders.length
+        });
 
         if (earliestOrder) {
           const shopifyOrderId = earliestOrder.id.replace('gid://shopify/Order/', '');
           const shopifyCustomerId = earliestOrder.customer?.id?.replace('gid://shopify/Customer/', '') || null;
 
           const { db } = await import("~/db.server");
+
+          addLog("info", "STEP_8", "Checking if order already exists in database");
 
           // Check if order already exists
           const existingOrder = await db.order.findFirst({
@@ -408,10 +492,17 @@ export async function action({ request }: ActionFunctionArgs) {
             addLog("warning", "STEP_8", "Order already exists in database, skipping creation", {
               orderName: earliestOrder.name,
               shopifyOrderId,
-              existingId: existingOrder.id
+              existingId: existingOrder.id,
+              existingCashback: existingOrder.cashbackAmount,
+              createdAt: existingOrder.createdAt
             });
           } else {
+            addLog("info", "STEP_8", "Order does not exist, proceeding with creation");
+
             // Find customer in database
+            addLog("info", "STEP_8", "Looking up customer in database", {
+              shopifyCustomerId: shopifyCustomerId || "none"
+            });
             let customer = null;
             if (shopifyCustomerId) {
               customer = await db.customer.findFirst({
@@ -432,20 +523,45 @@ export async function action({ request }: ActionFunctionArgs) {
             let tierNameAtOrder = null;
 
             if (customer?.currentTier) {
+              addLog("info", "STEP_8", "Customer has tier, calculating cashback", {
+                tierName: customer.currentTier.name,
+                cashbackPercent: customer.currentTier.cashbackPercent
+              });
+
               cashbackPercent = customer.currentTier.cashbackPercent;
               tierIdAtOrder = customer.currentTier.id;
               tierNameAtOrder = customer.currentTier.name;
 
               // Calculate cashback on net amount (after discounts, before tax/shipping)
-              const netAmount = parseFloat(earliestOrder.subtotalPriceSet?.shopMoney?.amount || "0") -
-                              parseFloat(earliestOrder.totalDiscountsSet?.shopMoney?.amount || "0");
+              const subtotal = parseFloat(earliestOrder.subtotalPriceSet?.shopMoney?.amount || "0");
+              const discounts = parseFloat(earliestOrder.totalDiscountsSet?.shopMoney?.amount || "0");
+              const netAmount = subtotal - discounts;
               cashbackAmount = (netAmount * cashbackPercent) / 100;
+
+              addLog("info", "STEP_8", "Cashback calculated", {
+                subtotal,
+                discounts,
+                netAmount,
+                cashbackPercent,
+                cashbackAmount: cashbackAmount.toFixed(2)
+              });
+            } else {
+              addLog("warning", "STEP_8", "Customer has no tier, cashback will be 0", {
+                hasCustomer: !!customer,
+                customerEmail: customer?.email
+              });
             }
 
             // Import uuid
             const { v4: uuidv4 } = await import("uuid");
             const orderId = uuidv4();
             const now = new Date();
+
+            addLog("info", "STEP_8", "Creating order record in database", {
+              orderId,
+              orderName: earliestOrder.name,
+              customerId: customer?.id || "unknown"
+            });
 
             // Create order (same logic as order-sync.service.ts lines 482-513)
             const createdOrder = await db.order.create({
