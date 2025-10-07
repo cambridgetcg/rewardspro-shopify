@@ -581,12 +581,45 @@ export class OrderSyncService {
           tierName: customer.currentTier?.name
         });
       } else {
-        console.log(`[PROCESS] ⚠️ Customer NOT found in database`, {
+        console.log(`[PROCESS] ⚠️ Customer NOT found in database, creating...`, {
           shopifyCustomerId
+        });
+
+        // Create the customer before creating the order
+        const customerId = uuidv4();
+        const now = new Date();
+
+        customer = await db.customer.create({
+          data: {
+            id: customerId,
+            shop: this.options.shop,
+            shopifyCustomerId,
+            email: order.customer?.email || order.email || "",
+            firstName: order.customer?.firstName || "",
+            lastName: order.customer?.lastName || "",
+            phone: order.customer?.phone || null,
+            totalSpent: parseFloat(order.customer?.amountSpent?.amount || "0"),
+            ordersCount: order.customer?.numberOfOrders || 0,
+            currentTierId: null,
+            lifetimeBalance: 0,
+            currentBalance: 0,
+            pendingBalance: 0,
+            createdAt: now,
+            updatedAt: now,
+          },
+          include: {
+            currentTier: true
+          }
+        });
+
+        console.log(`[PROCESS] ✅ Customer created:`, {
+          customerId: customer.id,
+          email: customer.email
         });
       }
     } else {
-      console.log(`[PROCESS] No customer ID for this order (guest checkout)`);
+      console.log(`[PROCESS] ⚠️ Skipping order - no customer ID (guest checkout)`);
+      return; // Skip guest checkout orders - can't track rewards without customer
     }
 
     // Calculate cashback if customer has a tier
@@ -626,7 +659,7 @@ export class OrderSyncService {
     console.log(`[PROCESS] Creating order record in database...`, {
       orderId,
       orderName: order.name,
-      customerId: customer?.id || "unknown",
+      customerId: customer.id,
       cashbackAmount
     });
 
@@ -637,7 +670,7 @@ export class OrderSyncService {
         shopifyOrderId,
         shopifyOrderNumber: order.name?.replace('#', '') || "",
         shopifyOrderName: order.name || "",
-        customerId: customer?.id || "unknown",
+        customerId: customer.id,
         email: order.email || customer?.email || "",
         currency: order.currencyCode || "USD",
         subtotalPrice: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0"),
