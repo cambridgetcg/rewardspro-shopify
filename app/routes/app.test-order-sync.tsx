@@ -96,7 +96,7 @@ export async function action({ request }: ActionFunctionArgs) {
       // Step 2: Build order query
       addLog("info", "STEP_2", "Building order query...");
 
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Last 30 days
+      const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000); // Last 1 year
       const endDate = new Date();
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
@@ -108,7 +108,7 @@ export async function action({ request }: ActionFunctionArgs) {
       ];
       const query = queryParts.join(' AND ');
 
-      addLog("success", "STEP_2", "Query built", { query, startDate: startDateStr, endDate: endDateStr });
+      addLog("success", "STEP_2", "Query built", { query, startDate: startDateStr, endDate: endDateStr, rangeInDays: 365 });
 
       // Step 3: Fetch first batch of orders
       addLog("info", "STEP_3", "Fetching first batch of orders (limit 5)...");
