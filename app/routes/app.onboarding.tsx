@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
+import { json as remixJson } from "@remix-run/node";
 import { useLoaderData, useNavigate, useSubmit, useActionData, useNavigation } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import {
@@ -61,43 +62,53 @@ function getMaxAllowedStep(onboarding: LoaderData["onboarding"]): number {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  console.log("[Onboarding Loader] Request received:", {
-    url: url.pathname + url.search,
-    method: request.method,
+  console.log("=".repeat(80));
+  console.log("[Onboarding Loader] ⚡ REQUEST RECEIVED");
+  console.log("[Onboarding Loader] URL:", url.pathname + url.search);
+  console.log("[Onboarding Loader] Method:", request.method);
+  console.log("[Onboarding Loader] Headers:", {
+    referer: request.headers.get("referer"),
+    host: request.headers.get("host"),
+    userAgent: request.headers.get("user-agent"),
   });
+  console.log("=".repeat(80));
 
   try {
+    console.log("[Onboarding Loader] 🔐 Starting authentication...");
     const { session } = await authenticate.admin(request);
     const shop = session.shop;
-    console.log("[Onboarding Loader] Authenticated for shop:", shop);
+    console.log("[Onboarding Loader] ✅ Authentication successful");
+    console.log("[Onboarding Loader] Shop:", shop);
 
     // Fetch onboarding status
+    console.log("[Onboarding Loader] 📊 Fetching shop settings...");
     const shopSettings = await db.shopSettings.findUnique({
       where: { shop },
-      select: {
-        onboardingSyncedOrders: true,
-        onboardingCreatedTiers: true,
-        onboardingSyncedCustomers: true,
-        onboardingConfiguredSettings: true,
-        onboardingCompleted: true,
-        onboardingDismissed: true,
-        storeCurrency: true,
-        storeName: true,
-      },
+    });
+    console.log("[Onboarding Loader] Shop settings:", {
+      found: !!shopSettings,
+      completed: shopSettings?.onboardingCompleted,
+      dismissed: shopSettings?.onboardingDismissed,
+      syncedCustomers: shopSettings?.onboardingSyncedCustomers,
+      createdTiers: shopSettings?.onboardingCreatedTiers,
+      syncedOrders: shopSettings?.onboardingSyncedOrders,
+      configuredSettings: shopSettings?.onboardingConfiguredSettings,
     });
 
     // Redirect to dashboard if onboarding is completed or dismissed
     if (shopSettings?.onboardingCompleted || shopSettings?.onboardingDismissed) {
-      console.log("[Onboarding Loader] Onboarding already completed/dismissed, redirecting to /app");
+      console.log("[Onboarding Loader] 🔄 Redirecting to /app (completed or dismissed)");
       return redirect("/app");
     }
 
     // Get counts for display
+    console.log("[Onboarding Loader] 📈 Fetching counts...");
     const [orderCount, tierCount, customerCount] = await Promise.all([
       db.order.count({ where: { shop } }),
       db.tier.count({ where: { shop } }),
       db.customer.count({ where: { shop } }),
     ]);
+    console.log("[Onboarding Loader] Counts:", { orders: orderCount, tiers: tierCount, customers: customerCount });
 
     const onboarding = {
       syncedOrders: shopSettings?.onboardingSyncedOrders || false,
@@ -109,26 +120,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Calculate max allowed step based on completion
     const maxAllowedStep = getMaxAllowedStep(onboarding);
+    console.log("[Onboarding Loader] 🎯 Max allowed step:", maxAllowedStep);
 
     // Determine current step from URL or from completion status
     const stepParam = url.searchParams.get("step");
     let currentStep = 0; // Default to welcome screen
+    console.log("[Onboarding Loader] Step parameter from URL:", stepParam);
 
     if (stepParam) {
       const requestedStep = parseInt(stepParam, 10);
+      console.log("[Onboarding Loader] Requested step (parsed):", requestedStep);
+
       // Enforce step gating - can't skip ahead
       if (requestedStep >= 0 && requestedStep <= 4) {
         currentStep = Math.min(requestedStep, maxAllowedStep);
+        console.log("[Onboarding Loader] Current step set to:", currentStep);
 
         // If user tried to skip ahead, redirect to max allowed step
         if (requestedStep > maxAllowedStep) {
-          console.log("[Onboarding Loader] User tried to skip ahead, redirecting to step:", maxAllowedStep);
+          console.log("[Onboarding Loader] ⚠️  User tried to skip ahead!");
+          console.log("[Onboarding Loader] 🔄 Redirecting to step:", maxAllowedStep);
           return redirect(`/app/onboarding?step=${maxAllowedStep}`);
         }
+      } else {
+        console.log("[Onboarding Loader] ⚠️  Invalid step parameter, defaulting to 0");
       }
+    } else {
+      console.log("[Onboarding Loader] No step parameter, showing welcome screen (step 0)");
     }
 
-    console.log("[Onboarding Loader] Current step:", currentStep, "Max allowed:", maxAllowedStep);
+    console.log("[Onboarding Loader] 📍 Final current step:", currentStep);
 
     const responseData = {
       shop,
@@ -146,9 +167,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       maxAllowedStep,
     };
 
-    return json<LoaderData>(responseData);
+    console.log("[Onboarding Loader] 📦 Response data prepared:");
+    console.log(JSON.stringify(responseData, null, 2));
+    console.log("[Onboarding Loader] ✅ Successfully returning data");
+    console.log("=".repeat(80));
+    return remixJson<LoaderData>(responseData);
   } catch (error) {
+    console.error("=".repeat(80));
+    console.error("[Onboarding Loader] ❌ ERROR OCCURRED");
     console.error("[Onboarding Loader] Error:", error);
+    console.error("[Onboarding Loader] Error name:", error instanceof Error ? error.name : 'Unknown');
+    console.error("[Onboarding Loader] Error message:", error instanceof Error ? error.message : 'No message');
+    console.error("[Onboarding Loader] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    console.error("=".repeat(80));
     throw error;
   }
 };
@@ -168,7 +199,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       case "start-onboarding": {
         console.log("[Onboarding Action] Starting onboarding");
         // Just navigate to step 1
-        return json({ success: true, nextStep: 1 });
+        return remixJson({ success: true, nextStep: 1 });
       }
 
       case "dismiss-onboarding": {
@@ -190,13 +221,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
         // Validate inputs
         if (!name || name.trim().length === 0) {
-          return json({ success: false, error: "Please enter a tier name" }, { status: 400 });
+          return remixJson({ success: false, error: "Please enter a tier name" }, { status: 400 });
         }
         if (isNaN(minSpend) || minSpend < 0) {
-          return json({ success: false, error: "Please enter a valid minimum spend amount" }, { status: 400 });
+          return remixJson({ success: false, error: "Please enter a valid minimum spend amount" }, { status: 400 });
         }
         if (isNaN(cashbackPercent) || cashbackPercent < 0 || cashbackPercent > 100) {
-          return json({ success: false, error: "Please enter a valid cashback percentage (0-100)" }, { status: 400 });
+          return remixJson({ success: false, error: "Please enter a valid cashback percentage (0-100)" }, { status: 400 });
         }
 
         // Check for duplicate tier name
@@ -205,7 +236,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         if (existing) {
-          return json({ success: false, error: `A tier named "${name}" already exists` }, { status: 400 });
+          return remixJson({ success: false, error: `A tier named "${name}" already exists` }, { status: 400 });
         }
 
         // Create tier ID
@@ -233,7 +264,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         console.log("[Onboarding Action] Tier created successfully");
-        return json({ success: true, message: "Tier created successfully!" });
+        return remixJson({ success: true, message: "Tier created successfully!" });
       }
 
       case "save-settings": {
@@ -243,7 +274,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.log("[Onboarding Action] Saving settings:", { currency, storeName });
 
         if (!storeName || !storeName.trim()) {
-          return json({ success: false, error: "Please enter your store name" }, { status: 400 });
+          return remixJson({ success: false, error: "Please enter your store name" }, { status: 400 });
         }
 
         await db.shopSettings.update({
@@ -257,16 +288,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         console.log("[Onboarding Action] Settings saved, onboarding complete");
-        return json({ success: true, completed: true });
+        return remixJson({ success: true, completed: true });
       }
 
       default:
         console.log("[Onboarding Action] Invalid action:", actionType);
-        return json({ success: false, error: "Invalid action" }, { status: 400 });
+        return remixJson({ success: false, error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
     console.error("[Onboarding Action] Error:", error);
-    return json({ success: false, error: "Action failed" }, { status: 500 });
+    return remixJson({ success: false, error: "Action failed" }, { status: 500 });
   }
 };
 
@@ -429,7 +460,7 @@ export default function OnboardingPage() {
                       Step {data.currentStep} of {totalSteps}
                     </Text>
                     <Badge tone="info">
-                      {Math.round(progress)}% Complete
+                      {Math.round(progress).toString()}% Complete
                     </Badge>
                   </InlineStack>
                   <ProgressBar
