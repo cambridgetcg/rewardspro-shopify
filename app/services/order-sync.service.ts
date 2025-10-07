@@ -231,10 +231,7 @@ export class OrderSyncService {
    * Sync all orders from Shopify to local database
    */
   async syncAllOrders(): Promise<OrderSyncResult> {
-    console.log("========================================");
-    console.log("ORDER SYNC SERVICE - START");
-    console.log("========================================");
-
+    console.log("[Order Sync] Starting sync service");
     this.startTime = Date.now();
 
     const progress: OrderSyncProgress = {
@@ -249,18 +246,7 @@ export class OrderSyncService {
     };
 
     try {
-      console.log("[SYNC] Initializing sync service");
-      console.log("[SYNC] Options:", {
-        shop: this.options.shop,
-        batchSize: this.options.batchSize,
-        maxRetries: this.options.maxRetries,
-        maxExecutionTime: this.options.maxExecutionTime,
-        startDate: this.options.startDate,
-        endDate: this.options.endDate
-      });
-
       // Build query filter for date range and status
-      console.log("[SYNC] Building query filter...");
       const queryParts: string[] = [];
 
       // Add date filter
@@ -273,8 +259,7 @@ export class OrderSyncService {
       queryParts.push(`financial_status:paid OR financial_status:partially_refunded OR financial_status:refunded`);
 
       const query = queryParts.join(' AND ');
-      console.log(`[SYNC] Query built: ${query}`);
-      console.log(`[SYNC] Date range: ${startDateStr} to ${endDateStr}`);
+      console.log(`[Order Sync] Date range: ${startDateStr} to ${endDateStr}, batch size: ${this.options.batchSize}`);
 
       let cursor: string | null = null;
       let hasNextPage = true;
