@@ -311,8 +311,82 @@ export async function action({ request }: ActionFunctionArgs) {
           }
         }
 
-        // Step 7: Rate limit check
-        addLog("info", "STEP_7", "Checking API rate limit status...");
+        // Step 7: Simulate order processing (dry run)
+        addLog("info", "STEP_7", "Simulating order processing for first 5 orders (dry run)...");
+
+        const processedOrders = [];
+        const ordersToProcess = orders.slice(0, 5); // Process first 5 orders
+
+        for (const edge of ordersToProcess) {
+          const order = edge.node;
+          const shopifyOrderId = order.id.replace('gid://shopify/Order/', '');
+          const shopifyCustomerId = order.customer?.id?.replace('gid://shopify/Customer/', '') || null;
+
+          // Look up customer in database
+          let customer = null;
+          if (shopifyCustomerId) {
+            const { db } = await import("~/db.server");
+            customer = await db.customer.findFirst({
+              where: {
+                shop: session.shop,
+                shopifyCustomerId
+              },
+              include: {
+                currentTier: true
+              }
+            });
+          }
+
+          // Calculate cashback (same logic as order-sync.service.ts)
+          let cashbackPercent = 0;
+          let cashbackAmount = 0;
+          let tierInfo = null;
+
+          if (customer?.currentTier) {
+            cashbackPercent = customer.currentTier.cashbackPercent;
+            const netAmount = parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0") -
+                            parseFloat(order.totalDiscountsSet?.shopMoney?.amount || "0");
+            cashbackAmount = (netAmount * cashbackPercent) / 100;
+            tierInfo = {
+              tierName: customer.currentTier.name,
+              cashbackPercent
+            };
+          }
+
+          // Build what would be saved to database
+          const orderRecord = {
+            shopifyOrderId,
+            shopifyOrderName: order.name,
+            customerId: customer?.id || "unknown",
+            customerEmail: order.email || customer?.email || "",
+            hasTier: !!customer?.currentTier,
+            tierInfo,
+            currency: order.currencyCode,
+            subtotalPrice: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0"),
+            totalDiscounts: parseFloat(order.totalDiscountsSet?.shopMoney?.amount || "0"),
+            totalPrice: parseFloat(order.totalPriceSet?.shopMoney?.amount || "0"),
+            netAmount: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0") -
+                      parseFloat(order.totalDiscountsSet?.shopMoney?.amount || "0"),
+            cashbackPercent,
+            cashbackAmount,
+            cashbackProcessed: false,
+            financialStatus: order.displayFinancialStatus,
+            lineItemCount: order.lineItems?.edges?.length || 0
+          };
+
+          processedOrders.push(orderRecord);
+        }
+
+        addLog("success", "STEP_7", "Order processing simulation complete", {
+          ordersProcessed: processedOrders.length,
+          ordersWithTiers: processedOrders.filter(o => o.hasTier).length,
+          ordersWithoutTiers: processedOrders.filter(o => !o.hasTier).length,
+          totalCashbackWouldBeEarned: processedOrders.reduce((sum, o) => sum + o.cashbackAmount, 0).toFixed(2),
+          samples: processedOrders.slice(0, 2)
+        });
+
+        // Step 8: Rate limit check
+        addLog("info", "STEP_8", "Checking API rate limit status...");
 
         try {
           const rateLimitQuery = `#graphql
@@ -330,17 +404,17 @@ export async function action({ request }: ActionFunctionArgs) {
           // Check response headers for rate limit info
           const costHeader = response.headers.get('X-Shopify-Shop-Api-Call-Limit');
 
-          addLog("success", "STEP_7", "Rate limit check complete", {
+          addLog("success", "STEP_8", "Rate limit check complete", {
             requestDuration: `${duration}ms`,
             rateLimitInfo: costHeader || 'Not available'
           });
         } catch (error) {
-          addLog("error", "STEP_7", "Rate limit check failed", error);
+          addLog("error", "STEP_8", "Rate limit check failed", error);
         }
 
         // Final summary
         addLog("success", "COMPLETE", "Test completed successfully", {
-          totalSteps: 7,
+          totalSteps: 8,
           ordersFound: orders.length,
           readyForSync: orders.length > 0
         });
@@ -434,12 +508,13 @@ export default function TestOrderSyncPage() {
               <BlockStack gap="200">
                 <Text as="p" variant="bodyMd" fontWeight="semibold">Test Steps:</Text>
                 <Text as="p">1. Test GraphQL connection</Text>
-                <Text as="p">2. Build order query (last 30 days)</Text>
-                <Text as="p">3. Fetch first 5 orders</Text>
+                <Text as="p">2. Build order query (last 1 year)</Text>
+                <Text as="p">3. Fetch first 10 orders</Text>
                 <Text as="p">4. Analyze order data</Text>
                 <Text as="p">5. Test customer lookup</Text>
                 <Text as="p">6. Test order creation (dry run)</Text>
-                <Text as="p">7. Check API rate limits</Text>
+                <Text as="p">7. Simulate order processing with cashback calculation</Text>
+                <Text as="p">8. Check API rate limits</Text>
               </BlockStack>
             </BlockStack>
           </Box>
