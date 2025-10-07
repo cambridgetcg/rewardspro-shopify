@@ -48,6 +48,7 @@ import {
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount } from "~/utils/order-count-strategies";
+import { OnboardingChecklist } from "~/components/OnboardingChecklist";
 
 // ============================================
 // CONSTANTS
@@ -211,6 +212,15 @@ interface DashboardData {
   } | null;
   currentMonth: string;
   daysRemaining: number;
+  // Onboarding data
+  onboarding: {
+    syncedOrders: boolean;
+    createdTiers: boolean;
+    syncedCustomers: boolean;
+    configuredSettings: boolean;
+    completed: boolean;
+    dismissed: boolean;
+  };
 }
 
 // ============================================
@@ -299,6 +309,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ]);
 
     console.log(`[Dashboard] Fetched data - Customers: ${customers.length}, Tiers: ${tiers.length}, Transactions: ${recentTransactions.length}`);
+
+    // Check and update onboarding progress based on actual data
+    if (shopSettings && !shopSettings.onboardingCompleted) {
+      const { updateOnboardingProgress } = await import("~/utils/onboarding");
+
+      // Check if orders exist
+      if (!shopSettings.onboardingSyncedOrders) {
+        const orderCount = await db.order.count({ where: { shop } });
+        if (orderCount > 0) {
+          await updateOnboardingProgress(shop, { syncedOrders: true });
+        }
+      }
+
+      // Check if tiers exist
+      if (!shopSettings.onboardingCreatedTiers && tiers.length > 0) {
+        await updateOnboardingProgress(shop, { createdTiers: true });
+      }
+
+      // Check if customers exist
+      if (!shopSettings.onboardingSyncedCustomers && customers.length > 0) {
+        await updateOnboardingProgress(shop, { syncedCustomers: true });
+      }
+
+      // Check if settings are configured
+      if (!shopSettings.onboardingConfiguredSettings && shopSettings.storeCurrency && shopSettings.storeName) {
+        await updateOnboardingProgress(shop, { configuredSettings: true });
+      }
+    }
 
     // Calculate metrics
     const totalCustomers = customers.length;
@@ -517,6 +555,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       monthlyOrderUsage,
       currentMonth,
       daysRemaining,
+      // Onboarding data
+      onboarding: {
+        syncedOrders: shopSettings?.onboardingSyncedOrders || false,
+        createdTiers: shopSettings?.onboardingCreatedTiers || false,
+        syncedCustomers: shopSettings?.onboardingSyncedCustomers || false,
+        configuredSettings: shopSettings?.onboardingConfiguredSettings || false,
+        completed: shopSettings?.onboardingCompleted || false,
+        dismissed: shopSettings?.onboardingDismissed || false,
+      },
     };
 
     console.log(`[Dashboard] Returning data for ${shop}`);
@@ -525,6 +572,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("[Dashboard] Loader error:", error);
     throw new Response("Failed to load dashboard data", { status: 500 });
   }
+};
+
+// ============================================
+// ACTION - Handle onboarding dismiss
+// ============================================
+
+export const action = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  const formData = await request.formData();
+  const actionType = formData.get("action");
+
+  if (actionType === "dismiss-onboarding") {
+    try {
+      await db.shopSettings.update({
+        where: { shop },
+        data: {
+          onboardingDismissed: true,
+        },
+      });
+
+      return json({ success: true });
+    } catch (error) {
+      console.error("[Dashboard] Error dismissing onboarding:", error);
+      return json({ success: false, error: "Failed to dismiss onboarding" }, { status: 500 });
+    }
+  }
+
+  return json({ success: false, error: "Invalid action" }, { status: 400 });
 };
 
 // ============================================
@@ -614,6 +691,20 @@ export default function Dashboard() {
       ]}
     >
       <Layout>
+        {/* Onboarding Checklist */}
+        {!data.onboarding.completed && !data.onboarding.dismissed && (
+          <Layout.Section>
+            <OnboardingChecklist
+              onboardingSyncedOrders={data.onboarding.syncedOrders}
+              onboardingCreatedTiers={data.onboarding.createdTiers}
+              onboardingSyncedCustomers={data.onboarding.syncedCustomers}
+              onboardingConfiguredSettings={data.onboarding.configuredSettings}
+              onboardingCompleted={data.onboarding.completed}
+              onboardingDismissed={data.onboarding.dismissed}
+            />
+          </Layout.Section>
+        )}
+
         {/* Key Metrics Overview */}
         <Layout.Section>
           <StatsOverview
