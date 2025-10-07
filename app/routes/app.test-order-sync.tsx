@@ -385,8 +385,121 @@ export async function action({ request }: ActionFunctionArgs) {
           samples: processedOrders.slice(0, 2)
         });
 
-        // Step 8: Rate limit check
-        addLog("info", "STEP_8", "Checking API rate limit status...");
+        // Step 8: Actually create earliest order in database (using same logic as sync service)
+        addLog("info", "STEP_8", "Testing order creation - creating earliest order in database...");
+
+        const earliestOrder = orders[orders.length - 1]?.node; // Last in array = earliest (reverse: true)
+
+        if (earliestOrder) {
+          const shopifyOrderId = earliestOrder.id.replace('gid://shopify/Order/', '');
+          const shopifyCustomerId = earliestOrder.customer?.id?.replace('gid://shopify/Customer/', '') || null;
+
+          const { db } = await import("~/db.server");
+
+          // Check if order already exists
+          const existingOrder = await db.order.findFirst({
+            where: {
+              shop: session.shop,
+              shopifyOrderId
+            }
+          });
+
+          if (existingOrder) {
+            addLog("warning", "STEP_8", "Order already exists in database, skipping creation", {
+              orderName: earliestOrder.name,
+              shopifyOrderId,
+              existingId: existingOrder.id
+            });
+          } else {
+            // Find customer in database
+            let customer = null;
+            if (shopifyCustomerId) {
+              customer = await db.customer.findFirst({
+                where: {
+                  shop: session.shop,
+                  shopifyCustomerId
+                },
+                include: {
+                  currentTier: true
+                }
+              });
+            }
+
+            // Calculate cashback (same logic as order-sync.service.ts lines 462-476)
+            let cashbackPercent = 0;
+            let cashbackAmount = 0;
+            let tierIdAtOrder = null;
+            let tierNameAtOrder = null;
+
+            if (customer?.currentTier) {
+              cashbackPercent = customer.currentTier.cashbackPercent;
+              tierIdAtOrder = customer.currentTier.id;
+              tierNameAtOrder = customer.currentTier.name;
+
+              // Calculate cashback on net amount (after discounts, before tax/shipping)
+              const netAmount = parseFloat(earliestOrder.subtotalPriceSet?.shopMoney?.amount || "0") -
+                              parseFloat(earliestOrder.totalDiscountsSet?.shopMoney?.amount || "0");
+              cashbackAmount = (netAmount * cashbackPercent) / 100;
+            }
+
+            // Import uuid
+            const { v4: uuidv4 } = await import("uuid");
+            const orderId = uuidv4();
+            const now = new Date();
+
+            // Create order (same logic as order-sync.service.ts lines 482-513)
+            const createdOrder = await db.order.create({
+              data: {
+                id: orderId,
+                shop: session.shop,
+                shopifyOrderId,
+                shopifyOrderNumber: earliestOrder.name?.replace('#', '') || "",
+                shopifyOrderName: earliestOrder.name || "",
+                customerId: customer?.id || "unknown",
+                email: earliestOrder.email || customer?.email || "",
+                currency: earliestOrder.currencyCode || "USD",
+                subtotalPrice: parseFloat(earliestOrder.subtotalPriceSet?.shopMoney?.amount || "0"),
+                totalDiscounts: parseFloat(earliestOrder.totalDiscountsSet?.shopMoney?.amount || "0"),
+                totalShipping: parseFloat(earliestOrder.totalShippingPriceSet?.shopMoney?.amount || "0"),
+                totalTax: parseFloat(earliestOrder.totalTaxSet?.shopMoney?.amount || "0"),
+                totalPrice: parseFloat(earliestOrder.totalPriceSet?.shopMoney?.amount || "0"),
+                totalRefunded: parseFloat(earliestOrder.totalRefundedSet?.shopMoney?.amount || "0"),
+                netAmount: parseFloat(earliestOrder.netPaymentSet?.shopMoney?.amount || earliestOrder.totalPriceSet?.shopMoney?.amount || "0"),
+                financialStatus: earliestOrder.displayFinancialStatus || "PENDING",
+                fulfillmentStatus: earliestOrder.displayFulfillmentStatus || null,
+                cashbackEligible: true,
+                cashbackPercent,
+                cashbackAmount,
+                cashbackProcessed: false,
+                tierIdAtOrder,
+                tierNameAtOrder,
+                shopifyCreatedAt: new Date(earliestOrder.createdAt),
+                shopifyUpdatedAt: new Date(earliestOrder.updatedAt),
+                processedAt: earliestOrder.processedAt ? new Date(earliestOrder.processedAt) : null,
+                createdAt: now,
+                updatedAt: now
+              }
+            });
+
+            addLog("success", "STEP_8", "Successfully created order in database!", {
+              orderId: createdOrder.id,
+              orderName: earliestOrder.name,
+              shopifyOrderId,
+              customerId: customer?.id || "unknown",
+              customerEmail: earliestOrder.email,
+              hasTier: !!customer?.currentTier,
+              tierName: tierNameAtOrder,
+              totalPrice: parseFloat(earliestOrder.totalPriceSet?.shopMoney?.amount || "0"),
+              cashbackAmount,
+              cashbackPercent
+            });
+          }
+        } else {
+          addLog("warning", "STEP_8", "No orders available to create");
+        }
+
+        // Step 9: Rate limit check
+        addLog("info", "STEP_9", "Checking API rate limit status...");
 
         try {
           const rateLimitQuery = `#graphql
@@ -404,17 +517,17 @@ export async function action({ request }: ActionFunctionArgs) {
           // Check response headers for rate limit info
           const costHeader = response.headers.get('X-Shopify-Shop-Api-Call-Limit');
 
-          addLog("success", "STEP_8", "Rate limit check complete", {
+          addLog("success", "STEP_9", "Rate limit check complete", {
             requestDuration: `${duration}ms`,
             rateLimitInfo: costHeader || 'Not available'
           });
         } catch (error) {
-          addLog("error", "STEP_8", "Rate limit check failed", error);
+          addLog("error", "STEP_9", "Rate limit check failed", error);
         }
 
         // Final summary
         addLog("success", "COMPLETE", "Test completed successfully", {
-          totalSteps: 8,
+          totalSteps: 9,
           ordersFound: orders.length,
           readyForSync: orders.length > 0
         });
@@ -514,7 +627,8 @@ export default function TestOrderSyncPage() {
                 <Text as="p">5. Test customer lookup</Text>
                 <Text as="p">6. Test order creation (dry run)</Text>
                 <Text as="p">7. Simulate order processing with cashback calculation</Text>
-                <Text as="p">8. Check API rate limits</Text>
+                <Text as="p">8. Actually create earliest order in database</Text>
+                <Text as="p">9. Check API rate limits</Text>
               </BlockStack>
             </BlockStack>
           </Box>
