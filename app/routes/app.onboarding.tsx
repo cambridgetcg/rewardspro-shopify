@@ -158,6 +158,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const name = formData.get("tierName") as string;
         const minSpend = parseFloat(formData.get("tierMinSpend") as string);
         const cashbackPercent = parseFloat(formData.get("tierCashback") as string);
+        const evaluationPeriod = (formData.get("tierEvaluationPeriod") as string) || "ANNUAL";
 
         // Validate inputs
         if (!name || name.trim() === "") {
@@ -169,6 +170,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (isNaN(cashbackPercent) || cashbackPercent < 0 || cashbackPercent > 100) {
           return json({ success: false, error: "Please enter a valid cashback percentage (0-100)" }, { status: 400 });
         }
+        if (evaluationPeriod !== "ANNUAL" && evaluationPeriod !== "LIFETIME") {
+          return json({ success: false, error: "Invalid evaluation period" }, { status: 400 });
+        }
 
         // Create the tier
         await db.tier.create({
@@ -177,7 +181,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             name: name.trim(),
             minSpend,
             cashbackPercent,
-            evaluationPeriod: "LIFETIME",
+            evaluationPeriod: evaluationPeriod as "ANNUAL" | "LIFETIME",
             active: true,
           },
         });
@@ -210,6 +214,7 @@ export default function OnboardingPage() {
   const [tierName, setTierName] = useState("");
   const [tierMinSpend, setTierMinSpend] = useState("0");
   const [tierCashback, setTierCashback] = useState("5");
+  const [tierEvaluationPeriod, setTierEvaluationPeriod] = useState<"ANNUAL" | "LIFETIME">("ANNUAL");
 
   const totalSteps = 4;
   const progress = (data.currentStep / totalSteps) * 100;
@@ -241,6 +246,7 @@ export default function OnboardingPage() {
     formData.append("tierName", tierName);
     formData.append("tierMinSpend", tierMinSpend);
     formData.append("tierCashback", tierCashback);
+    formData.append("tierEvaluationPeriod", tierEvaluationPeriod);
     submit(formData, { method: "post" });
   };
 
@@ -440,6 +446,17 @@ export default function OnboardingPage() {
                             suffix="%"
                             helpText="Percentage of order value customers earn as store credit"
                             autoComplete="off"
+                          />
+
+                          <Select
+                            label="Evaluation Period"
+                            options={[
+                              { label: "Annual (resets yearly)", value: "ANNUAL" },
+                              { label: "Lifetime (cumulative)", value: "LIFETIME" },
+                            ]}
+                            value={tierEvaluationPeriod}
+                            onChange={(value) => setTierEvaluationPeriod(value as "ANNUAL" | "LIFETIME")}
+                            helpText="Annual resets customer spending each year, Lifetime tracks total spending forever"
                           />
 
                           <InlineStack align="start">
