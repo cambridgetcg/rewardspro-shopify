@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit } from "@remix-run/react";
-import { useState } from "react";
+import { useLoaderData, useNavigate, useSubmit, useActionData, useNavigation } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -219,17 +219,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function OnboardingPage() {
   const data = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
   const navigate = useNavigate();
   const submit = useSubmit();
   const [currency, setCurrency] = useState(data.settings.storeCurrency || "USD");
   const [storeName, setStoreName] = useState(data.settings.storeName || "");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Tier form state
   const [tierName, setTierName] = useState("");
   const [tierMinSpend, setTierMinSpend] = useState("0");
   const [tierCashback, setTierCashback] = useState("5");
   const [tierEvaluationPeriod, setTierEvaluationPeriod] = useState<"ANNUAL" | "LIFETIME">("ANNUAL");
+
+  const isSubmitting = navigation.state === "submitting";
+
+  // Handle action response for tier creation
+  useEffect(() => {
+    if (actionData && "success" in actionData) {
+      if (actionData.success) {
+        setSuccessMessage(actionData.message || "Tier created successfully");
+        setErrorMessage(null);
+        // Reset form
+        setTierName("");
+        setTierMinSpend("0");
+        setTierCashback("5");
+        setTierEvaluationPeriod("ANNUAL");
+        // Navigate to refresh the page data without a full reload
+        setTimeout(() => {
+          navigate("/app/onboarding?step=2", { replace: true });
+        }, 1500);
+      } else {
+        setErrorMessage(actionData.error || "Failed to create tier");
+        setSuccessMessage(null);
+      }
+    }
+  }, [actionData, navigate]);
 
   const totalSteps = 4;
   const progress = (data.currentStep / totalSteps) * 100;
@@ -252,10 +279,11 @@ export default function OnboardingPage() {
 
   const handleCreateTier = () => {
     if (!tierName.trim()) {
-      alert("Please enter a tier name");
+      setErrorMessage("Please enter a tier name");
       return;
     }
-    setIsSubmitting(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
     const formData = new FormData();
     formData.append("action", "create-tier");
     formData.append("tierName", tierName);
@@ -267,10 +295,10 @@ export default function OnboardingPage() {
 
   const handleSaveSettings = () => {
     if (!storeName.trim()) {
-      alert("Please enter your store name");
+      setErrorMessage("Please enter your store name");
       return;
     }
-    setIsSubmitting(true);
+    setErrorMessage(null);
     const formData = new FormData();
     formData.append("action", "save-settings");
     formData.append("currency", currency);
@@ -421,6 +449,22 @@ export default function OnboardingPage() {
                     </Banner>
                   ) : (
                     <>
+                      {successMessage && (
+                        <Banner tone="success" onDismiss={() => setSuccessMessage(null)}>
+                          <Text as="p" variant="bodyMd">
+                            {successMessage}
+                          </Text>
+                        </Banner>
+                      )}
+
+                      {errorMessage && (
+                        <Banner tone="critical" onDismiss={() => setErrorMessage(null)}>
+                          <Text as="p" variant="bodyMd">
+                            {errorMessage}
+                          </Text>
+                        </Banner>
+                      )}
+
                       <Banner tone="info">
                         <Text as="p" variant="bodyMd">
                           Create your first loyalty tier below. You can add more tiers later from
