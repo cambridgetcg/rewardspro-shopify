@@ -1961,6 +1961,15 @@ export default function Customers() {
               <InlineStack gap="200" blockAlign="center">
                 <Button
                   icon={RefreshIcon}
+                  onClick={handleSyncCustomers}
+                  loading={isCalculating}
+                  disabled={isCalculating}
+                >
+                  Sync from Shopify
+                </Button>
+
+                <Button
+                  icon={RefreshIcon}
                   onClick={handleRecalculateAllTiers}
                   loading={isRecalculatingAll}
                   disabled={isRecalculatingAll}
