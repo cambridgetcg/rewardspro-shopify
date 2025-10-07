@@ -51,86 +51,121 @@ interface LoaderData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-
-  // Fetch onboarding status
-  const shopSettings = await db.shopSettings.findUnique({
-    where: { shop },
-    select: {
-      onboardingSyncedOrders: true,
-      onboardingCreatedTiers: true,
-      onboardingSyncedCustomers: true,
-      onboardingConfiguredSettings: true,
-      onboardingCompleted: true,
-      onboardingDismissed: true,
-      storeCurrency: true,
-      storeName: true,
-    },
-  });
-
-  // Redirect to dashboard if onboarding is completed or dismissed
-  if (shopSettings?.onboardingCompleted || shopSettings?.onboardingDismissed) {
-    return redirect("/app");
-  }
-
-  // Get counts for display
-  const [orderCount, tierCount, customerCount] = await Promise.all([
-    db.order.count({ where: { shop } }),
-    db.tier.count({ where: { shop } }),
-    db.customer.count({ where: { shop } }),
-  ]);
-
-  // Determine current step based on completion status
-  // New order: 1. Customers, 2. Tiers, 3. Orders, 4. Settings
-  let currentStep = 1;
-  if (shopSettings?.onboardingSyncedCustomers) currentStep = 2;
-  if (shopSettings?.onboardingCreatedTiers) currentStep = 3;
-  if (shopSettings?.onboardingSyncedOrders) currentStep = 4;
-
-  // Check URL parameter for step override
   const url = new URL(request.url);
-  const stepParam = url.searchParams.get("step");
-  if (stepParam) {
-    const step = parseInt(stepParam, 10);
-    if (step >= 1 && step <= 4) {
-      currentStep = step;
+  console.log("[Onboarding Loader] Request received:", {
+    url: url.pathname + url.search,
+    method: request.method,
+    headers: {
+      referer: request.headers.get("referer"),
+      shopifyApiRequest: request.headers.get("x-shopify-api-request-failure-reauthorize"),
     }
-  }
-
-  return json<LoaderData>({
-    shop,
-    onboarding: {
-      syncedOrders: shopSettings?.onboardingSyncedOrders || false,
-      createdTiers: shopSettings?.onboardingCreatedTiers || false,
-      syncedCustomers: shopSettings?.onboardingSyncedCustomers || false,
-      configuredSettings: shopSettings?.onboardingConfiguredSettings || false,
-      completed: shopSettings?.onboardingCompleted || false,
-    },
-    counts: {
-      orders: orderCount,
-      tiers: tierCount,
-      customers: customerCount,
-    },
-    settings: {
-      storeCurrency: shopSettings?.storeCurrency || null,
-      storeName: shopSettings?.storeName || null,
-    },
-    currentStep,
   });
+
+  try {
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    console.log("[Onboarding Loader] Authenticated for shop:", shop);
+
+    // Fetch onboarding status
+    console.log("[Onboarding Loader] Fetching shop settings...");
+    const shopSettings = await db.shopSettings.findUnique({
+      where: { shop },
+      select: {
+        onboardingSyncedOrders: true,
+        onboardingCreatedTiers: true,
+        onboardingSyncedCustomers: true,
+        onboardingConfiguredSettings: true,
+        onboardingCompleted: true,
+        onboardingDismissed: true,
+        storeCurrency: true,
+        storeName: true,
+      },
+    });
+    console.log("[Onboarding Loader] Shop settings:", shopSettings);
+
+    // Redirect to dashboard if onboarding is completed or dismissed
+    if (shopSettings?.onboardingCompleted || shopSettings?.onboardingDismissed) {
+      console.log("[Onboarding Loader] Onboarding already completed/dismissed, redirecting to /app");
+      return redirect("/app");
+    }
+
+    // Get counts for display
+    console.log("[Onboarding Loader] Fetching counts...");
+    const [orderCount, tierCount, customerCount] = await Promise.all([
+      db.order.count({ where: { shop } }),
+      db.tier.count({ where: { shop } }),
+      db.customer.count({ where: { shop } }),
+    ]);
+    console.log("[Onboarding Loader] Counts:", { orderCount, tierCount, customerCount });
+
+    // Determine current step based on completion status
+    // New order: 1. Customers, 2. Tiers, 3. Orders, 4. Settings
+    let currentStep = 1;
+    if (shopSettings?.onboardingSyncedCustomers) currentStep = 2;
+    if (shopSettings?.onboardingCreatedTiers) currentStep = 3;
+    if (shopSettings?.onboardingSyncedOrders) currentStep = 4;
+
+    // Check URL parameter for step override
+    const stepParam = url.searchParams.get("step");
+    if (stepParam) {
+      const step = parseInt(stepParam, 10);
+      if (step >= 1 && step <= 4) {
+        console.log("[Onboarding Loader] Step override from URL:", step);
+        currentStep = step;
+      }
+    }
+
+    console.log("[Onboarding Loader] Current step determined:", currentStep);
+
+    const responseData = {
+      shop,
+      onboarding: {
+        syncedOrders: shopSettings?.onboardingSyncedOrders || false,
+        createdTiers: shopSettings?.onboardingCreatedTiers || false,
+        syncedCustomers: shopSettings?.onboardingSyncedCustomers || false,
+        configuredSettings: shopSettings?.onboardingConfiguredSettings || false,
+        completed: shopSettings?.onboardingCompleted || false,
+      },
+      counts: {
+        orders: orderCount,
+        tiers: tierCount,
+        customers: customerCount,
+      },
+      settings: {
+        storeCurrency: shopSettings?.storeCurrency || null,
+        storeName: shopSettings?.storeName || null,
+      },
+      currentStep,
+    };
+
+    console.log("[Onboarding Loader] Returning response:", responseData);
+    return json<LoaderData>(responseData);
+  } catch (error) {
+    console.error("[Onboarding Loader] Error:", error);
+    throw error;
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-  const formData = await request.formData();
-  const actionType = formData.get("action");
+  console.log("[Onboarding Action] Request received:", {
+    url: request.url,
+    method: request.method,
+  });
 
   try {
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    console.log("[Onboarding Action] Authenticated for shop:", shop);
+
+    const formData = await request.formData();
+    const actionType = formData.get("action");
+    console.log("[Onboarding Action] Action type:", actionType);
+
     switch (actionType) {
       case "save-settings": {
         const currency = formData.get("currency") as string;
         const storeName = formData.get("storeName") as string;
+        console.log("[Onboarding Action] Saving settings:", { currency, storeName });
 
         await db.shopSettings.update({
           where: { shop },
@@ -142,15 +177,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           },
         });
 
+        console.log("[Onboarding Action] Settings saved, redirecting to /app");
         return redirect("/app?onboarding=completed");
       }
 
       case "skip-onboarding": {
+        console.log("[Onboarding Action] Skipping onboarding");
         await db.shopSettings.update({
           where: { shop },
           data: { onboardingDismissed: true },
         });
 
+        console.log("[Onboarding Action] Onboarding dismissed, redirecting to /app");
         return redirect("/app");
       }
 
@@ -160,34 +198,49 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const cashbackPercent = Number(formData.get("tierCashback"));
         const evaluationPeriod = (formData.get("tierEvaluationPeriod") as string) || "ANNUAL";
 
+        console.log("[Onboarding Action] Creating tier:", {
+          name,
+          minSpend,
+          cashbackPercent,
+          evaluationPeriod
+        });
+
         // Validate inputs
         if (!name || name.trim().length === 0) {
+          console.log("[Onboarding Action] Validation failed: Empty tier name");
           return json({ success: false, error: "Please enter a tier name" }, { status: 400 });
         }
         if (isNaN(minSpend) || minSpend < 0) {
+          console.log("[Onboarding Action] Validation failed: Invalid minSpend");
           return json({ success: false, error: "Please enter a valid minimum spend amount" }, { status: 400 });
         }
         if (isNaN(cashbackPercent) || cashbackPercent < 0 || cashbackPercent > 100) {
+          console.log("[Onboarding Action] Validation failed: Invalid cashbackPercent");
           return json({ success: false, error: "Please enter a valid cashback percentage (0-100)" }, { status: 400 });
         }
         if (evaluationPeriod !== "ANNUAL" && evaluationPeriod !== "LIFETIME") {
+          console.log("[Onboarding Action] Validation failed: Invalid evaluationPeriod");
           return json({ success: false, error: "Invalid evaluation period" }, { status: 400 });
         }
 
         // Check for duplicate tier name
+        console.log("[Onboarding Action] Checking for duplicate tier name");
         const existing = await db.tier.findFirst({
           where: { shop, name: name.trim() },
         });
 
         if (existing) {
+          console.log("[Onboarding Action] Duplicate tier found:", existing.id);
           return json({ success: false, error: `A tier named "${name}" already exists` }, { status: 400 });
         }
 
         // Create tier ID matching tier-products pattern
         const storeName = shop.split('.')[0];
         const tierId = `${storeName}-${name.trim().toLowerCase().replace(/\s+/g, '-')}`;
+        console.log("[Onboarding Action] Generated tier ID:", tierId);
 
         // Create the tier with timestamps
+        console.log("[Onboarding Action] Creating tier in database");
         await db.tier.create({
           data: {
             id: tierId,
@@ -202,17 +255,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         // Mark tiers as created
+        console.log("[Onboarding Action] Updating onboarding progress");
         const { updateOnboardingProgress } = await import("~/utils/onboarding");
         await updateOnboardingProgress(shop, { createdTiers: true });
 
+        console.log("[Onboarding Action] Tier created successfully");
         return json({ success: true, message: "Tier created successfully" });
       }
 
       default:
+        console.log("[Onboarding Action] Invalid action:", actionType);
         return json({ success: false, error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
-    console.error(`[Onboarding] Error processing action ${actionType}:`, error);
+    console.error("[Onboarding Action] Error processing action:", error);
     return json({ success: false, error: "Action failed" }, { status: 500 });
   }
 };
@@ -236,10 +292,27 @@ export default function OnboardingPage() {
 
   const isSubmitting = navigation.state === "submitting";
 
+  // Log component mount and data changes
+  useEffect(() => {
+    console.log("[Onboarding Component] Mounted/Updated with data:", {
+      shop: data.shop,
+      currentStep: data.currentStep,
+      onboarding: data.onboarding,
+      counts: data.counts,
+    });
+  }, [data]);
+
+  // Log navigation state changes
+  useEffect(() => {
+    console.log("[Onboarding Component] Navigation state changed:", navigation.state);
+  }, [navigation.state]);
+
   // Handle action response for tier creation
   useEffect(() => {
+    console.log("[Onboarding Component] Action data received:", actionData);
     if (actionData && "success" in actionData) {
       if (actionData.success) {
+        console.log("[Onboarding Component] Tier creation successful, showing success message");
         setSuccessMessage(actionData.message || "Tier created successfully");
         setErrorMessage(null);
         // Reset form
@@ -248,10 +321,13 @@ export default function OnboardingPage() {
         setTierCashback("5");
         setTierEvaluationPeriod("ANNUAL");
         // Navigate to refresh the page data without a full reload
+        console.log("[Onboarding Component] Scheduling navigation to refresh data");
         setTimeout(() => {
+          console.log("[Onboarding Component] Navigating to /app/onboarding?step=2");
           navigate("/app/onboarding?step=2", { replace: true });
         }, 1500);
       } else {
+        console.log("[Onboarding Component] Tier creation failed:", actionData.error);
         setErrorMessage(actionData.error || "Failed to create tier");
         setSuccessMessage(null);
       }
@@ -262,23 +338,37 @@ export default function OnboardingPage() {
   const progress = (data.currentStep / totalSteps) * 100;
 
   const handleNextStep = () => {
+    console.log("[Onboarding Component] Next step clicked, current:", data.currentStep);
     if (data.currentStep < totalSteps) {
-      navigate(`/app/onboarding?step=${data.currentStep + 1}`);
+      const nextStep = data.currentStep + 1;
+      console.log("[Onboarding Component] Navigating to step:", nextStep);
+      navigate(`/app/onboarding?step=${nextStep}`);
     }
   };
 
   const handlePreviousStep = () => {
+    console.log("[Onboarding Component] Previous step clicked, current:", data.currentStep);
     if (data.currentStep > 1) {
-      navigate(`/app/onboarding?step=${data.currentStep - 1}`);
+      const prevStep = data.currentStep - 1;
+      console.log("[Onboarding Component] Navigating to step:", prevStep);
+      navigate(`/app/onboarding?step=${prevStep}`);
     }
   };
 
   const handleSkip = () => {
+    console.log("[Onboarding Component] Skip onboarding clicked");
     submit({ action: "skip-onboarding" }, { method: "post" });
   };
 
   const handleCreateTier = () => {
+    console.log("[Onboarding Component] Create tier clicked:", {
+      tierName,
+      tierMinSpend,
+      tierCashback,
+      tierEvaluationPeriod
+    });
     if (!tierName.trim()) {
+      console.log("[Onboarding Component] Validation failed: Empty tier name");
       setErrorMessage("Please enter a tier name");
       return;
     }
@@ -290,11 +380,14 @@ export default function OnboardingPage() {
     formData.append("tierMinSpend", tierMinSpend);
     formData.append("tierCashback", tierCashback);
     formData.append("tierEvaluationPeriod", tierEvaluationPeriod);
+    console.log("[Onboarding Component] Submitting tier creation form");
     submit(formData, { method: "post" });
   };
 
   const handleSaveSettings = () => {
+    console.log("[Onboarding Component] Save settings clicked:", { currency, storeName });
     if (!storeName.trim()) {
+      console.log("[Onboarding Component] Validation failed: Empty store name");
       setErrorMessage("Please enter your store name");
       return;
     }
@@ -303,6 +396,7 @@ export default function OnboardingPage() {
     formData.append("action", "save-settings");
     formData.append("currency", currency);
     formData.append("storeName", storeName);
+    console.log("[Onboarding Component] Submitting save settings form");
     submit(formData, { method: "post" });
   };
 
