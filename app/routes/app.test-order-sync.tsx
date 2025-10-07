@@ -121,20 +121,47 @@ export async function action({ request }: ActionFunctionArgs) {
               node {
                 id
                 name
-                orderNumber
                 email
                 createdAt
                 updatedAt
-                currency
-                subtotalPrice
-                totalDiscounts
-                totalShippingPrice
-                totalTax
-                totalPrice
-                totalRefunded
-                netPayment
-                financialStatus
-                fulfillmentStatus
+                currencyCode
+                subtotalPriceSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalDiscountsSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalShippingPriceSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalTaxSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalPriceSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalRefundedSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                netPaymentSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                displayFinancialStatus
+                displayFulfillmentStatus
                 customer {
                   id
                   email
@@ -146,7 +173,11 @@ export async function action({ request }: ActionFunctionArgs) {
                       id
                       title
                       quantity
-                      price
+                      originalUnitPriceSet {
+                        shopMoney {
+                          amount
+                        }
+                      }
                     }
                   }
                 }
@@ -191,9 +222,9 @@ export async function action({ request }: ActionFunctionArgs) {
             name: order.name,
             email: order.email,
             customer: order.customer?.email || 'Guest',
-            total: order.totalPrice,
-            currency: order.currency,
-            status: order.financialStatus,
+            total: order.totalPriceSet?.shopMoney?.amount || '0',
+            currency: order.currencyCode,
+            status: order.displayFinancialStatus,
             lineItemCount: order.lineItems?.edges?.length || 0,
             hasCustomer: !!order.customer,
             customerId: order.customer?.id
