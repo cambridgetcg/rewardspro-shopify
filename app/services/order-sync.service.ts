@@ -10,6 +10,7 @@ export interface OrderSyncOptions {
   onProgress?: (progress: OrderSyncProgress) => void;
   startDate?: Date;
   endDate?: Date;
+  maxExecutionTime?: number; // Maximum execution time in milliseconds (default: 50 seconds for Vercel)
 }
 
 export interface OrderSyncProgress {
@@ -219,6 +220,7 @@ export class OrderSyncService {
       onProgress: () => {},
       startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // Default to 1 year ago
       endDate: new Date(),
+      maxExecutionTime: 50000, // Default: 50 seconds (safe for Vercel 60s timeout)
       ...options
     };
     // Shopify allows 2 requests per second with max 1000 cost points
@@ -264,13 +266,24 @@ export class OrderSyncService {
 
       // Process orders in batches
       while (hasNextPage) {
+        // Check if we're approaching timeout
+        const elapsedTime = Date.now() - this.startTime;
+        if (elapsedTime > this.options.maxExecutionTime) {
+          console.log(`Approaching timeout (${elapsedTime}ms), stopping sync gracefully...`);
+          progress.errors.push({
+            error: `Sync stopped after ${elapsedTime}ms to avoid timeout. Processed ${progress.processed} orders. Continue sync to process remaining orders.`,
+            timestamp: new Date()
+          });
+          break;
+        }
+
         progress.currentBatch = (progress.currentBatch || 0) + 1;
-        
+
         try {
           // Fetch batch with rate limiting
           await this.rateLimiter.throttle();
           const batch = await this.fetchOrderBatch(cursor, query);
-          
+
           if (!batch.orders || batch.orders.length === 0) {
             break;
           }
@@ -297,7 +310,7 @@ export class OrderSyncService {
           }
         } catch (error) {
           console.error(`Error processing batch ${progress.currentBatch}:`, error);
-          
+
           // Add to errors but continue processing
           progress.errors.push({
             error: `Batch ${progress.currentBatch} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -311,7 +324,7 @@ export class OrderSyncService {
 
           // Retry with exponential backoff
           await new Promise(resolve => setTimeout(resolve, 2000 * progress.errors.length));
-          
+
           if (hasNextPage && cursor) {
             continue;
           }
@@ -346,9 +359,9 @@ export class OrderSyncService {
   }
 
   /**
-   * Fetch a batch of orders from Shopify
+   * Fetch a batch of orders from Shopify with retry logic
    */
-  private async fetchOrderBatch(cursor: string | null, query: string): Promise<any> {
+  private async fetchOrderBatch(cursor: string | null, query: string, retryCount = 0): Promise<any> {
     const variables = {
       cursor,
       first: this.options.batchSize,
@@ -361,16 +374,16 @@ export class OrderSyncService {
 
       if (result.errors && result.errors.length > 0) {
         const errorMessages = result.errors.map((e: any) => e.message).join(', ');
-        
+
         // Check for rate limiting
         if (result.errors.some((e: any) => e.extensions?.code === 'THROTTLED')) {
           // Wait and retry with exponential backoff
           console.log("Rate limited, waiting 5 seconds...");
           await new Promise(resolve => setTimeout(resolve, 5000));
           this.rateLimiter.reset();
-          return this.fetchOrderBatch(cursor, query);
+          return this.fetchOrderBatch(cursor, query, retryCount);
         }
-        
+
         throw new Error(`GraphQL errors: ${errorMessages}`);
       }
 
@@ -385,8 +398,17 @@ export class OrderSyncService {
         orders,
         pageInfo
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching orders:", error);
+
+      // Retry on network errors with exponential backoff
+      if (retryCount < this.options.maxRetries) {
+        const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`Network error, retrying in ${waitTime}ms (attempt ${retryCount + 1}/${this.options.maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return this.fetchOrderBatch(cursor, query, retryCount + 1);
+      }
+
       throw error;
     }
   }
