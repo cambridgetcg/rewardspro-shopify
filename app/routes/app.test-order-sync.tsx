@@ -350,7 +350,8 @@ export async function action({ request }: ActionFunctionArgs) {
           logs,
           summary: {
             ordersFound: orders.length,
-            orderSummaries: orderSummaries.slice(0, 3),
+            orderSummaries: orderSummaries, // Show all orders, not just first 3
+            allOrderNames: orderSummaries.map(o => o.name).join(', '), // Quick list of all order names
             pageInfo
           }
         });
@@ -457,8 +458,8 @@ export default function TestOrderSyncPage() {
                       {fetcher.data.summary && (
                         <>
                           <Text>Orders found: {fetcher.data.summary.ordersFound}</Text>
-                          {fetcher.data.summary.orderSummaries?.length > 0 && (
-                            <Text>Sample orders: {fetcher.data.summary.orderSummaries.map((o: any) => o.name).join(', ')}</Text>
+                          {fetcher.data.summary.allOrderNames && (
+                            <Text>All orders: {fetcher.data.summary.allOrderNames}</Text>
                           )}
                         </>
                       )}
