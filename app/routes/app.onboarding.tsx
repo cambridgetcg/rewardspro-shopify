@@ -460,7 +460,7 @@ export default function OnboardingPage() {
                       Step {data.currentStep} of {totalSteps}
                     </Text>
                     <Badge tone="info">
-                      {Math.round(progress).toString()}% Complete
+                      {`${Math.round(progress)}% Complete`}
                     </Badge>
                   </InlineStack>
                   <ProgressBar
