@@ -119,6 +119,12 @@ export function OnboardingChecklist({
           </BlockStack>
           <InlineStack gap="200">
             <Button
+              onClick={() => navigate("/app/onboarding")}
+              variant="primary"
+            >
+              Get Started
+            </Button>
+            <Button
               onClick={() => setIsExpanded(!isExpanded)}
               variant="plain"
             >

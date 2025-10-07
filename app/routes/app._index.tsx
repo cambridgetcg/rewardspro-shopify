@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useCallback } from "react";
 import {
@@ -238,6 +238,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shop = session.shop;
     console.log(`[Dashboard] Loading data for shop: ${shop}`);
 
+    // Check if this is a redirect back from completed onboarding
+    const url = new URL(request.url);
+    const onboardingParam = url.searchParams.get("onboarding");
+
     // Check active subscription with Shopify
     let activeSubscription = null;
     const { FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } = await import("../shopify.server");
@@ -309,6 +313,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ]);
 
     console.log(`[Dashboard] Fetched data - Customers: ${customers.length}, Tiers: ${tiers.length}, Transactions: ${recentTransactions.length}`);
+
+    // Auto-redirect to onboarding page if not completed and not coming back from onboarding
+    if (
+      shopSettings &&
+      !shopSettings.onboardingCompleted &&
+      !shopSettings.onboardingDismissed &&
+      onboardingParam !== "completed"
+    ) {
+      // Check if this is truly a new user (no data at all)
+      const hasNoData = customers.length === 0 && tiers.length === 0;
+
+      // Only redirect if they have no data OR haven't started any onboarding steps
+      if (hasNoData || (!shopSettings.onboardingSyncedOrders && !shopSettings.onboardingCreatedTiers)) {
+        console.log(`[Dashboard] Redirecting new user to onboarding page`);
+        return redirect("/app/onboarding");
+      }
+    }
 
     // Check and update onboarding progress based on actual data
     if (shopSettings && !shopSettings.onboardingCompleted) {
