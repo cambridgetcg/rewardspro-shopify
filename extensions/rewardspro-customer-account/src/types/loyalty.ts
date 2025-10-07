@@ -7,7 +7,12 @@ export interface LoyaltyData {
   enrolled: boolean;
   balance?: number;
   tier?: TierInfo;
+  nextTier?: TierInfo;
+  progressToNextTier?: number;
+  amountToNextTier?: number;
   totalEarned?: number;
+  stats?: CustomerStats;
+  allTiers?: TierInfo[];
   recentTransactions?: Transaction[];
   currency?: string;
   message?: string;
@@ -18,6 +23,14 @@ export interface TierInfo {
   name: string;
   cashbackPercent: number;
   minSpend: number;
+}
+
+export interface CustomerStats {
+  orderCount: number;
+  totalSpent: number;
+  netSpent: number;
+  averageCashbackPerOrder: number;
+  lastOrderDate: string | null;
 }
 
 export interface Transaction {

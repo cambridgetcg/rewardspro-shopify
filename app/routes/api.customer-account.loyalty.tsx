@@ -180,8 +180,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       });
     }
 
-    if (!authResult?.customer) {
-      console.error(`[${requestId}] Authentication failed - no customer in auth result`);
+    // Extract customer and shop from session token
+    const sessionToken = authResult?.sessionToken;
+
+    if (!sessionToken) {
+      console.error(`[${requestId}] Authentication failed - no session token in auth result`);
       console.error(`[${requestId}] Auth result structure:`, JSON.stringify(authResult, null, 2));
       return json(
         { error: "Unauthorized", message: "Invalid session token" },
@@ -192,9 +195,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // Step 2: Extract customer and shop from validated token
-    const customerGid = authResult.customer.id;
-    const shop = authResult.shop;
+    // Step 2: Extract customer and shop from validated session token
+    const customerGid = sessionToken.sub; // gid://shopify/Customer/23893043347801
+    const shop = sessionToken.dest; // rewardspro-dev.myshopify.com
 
     console.log(`[${requestId}] Step 2: Authenticated successfully`);
     console.log(`[${requestId}] Customer GID: ${customerGid}`);
@@ -279,7 +282,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // Step 7: Fetch tier information
+    // Step 7: Fetch tier information and all available tiers
     let tier = null;
     if (customer.currentTierId) {
       tier = await db.tier.findFirst({
@@ -290,14 +293,51 @@ export async function loader({ request }: LoaderFunctionArgs) {
       });
     }
 
-    // Step 8: Fetch recent transactions
+    // Fetch all tiers sorted by minSpend to calculate next tier
+    const allTiers = await db.tier.findMany({
+      where: { shop },
+      orderBy: { minSpend: 'asc' }
+    });
+
+    // Find next tier
+    const currentSpending = typeof customer.totalSpent === 'object' && 'toNumber' in customer.totalSpent
+      ? (customer.totalSpent as any).toNumber()
+      : Number(customer.totalSpent);
+
+    const currentTierMinSpend = tier ? (typeof tier.minSpend === 'object' && 'toNumber' in tier.minSpend
+      ? (tier.minSpend as any).toNumber()
+      : Number(tier.minSpend)) : 0;
+
+    const nextTier = allTiers.find(t => {
+      const minSpend = typeof t.minSpend === 'object' && 'toNumber' in t.minSpend
+        ? (t.minSpend as any).toNumber()
+        : Number(t.minSpend);
+      return minSpend > currentTierMinSpend;
+    });
+
+    // Calculate progress to next tier
+    let progressToNextTier = 100;
+    let amountToNextTier = 0;
+    if (nextTier) {
+      const nextTierMinSpend = typeof nextTier.minSpend === 'object' && 'toNumber' in nextTier.minSpend
+        ? (nextTier.minSpend as any).toNumber()
+        : Number(nextTier.minSpend);
+
+      amountToNextTier = Math.max(0, nextTierMinSpend - currentSpending);
+
+      const progressInTier = currentSpending - currentTierMinSpend;
+      const tierRange = nextTierMinSpend - currentTierMinSpend;
+      progressToNextTier = Math.min(100, Math.max(0, (progressInTier / tierRange) * 100));
+    }
+
+    // Step 8: Fetch recent transactions (last 50 for pagination in frontend)
     const transactions = await db.storeCreditLedger.findMany({
       where: {
         customerId: customer.id,
         shop: shop  // CRITICAL: Scope to shop!
       },
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 50
     });
 
     // Step 9: Calculate lifetime earned (cashback + refunds)
@@ -315,13 +355,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
       where: { shop }
     });
 
+    // Step 10.5: Get actual balance from most recent ledger entry (source of truth)
+    const latestLedgerEntry = await db.storeCreditLedger.findFirst({
+      where: {
+        customerId: customer.id,
+        shop: shop
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Use ledger balance as source of truth, fallback to customer.storeCredit
+    const actualBalance = latestLedgerEntry
+      ? (typeof latestLedgerEntry.balance === 'object' && 'toNumber' in latestLedgerEntry.balance
+          ? (latestLedgerEntry.balance as any).toNumber()
+          : Number(latestLedgerEntry.balance))
+      : (typeof customer.storeCredit === 'object' && 'toNumber' in customer.storeCredit
+          ? (customer.storeCredit as any).toNumber()
+          : Number(customer.storeCredit));
+
+    console.log(`[${requestId}] Balance check:`, {
+      customerStoreCredit: customer.storeCredit,
+      ledgerBalance: latestLedgerEntry?.balance,
+      actualBalance
+    });
+
     // Step 11: Format and return response
     const responseData = {
       success: true,
       enrolled: true,
-      balance: typeof customer.storeCredit === 'object' && 'toNumber' in customer.storeCredit
-        ? (customer.storeCredit as any).toNumber()
-        : Number(customer.storeCredit),
+      balance: actualBalance,
       tier: tier ? {
         name: tier.name,
         cashbackPercent: typeof tier.cashbackPercent === 'object' && 'toNumber' in tier.cashbackPercent
@@ -331,8 +393,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
           ? (tier.minSpend as any).toNumber()
           : Number(tier.minSpend)
       } : null,
+      nextTier: nextTier ? {
+        name: nextTier.name,
+        cashbackPercent: typeof nextTier.cashbackPercent === 'object' && 'toNumber' in nextTier.cashbackPercent
+          ? (nextTier.cashbackPercent as any).toNumber()
+          : Number(nextTier.cashbackPercent),
+        minSpend: typeof nextTier.minSpend === 'object' && 'toNumber' in nextTier.minSpend
+          ? (nextTier.minSpend as any).toNumber()
+          : Number(nextTier.minSpend)
+      } : null,
+      progressToNextTier,
+      amountToNextTier,
       totalEarned,
-      recentTransactions: transactions.slice(0, 5).map(t => ({
+      stats: {
+        orderCount: customer.orderCount,
+        totalSpent: currentSpending,
+        netSpent: typeof customer.netSpent === 'object' && 'toNumber' in customer.netSpent
+          ? (customer.netSpent as any).toNumber()
+          : Number(customer.netSpent),
+        averageCashbackPerOrder: customer.orderCount > 0 ? totalEarned / customer.orderCount : 0,
+        lastOrderDate: customer.lastOrderDate?.toISOString() || null
+      },
+      allTiers: allTiers.map(t => ({
+        name: t.name,
+        cashbackPercent: typeof t.cashbackPercent === 'object' && 'toNumber' in t.cashbackPercent
+          ? (t.cashbackPercent as any).toNumber()
+          : Number(t.cashbackPercent),
+        minSpend: typeof t.minSpend === 'object' && 'toNumber' in t.minSpend
+          ? (t.minSpend as any).toNumber()
+          : Number(t.minSpend)
+      })),
+      recentTransactions: transactions.map(t => ({
         id: t.id,
         type: t.type,
         amount: typeof t.amount === 'object' && 'toNumber' in t.amount

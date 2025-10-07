@@ -7,7 +7,7 @@ import { useApi } from '@shopify/ui-extensions-react/customer-account';
 import type { LoyaltyData } from '../types/loyalty';
 
 // LOCAL DEVELOPMENT: Using tunnel URL from `shopify app dev`
-const API_URL = 'https://multiple-remedies-walter-jar.trycloudflare.com/api/customer-account/loyalty';
+const API_URL = 'https://modifications-grid-heel-configuration.trycloudflare.com/api/customer-account/loyalty';
 
 export function useLoyaltyData() {
   const { sessionToken } = useApi();

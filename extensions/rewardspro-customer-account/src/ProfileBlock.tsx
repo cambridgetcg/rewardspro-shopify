@@ -1,6 +1,7 @@
 /**
  * Profile Block - Main Entry Point
  * Displays loyalty dashboard on customer account profile page
+ * Following Shopify customer account UX guidelines and Polaris design system
  */
 
 import {
@@ -8,9 +9,11 @@ import {
   BlockStack,
   Banner,
   Text,
+  SkeletonText,
 } from '@shopify/ui-extensions-react/customer-account';
 import { useLoyaltyData } from './hooks/useLoyaltyData';
 import { BalanceCard } from './components/profile/BalanceCard';
+import { RewardsHistory } from './components/profile/RewardsHistory';
 import { useEffect } from 'react';
 
 export default reactExtension(
@@ -35,25 +38,32 @@ function LoyaltyProfileBlock() {
     });
   }, [data, loading, error]);
 
-  // Loading state
+  // Loading state with skeleton
   if (loading) {
     console.log('[ProfileBlock] Rendering: LOADING state');
     return (
-      <Banner status="info">
-        Loading your rewards...
-      </Banner>
+      <BlockStack spacing="base">
+        <SkeletonText />
+        <SkeletonText />
+        <SkeletonText />
+      </BlockStack>
     );
   }
 
-  // Error state
+  // Error state - accessible error banner
   if (error) {
     console.log('[ProfileBlock] Rendering: ERROR state -', error);
     return (
-      <Banner status="critical">
+      <Banner status="critical" title="Unable to load rewards">
         <BlockStack spacing="tight">
-          <Text variant="headingMd">Unable to load rewards</Text>
-          <Text>{error}</Text>
-          <Text appearance="subdued" size="small">Check browser console for details</Text>
+          <Text>
+            We're having trouble loading your rewards information. Please try refreshing the page.
+          </Text>
+          {process.env.NODE_ENV === 'development' && (
+            <Text appearance="subdued" size="small">
+              Error: {error}
+            </Text>
+          )}
         </BlockStack>
       </Banner>
     );
@@ -63,34 +73,44 @@ function LoyaltyProfileBlock() {
   if (!data) {
     console.log('[ProfileBlock] Rendering: NO DATA state');
     return (
-      <Banner status="info">
-        <BlockStack spacing="tight">
-          <Text>No rewards data available</Text>
-          <Text appearance="subdued" size="small">Check browser console for details</Text>
-        </BlockStack>
+      <Banner status="info" title="Rewards information unavailable">
+        <Text>
+          Unable to load your rewards data at this time. Please try again later.
+        </Text>
       </Banner>
     );
   }
 
-  // Not enrolled state
+  // Not enrolled state - personalized CTA
   if (!data.enrolled) {
     console.log('[ProfileBlock] Rendering: NOT ENROLLED state');
     return (
-      <Banner status="info">
-        <BlockStack spacing="tight">
-          <Text variant="headingMd">Join RewardsPro</Text>
-          <Text>Start earning cashback on every purchase</Text>
-          {data.message && <Text appearance="subdued">{data.message}</Text>}
+      <Banner status="info" title="Join our rewards program">
+        <BlockStack spacing="base">
+          <Text>
+            Start earning cashback on every purchase! Get exclusive member benefits and rewards.
+          </Text>
+          {data.message && (
+            <Text appearance="subdued" size="small">
+              {data.message}
+            </Text>
+          )}
         </BlockStack>
       </Banner>
     );
   }
 
-  // Success - Display balance card
-  console.log('[ProfileBlock] Rendering: SUCCESS state with balance card');
+  // Success state - Display rewards dashboard
+  // Following mobile-first responsive layout with vertical stacking
+  // Cards don't add external margins - BlockStack with spacing separates them
+  console.log('[ProfileBlock] Rendering: SUCCESS state with rewards dashboard');
   return (
     <BlockStack spacing="loose">
+      {/* Store Credit and Membership Card */}
       <BalanceCard data={data} />
+
+      {/* Recent Activity History */}
+      <RewardsHistory data={data} />
     </BlockStack>
   );
 }
