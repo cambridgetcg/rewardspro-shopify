@@ -508,10 +508,4 @@ function getCorsHeaders() {
   };
 }
 
-// Handle OPTIONS preflight requests
-export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: getCorsHeaders()
-  });
-}
+// OPTIONS requests are handled in the loader function above
