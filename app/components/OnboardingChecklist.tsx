@@ -13,7 +13,7 @@ import {
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
-  CircleIcon,
+  MinusCircleIcon,
   XIcon,
 } from "~/utils/polaris-icons";
 import { useNavigate, useSubmit } from "@remix-run/react";
@@ -151,7 +151,7 @@ export function OnboardingChecklist({
                     <InlineStack gap="300" blockAlign="start">
                       <Box paddingBlockStart="050">
                         <Icon
-                          source={step.completed ? CheckCircleIcon : CircleIcon}
+                          source={step.completed ? CheckCircleIcon : MinusCircleIcon}
                           tone={step.completed ? "success" : "base"}
                         />
                       </Box>
