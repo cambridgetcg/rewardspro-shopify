@@ -95,10 +95,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       configuredSettings: shopSettings?.onboardingConfiguredSettings,
     });
 
-    // Redirect to dashboard if onboarding is completed or dismissed
-    if (shopSettings?.onboardingCompleted || shopSettings?.onboardingDismissed) {
+    // Check if user wants to force view onboarding (for testing or re-onboarding)
+    const forceView = url.searchParams.get("force") === "true";
+
+    // Redirect to dashboard if onboarding is completed or dismissed (unless forced)
+    if ((shopSettings?.onboardingCompleted || shopSettings?.onboardingDismissed) && !forceView) {
       console.log("[Onboarding Loader] 🔄 Redirecting to /app (completed or dismissed)");
       return redirect("/app");
+    }
+
+    if (forceView) {
+      console.log("[Onboarding Loader] ⚠️  Force view enabled, bypassing completion check");
     }
 
     // Get counts for display
@@ -209,6 +216,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           data: { onboardingDismissed: true },
         });
         return redirect("/app");
+      }
+
+      case "reset-onboarding": {
+        console.log("[Onboarding Action] Resetting onboarding progress");
+        await db.shopSettings.update({
+          where: { shop },
+          data: {
+            onboardingCompleted: false,
+            onboardingDismissed: false,
+            onboardingSyncedCustomers: false,
+            onboardingCreatedTiers: false,
+            onboardingSyncedOrders: false,
+            onboardingConfiguredSettings: false,
+          },
+        });
+        console.log("[Onboarding Action] Onboarding reset complete");
+        return remixJson({ success: true, message: "Onboarding has been reset" });
       }
 
       case "create-tier": {
