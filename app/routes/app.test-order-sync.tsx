@@ -111,7 +111,7 @@ export async function action({ request }: ActionFunctionArgs) {
       addLog("success", "STEP_2", "Query built", { query, startDate: startDateStr, endDate: endDateStr, rangeInDays: 365 });
 
       // Step 3: Fetch first batch of orders
-      addLog("info", "STEP_3", "Fetching first batch of orders (limit 5)...");
+      addLog("info", "STEP_3", "Fetching first batch of orders (limit 10)...");
 
       const ordersQuery = `#graphql
         query GetOrdersBatch($first: Int!, $query: String) {
@@ -194,7 +194,7 @@ export async function action({ request }: ActionFunctionArgs) {
       let ordersResult;
       try {
         const response = await admin.graphql(ordersQuery, {
-          variables: { first: 5, query }
+          variables: { first: 10, query }
         });
         ordersResult = await response.json();
 
