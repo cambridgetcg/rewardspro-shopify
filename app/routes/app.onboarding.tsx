@@ -21,7 +21,7 @@ import {
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
-  CircleAlertIcon,
+  AlertCircleIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   RefreshIcon,
@@ -306,7 +306,7 @@ export default function OnboardingPage() {
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
-                          source={data.onboarding.syncedOrders ? CheckCircleIcon : CircleAlertIcon}
+                          source={data.onboarding.syncedOrders ? CheckCircleIcon : AlertCircleIcon}
                           tone={data.onboarding.syncedOrders ? "success" : "base"}
                         />
                         <Text as="h3" variant="headingLg">
@@ -373,7 +373,7 @@ export default function OnboardingPage() {
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
-                          source={data.onboarding.createdTiers ? CheckCircleIcon : CircleAlertIcon}
+                          source={data.onboarding.createdTiers ? CheckCircleIcon : AlertCircleIcon}
                           tone={data.onboarding.createdTiers ? "success" : "base"}
                         />
                         <Text as="h3" variant="headingLg">
@@ -511,7 +511,7 @@ export default function OnboardingPage() {
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
-                          source={data.onboarding.syncedCustomers ? CheckCircleIcon : CircleAlertIcon}
+                          source={data.onboarding.syncedCustomers ? CheckCircleIcon : AlertCircleIcon}
                           tone={data.onboarding.syncedCustomers ? "success" : "base"}
                         />
                         <Text as="h3" variant="headingLg">
@@ -581,7 +581,7 @@ export default function OnboardingPage() {
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
-                          source={data.onboarding.configuredSettings ? CheckCircleIcon : CircleAlertIcon}
+                          source={data.onboarding.configuredSettings ? CheckCircleIcon : AlertCircleIcon}
                           tone={data.onboarding.configuredSettings ? "success" : "base"}
                         />
                         <Text as="h3" variant="headingLg">
