@@ -154,55 +154,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return redirect("/app");
       }
 
-      case "create-default-tiers": {
-        // Check if tiers already exist
-        const existingTiers = await db.tier.count({ where: { shop } });
-        if (existingTiers > 0) {
-          return json({ success: true, message: "Tiers already exist" });
+      case "create-tier": {
+        const name = formData.get("tierName") as string;
+        const minSpend = parseFloat(formData.get("tierMinSpend") as string);
+        const cashbackPercent = parseFloat(formData.get("tierCashback") as string);
+
+        // Validate inputs
+        if (!name || name.trim() === "") {
+          return json({ success: false, error: "Please enter a tier name" }, { status: 400 });
+        }
+        if (isNaN(minSpend) || minSpend < 0) {
+          return json({ success: false, error: "Please enter a valid minimum spend amount" }, { status: 400 });
+        }
+        if (isNaN(cashbackPercent) || cashbackPercent < 0 || cashbackPercent > 100) {
+          return json({ success: false, error: "Please enter a valid cashback percentage (0-100)" }, { status: 400 });
         }
 
-        // Create default tiers
-        const defaultTiers = [
-          {
-            name: "Bronze",
-            minSpend: 0,
-            cashbackPercent: 2,
-            color: "#CD7F32",
+        // Create the tier
+        await db.tier.create({
+          data: {
+            shop,
+            name: name.trim(),
+            minSpend,
+            cashbackPercent,
+            evaluationPeriod: "LIFETIME",
+            active: true,
           },
-          {
-            name: "Silver",
-            minSpend: 500,
-            cashbackPercent: 5,
-            color: "#C0C0C0",
-          },
-          {
-            name: "Gold",
-            minSpend: 1000,
-            cashbackPercent: 10,
-            color: "#FFD700",
-          },
-        ];
-
-        await Promise.all(
-          defaultTiers.map((tier) =>
-            db.tier.create({
-              data: {
-                shop,
-                name: tier.name,
-                minSpend: tier.minSpend,
-                cashbackPercent: tier.cashbackPercent,
-                color: tier.color,
-                active: true,
-              },
-            })
-          )
-        );
+        });
 
         // Mark tiers as created
         const { updateOnboardingProgress } = await import("~/utils/onboarding");
         await updateOnboardingProgress(shop, { createdTiers: true });
 
-        return json({ success: true, message: "Default tiers created" });
+        return json({ success: true, message: "Tier created successfully" });
       }
 
       default:
@@ -221,6 +205,11 @@ export default function OnboardingPage() {
   const [currency, setCurrency] = useState(data.settings.storeCurrency || "USD");
   const [storeName, setStoreName] = useState(data.settings.storeName || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Tier form state
+  const [tierName, setTierName] = useState("");
+  const [tierMinSpend, setTierMinSpend] = useState("0");
+  const [tierCashback, setTierCashback] = useState("5");
 
   const totalSteps = 4;
   const progress = (data.currentStep / totalSteps) * 100;
@@ -241,9 +230,18 @@ export default function OnboardingPage() {
     submit({ action: "skip-onboarding" }, { method: "post" });
   };
 
-  const handleCreateDefaultTiers = () => {
+  const handleCreateTier = () => {
+    if (!tierName.trim()) {
+      alert("Please enter a tier name");
+      return;
+    }
     setIsSubmitting(true);
-    submit({ action: "create-default-tiers" }, { method: "post" });
+    const formData = new FormData();
+    formData.append("action", "create-tier");
+    formData.append("tierName", tierName);
+    formData.append("tierMinSpend", tierMinSpend);
+    formData.append("tierCashback", tierCashback);
+    submit(formData, { method: "post" });
   };
 
   const handleSaveSettings = () => {
@@ -401,90 +399,61 @@ export default function OnboardingPage() {
                       </BlockStack>
                     </Banner>
                   ) : (
-                    <Banner tone="info">
-                      <BlockStack gap="300">
+                    <>
+                      <Banner tone="info">
                         <Text as="p" variant="bodyMd">
-                          We can create default tiers for you (Bronze 2%, Silver 5%, Gold 10%), or
-                          you can create custom tiers on the Tiers page.
+                          Create your first loyalty tier below. You can add more tiers later from
+                          the Tier Products page.
                         </Text>
-                        <InlineStack gap="200">
-                          <Button
-                            variant="primary"
-                            onClick={handleCreateDefaultTiers}
-                            loading={isSubmitting}
-                          >
-                            Create Default Tiers
-                          </Button>
-                          <Button onClick={() => navigate("/app/tiers")}>
-                            Create Custom Tiers
-                          </Button>
-                        </InlineStack>
-                      </BlockStack>
-                    </Banner>
-                  )}
+                      </Banner>
 
-                  {/* Example Tiers Display */}
-                  {!data.onboarding.createdTiers && (
-                    <Card>
-                      <BlockStack gap="300">
-                        <Text as="p" variant="headingSm">
-                          Default Tier Structure
-                        </Text>
-                        <BlockStack gap="200">
-                          <InlineStack align="space-between" blockAlign="center">
-                            <InlineStack gap="200" blockAlign="center">
-                              <Box
-                                background="bg-fill-warning"
-                                borderRadius="100"
-                                padding="100"
-                                minWidth="8px"
-                                minHeight="8px"
-                              />
-                              <Text as="span" variant="bodyMd">
-                                Bronze
-                              </Text>
-                            </InlineStack>
-                            <Text as="span" variant="bodyMd" tone="subdued">
-                              $0+ spent • 2% cashback
-                            </Text>
-                          </InlineStack>
-                          <InlineStack align="space-between" blockAlign="center">
-                            <InlineStack gap="200" blockAlign="center">
-                              <Box
-                                background="bg-fill"
-                                borderRadius="100"
-                                padding="100"
-                                minWidth="8px"
-                                minHeight="8px"
-                              />
-                              <Text as="span" variant="bodyMd">
-                                Silver
-                              </Text>
-                            </InlineStack>
-                            <Text as="span" variant="bodyMd" tone="subdued">
-                              $500+ spent • 5% cashback
-                            </Text>
-                          </InlineStack>
-                          <InlineStack align="space-between" blockAlign="center">
-                            <InlineStack gap="200" blockAlign="center">
-                              <Box
-                                background="bg-fill-success"
-                                borderRadius="100"
-                                padding="100"
-                                minWidth="8px"
-                                minHeight="8px"
-                              />
-                              <Text as="span" variant="bodyMd">
-                                Gold
-                              </Text>
-                            </InlineStack>
-                            <Text as="span" variant="bodyMd" tone="subdued">
-                              $1000+ spent • 10% cashback
-                            </Text>
+                      <Card>
+                        <BlockStack gap="400">
+                          <Text as="p" variant="headingSm">
+                            Create Your First Tier
+                          </Text>
+
+                          <TextField
+                            label="Tier Name"
+                            value={tierName}
+                            onChange={setTierName}
+                            placeholder="e.g., Bronze, VIP, Starter"
+                            autoComplete="off"
+                            helpText="Give your tier a memorable name"
+                          />
+
+                          <TextField
+                            label="Minimum Spend"
+                            type="number"
+                            value={tierMinSpend}
+                            onChange={setTierMinSpend}
+                            prefix={data.settings.storeCurrency || "USD"}
+                            helpText="Minimum amount customers must spend to reach this tier (use 0 for entry-level tier)"
+                            autoComplete="off"
+                          />
+
+                          <TextField
+                            label="Cashback Percentage"
+                            type="number"
+                            value={tierCashback}
+                            onChange={setTierCashback}
+                            suffix="%"
+                            helpText="Percentage of order value customers earn as store credit"
+                            autoComplete="off"
+                          />
+
+                          <InlineStack align="start">
+                            <Button
+                              variant="primary"
+                              onClick={handleCreateTier}
+                              loading={isSubmitting}
+                            >
+                              Create Tier
+                            </Button>
                           </InlineStack>
                         </BlockStack>
-                      </BlockStack>
-                    </Card>
+                      </Card>
+                    </>
                   )}
 
                   <Divider />
