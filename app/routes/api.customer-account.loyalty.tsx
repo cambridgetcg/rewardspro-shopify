@@ -25,28 +25,6 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
-// Module initialization logging
-console.log('[INIT] api.customer-account.loyalty.tsx loading at', new Date().toISOString());
-console.log('[INIT] Environment:', {
-  NODE_ENV: process.env.NODE_ENV,
-  SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
-  AWS_REGION: process.env.AWS_REGION ? '✅ Set' : '❌ Missing',
-  AURORA_RESOURCE_ARN: process.env.AURORA_RESOURCE_ARN ? '✅ Set' : '❌ Missing',
-  AURORA_SECRET_ARN: process.env.AURORA_SECRET_ARN ? '✅ Set' : '❌ Missing',
-  AURORA_DATABASE_NAME: process.env.AURORA_DATABASE_NAME ? '✅ Set' : '❌ Missing',
-  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? '✅ Set' : '❌ Missing',
-  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? '✅ Set' : '❌ Missing'
-});
-
-// Check imports
-console.log('[INIT] Import check:', {
-  authenticate: typeof authenticate,
-  authenticatePublic: typeof authenticate?.public,
-  authenticateCustomerAccount: typeof authenticate?.public?.customerAccount,
-  db: typeof db,
-  dbCustomer: typeof db?.customer
-});
-
 // Rate limiting (simple in-memory, consider Redis for production)
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
