@@ -156,12 +156,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       case "create-tier": {
         const name = formData.get("tierName") as string;
-        const minSpend = parseFloat(formData.get("tierMinSpend") as string);
-        const cashbackPercent = parseFloat(formData.get("tierCashback") as string);
+        const minSpend = Number(formData.get("tierMinSpend"));
+        const cashbackPercent = Number(formData.get("tierCashback"));
         const evaluationPeriod = (formData.get("tierEvaluationPeriod") as string) || "ANNUAL";
 
         // Validate inputs
-        if (!name || name.trim() === "") {
+        if (!name || name.trim().length === 0) {
           return json({ success: false, error: "Please enter a tier name" }, { status: 400 });
         }
         if (isNaN(minSpend) || minSpend < 0) {
@@ -174,15 +174,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           return json({ success: false, error: "Invalid evaluation period" }, { status: 400 });
         }
 
-        // Create the tier
+        // Check for duplicate tier name
+        const existing = await db.tier.findFirst({
+          where: { shop, name: name.trim() },
+        });
+
+        if (existing) {
+          return json({ success: false, error: `A tier named "${name}" already exists` }, { status: 400 });
+        }
+
+        // Create tier ID matching tier-products pattern
+        const storeName = shop.split('.')[0];
+        const tierId = `${storeName}-${name.trim().toLowerCase().replace(/\s+/g, '-')}`;
+
+        // Create the tier with timestamps
         await db.tier.create({
           data: {
+            id: tierId,
             shop,
             name: name.trim(),
             minSpend,
             cashbackPercent,
             evaluationPeriod: evaluationPeriod as "ANNUAL" | "LIFETIME",
-            active: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
         });
 
