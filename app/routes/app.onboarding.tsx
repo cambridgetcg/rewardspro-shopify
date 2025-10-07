@@ -522,53 +522,41 @@ export default function OnboardingPage() {
                       </Text>
 
                       <BlockStack gap="300">
-                        <InlineStack gap="300" blockAlign="start">
-                          <Icon source={CheckCircleIcon} tone="subdued" />
-                          <BlockStack gap="100">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              Import your customers
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              We'll import your Shopify customers to track their rewards
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">
+                            Import your customers
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            We'll import your Shopify customers to track their rewards
+                          </Text>
+                        </BlockStack>
 
-                        <InlineStack gap="300" blockAlign="start">
-                          <Icon source={CheckCircleIcon} tone="subdued" />
-                          <BlockStack gap="100">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              Create reward tiers
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Set up tiers with different cashback percentages
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">
+                            Create reward tiers
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            Set up tiers with different cashback percentages
+                          </Text>
+                        </BlockStack>
 
-                        <InlineStack gap="300" blockAlign="start">
-                          <Icon source={CheckCircleIcon} tone="subdued" />
-                          <BlockStack gap="100">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              Sync order history
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Import past orders to calculate existing rewards
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">
+                            Sync order history
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            Import past orders to calculate existing rewards
+                          </Text>
+                        </BlockStack>
 
-                        <InlineStack gap="300" blockAlign="start">
-                          <Icon source={CheckCircleIcon} tone="subdued" />
-                          <BlockStack gap="100">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              Configure store settings
-                            </Text>
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Set your currency and store details
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
+                        <BlockStack gap="100">
+                          <Text as="p" variant="bodyMd" fontWeight="semibold">
+                            Configure store settings
+                          </Text>
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            Set your currency and store details
+                          </Text>
+                        </BlockStack>
                       </BlockStack>
                     </BlockStack>
                   </Card>
