@@ -82,10 +82,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   ]);
 
   // Determine current step based on completion status
+  // New order: 1. Customers, 2. Tiers, 3. Orders, 4. Settings
   let currentStep = 1;
-  if (shopSettings?.onboardingSyncedOrders) currentStep = 2;
+  if (shopSettings?.onboardingSyncedCustomers) currentStep = 2;
   if (shopSettings?.onboardingCreatedTiers) currentStep = 3;
-  if (shopSettings?.onboardingSyncedCustomers) currentStep = 4;
+  if (shopSettings?.onboardingSyncedOrders) currentStep = 4;
 
   // Check URL parameter for step override
   const url = new URL(request.url);
@@ -299,36 +300,36 @@ export default function OnboardingPage() {
 
               <Divider />
 
-              {/* Step 1: Sync Orders */}
+              {/* Step 1: Sync Customers */}
               {data.currentStep === 1 && (
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="start">
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
-                          source={data.onboarding.syncedOrders ? CheckCircleIcon : AlertCircleIcon}
-                          tone={data.onboarding.syncedOrders ? "success" : "base"}
+                          source={data.onboarding.syncedCustomers ? CheckCircleIcon : AlertCircleIcon}
+                          tone={data.onboarding.syncedCustomers ? "success" : "base"}
                         />
                         <Text as="h3" variant="headingLg">
-                          Sync Your Orders
+                          Sync Your Customers
                         </Text>
                       </InlineStack>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Import your existing Shopify orders to track customer purchases and reward
-                        past transactions. This helps you understand customer spending patterns and
-                        automatically calculate tier eligibility.
+                        Import your Shopify customers first. This is important because orders need
+                        customer records to exist. Customers will be automatically assigned to tiers
+                        based on their spending history in the next step.
                       </Text>
                     </BlockStack>
                   </InlineStack>
 
-                  {data.onboarding.syncedOrders ? (
+                  {data.onboarding.syncedCustomers ? (
                     <Banner tone="success">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          ✓ Orders Synced Successfully
+                          ✓ Customers Synced Successfully
                         </Text>
                         <Text as="p" variant="bodySm">
-                          {data.counts.orders} orders imported from your store.
+                          {data.counts.customers} customers imported from your store.
                         </Text>
                       </BlockStack>
                     </Banner>
@@ -336,15 +337,15 @@ export default function OnboardingPage() {
                     <Banner tone="info">
                       <BlockStack gap="300">
                         <Text as="p" variant="bodyMd">
-                          Click the button below to sync your orders, or visit the Orders page to
-                          start the sync process.
+                          Visit the Customers page to sync your customer list. This ensures that when
+                          you sync orders later, they'll be properly linked to customers.
                         </Text>
                         <InlineStack gap="200">
                           <Button
                             icon={RefreshIcon}
-                            onClick={() => navigate("/app/orders")}
+                            onClick={() => navigate("/app/customers")}
                           >
-                            Go to Orders Page
+                            Go to Customers Page
                           </Button>
                         </InlineStack>
                       </BlockStack>
@@ -504,36 +505,36 @@ export default function OnboardingPage() {
                 </BlockStack>
               )}
 
-              {/* Step 3: Sync Customers */}
+              {/* Step 3: Sync Orders */}
               {data.currentStep === 3 && (
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="start">
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Icon
-                          source={data.onboarding.syncedCustomers ? CheckCircleIcon : AlertCircleIcon}
-                          tone={data.onboarding.syncedCustomers ? "success" : "base"}
+                          source={data.onboarding.syncedOrders ? CheckCircleIcon : AlertCircleIcon}
+                          tone={data.onboarding.syncedOrders ? "success" : "base"}
                         />
                         <Text as="h3" variant="headingLg">
-                          Sync Your Customers
+                          Sync Your Orders
                         </Text>
                       </InlineStack>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Import your Shopify customers and automatically assign them to loyalty
-                        tiers based on their spending history. This ensures everyone starts at the
-                        right tier level.
+                        Now that your customers are imported, sync your Shopify orders. Orders will be
+                        automatically linked to existing customers, and cashback will be calculated based
+                        on tier levels. This completes your loyalty program data.
                       </Text>
                     </BlockStack>
                   </InlineStack>
 
-                  {data.onboarding.syncedCustomers ? (
+                  {data.onboarding.syncedOrders ? (
                     <Banner tone="success">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          ✓ Customers Synced Successfully
+                          ✓ Orders Synced Successfully
                         </Text>
                         <Text as="p" variant="bodySm">
-                          {data.counts.customers} customers imported and assigned to tiers.
+                          {data.counts.orders} orders imported and linked to customers.
                         </Text>
                       </BlockStack>
                     </Banner>
@@ -541,15 +542,15 @@ export default function OnboardingPage() {
                     <Banner tone="info">
                       <BlockStack gap="300">
                         <Text as="p" variant="bodyMd">
-                          Visit the Customers page to sync your customer list and assign them to
-                          tiers automatically.
+                          Visit the Orders page to sync your order history. Orders will be automatically
+                          linked to the customers you imported in step 1.
                         </Text>
                         <InlineStack gap="200">
                           <Button
                             icon={RefreshIcon}
-                            onClick={() => navigate("/app/customers")}
+                            onClick={() => navigate("/app/orders")}
                           >
-                            Go to Customers Page
+                            Go to Orders Page
                           </Button>
                         </InlineStack>
                       </BlockStack>

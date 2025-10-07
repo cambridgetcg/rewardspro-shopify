@@ -62,12 +62,12 @@ export function OnboardingChecklist({
 
   const steps: OnboardingStep[] = [
     {
-      id: "sync-orders",
-      title: "Sync Orders",
-      description: "Import your existing Shopify orders to track customer purchases",
-      completed: onboardingSyncedOrders,
-      action: () => navigate("/app/orders"),
-      actionLabel: "Go to Orders",
+      id: "sync-customers",
+      title: "Sync Customers",
+      description: "Import your Shopify customers first (required for order sync)",
+      completed: onboardingSyncedCustomers,
+      action: () => navigate("/app/customers"),
+      actionLabel: "Go to Customers",
     },
     {
       id: "create-tiers",
@@ -78,12 +78,12 @@ export function OnboardingChecklist({
       actionLabel: "Create Tiers",
     },
     {
-      id: "sync-customers",
-      title: "Sync Customers",
-      description: "Import your Shopify customers and assign them to tiers",
-      completed: onboardingSyncedCustomers,
-      action: () => navigate("/app/customers"),
-      actionLabel: "Go to Customers",
+      id: "sync-orders",
+      title: "Sync Orders",
+      description: "Import orders and link them to customers for rewards tracking",
+      completed: onboardingSyncedOrders,
+      action: () => navigate("/app/orders"),
+      actionLabel: "Go to Orders",
     },
     {
       id: "configure-settings",
