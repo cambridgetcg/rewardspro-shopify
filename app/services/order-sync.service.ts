@@ -38,7 +38,7 @@ export interface OrderSyncResult {
   duration: number;
 }
 
-// GraphQL Query for Orders - Based on the guide
+// GraphQL Query for Orders - Updated for 2025-01 API
 const ORDERS_BATCH_QUERY = `#graphql
   query GetOrdersBatch($cursor: String, $first: Int = 50, $query: String) {
     orders(first: $first, after: $cursor, query: $query, reverse: true) {
@@ -47,21 +47,49 @@ const ORDERS_BATCH_QUERY = `#graphql
         node {
           id
           name
-          orderNumber
           email
           createdAt
           updatedAt
           processedAt
-          currency
-          subtotalPrice
-          totalDiscounts
-          totalShippingPrice
-          totalTax
-          totalPrice
-          totalRefunded
-          netPayment
-          financialStatus
-          fulfillmentStatus
+          currencyCode
+          subtotalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          totalDiscountsSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalShippingPriceSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalTaxSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalPriceSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalRefundedSet {
+            shopMoney {
+              amount
+            }
+          }
+          netPaymentSet {
+            shopMoney {
+              amount
+            }
+          }
+          displayFinancialStatus
+          displayFulfillmentStatus
           customer {
             id
             email
@@ -75,8 +103,16 @@ const ORDERS_BATCH_QUERY = `#graphql
                 sku
                 vendor
                 quantity
-                price
-                totalDiscount
+                originalUnitPriceSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalDiscountSet {
+                  shopMoney {
+                    amount
+                  }
+                }
                 requiresShipping
                 taxable
                 product {
@@ -99,11 +135,19 @@ const ORDERS_BATCH_QUERY = `#graphql
                     id
                   }
                   quantity
-                  subtotal
+                  subtotalSet {
+                    shopMoney {
+                      amount
+                    }
+                  }
                 }
               }
             }
-            totalRefunded
+            totalRefundedSet {
+              shopMoney {
+                amount
+              }
+            }
           }
         }
       }
@@ -425,35 +469,35 @@ export class OrderSyncService {
       cashbackPercent = customer.currentTier.cashbackPercent;
       tierIdAtOrder = customer.currentTier.id;
       tierNameAtOrder = customer.currentTier.name;
-      
+
       // Calculate cashback on net amount (after discounts, before tax/shipping)
-      const netAmount = parseFloat(order.subtotalPrice || "0") - parseFloat(order.totalDiscounts || "0");
+      const netAmount = parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0") - parseFloat(order.totalDiscountsSet?.shopMoney?.amount || "0");
       cashbackAmount = (netAmount * cashbackPercent) / 100;
     }
 
     // Create the order
     const orderId = uuidv4();
     const now = new Date();
-    
+
     await (db as any).order.create({
       data: {
         id: orderId,
         shop: this.options.shop,
         shopifyOrderId,
-        shopifyOrderNumber: order.orderNumber?.toString() || "",
+        shopifyOrderNumber: order.name?.replace('#', '') || "",
         shopifyOrderName: order.name || "",
         customerId: customer?.id || "unknown",
         email: order.email || customer?.email || "",
-        currency: order.currency || "USD",
-        subtotalPrice: parseFloat(order.subtotalPrice || "0"),
-        totalDiscounts: parseFloat(order.totalDiscounts || "0"),
-        totalShipping: parseFloat(order.totalShippingPrice || "0"),
-        totalTax: parseFloat(order.totalTax || "0"),
-        totalPrice: parseFloat(order.totalPrice || "0"),
-        totalRefunded: parseFloat(order.totalRefunded || "0"),
-        netAmount: parseFloat(order.netPayment || order.totalPrice || "0"),
-        financialStatus: this.mapFinancialStatus(order.financialStatus),
-        fulfillmentStatus: order.fulfillmentStatus || null,
+        currency: order.currencyCode || "USD",
+        subtotalPrice: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0"),
+        totalDiscounts: parseFloat(order.totalDiscountsSet?.shopMoney?.amount || "0"),
+        totalShipping: parseFloat(order.totalShippingPriceSet?.shopMoney?.amount || "0"),
+        totalTax: parseFloat(order.totalTaxSet?.shopMoney?.amount || "0"),
+        totalPrice: parseFloat(order.totalPriceSet?.shopMoney?.amount || "0"),
+        totalRefunded: parseFloat(order.totalRefundedSet?.shopMoney?.amount || "0"),
+        netAmount: parseFloat(order.netPaymentSet?.shopMoney?.amount || order.totalPriceSet?.shopMoney?.amount || "0"),
+        financialStatus: this.mapFinancialStatus(order.displayFinancialStatus),
+        fulfillmentStatus: order.displayFulfillmentStatus || null,
         cashbackEligible: true,
         cashbackPercent,
         cashbackAmount,
@@ -489,10 +533,10 @@ export class OrderSyncService {
     await (db as any).order.update({
       where: { id: orderId },
       data: {
-        totalRefunded: parseFloat(order.totalRefunded || "0"),
-        netAmount: parseFloat(order.netPayment || order.totalPrice || "0"),
-        financialStatus: this.mapFinancialStatus(order.financialStatus),
-        fulfillmentStatus: order.fulfillmentStatus || null,
+        totalRefunded: parseFloat(order.totalRefundedSet?.shopMoney?.amount || "0"),
+        netAmount: parseFloat(order.netPaymentSet?.shopMoney?.amount || order.totalPriceSet?.shopMoney?.amount || "0"),
+        financialStatus: this.mapFinancialStatus(order.displayFinancialStatus),
+        fulfillmentStatus: order.displayFulfillmentStatus || null,
         shopifyUpdatedAt: new Date(order.updatedAt),
         updatedAt: new Date()
       }
@@ -530,6 +574,9 @@ export class OrderSyncService {
       const shopifyVariantId = item.variant?.id ? 
         item.variant.id.replace('gid://shopify/ProductVariant/', '') : null;
 
+      const unitPrice = parseFloat(item.originalUnitPriceSet?.shopMoney?.amount || "0");
+      const totalDiscount = parseFloat(item.totalDiscountSet?.shopMoney?.amount || "0");
+
       await (db as any).orderLineItem.create({
         data: {
           id: uuidv4(),
@@ -542,9 +589,9 @@ export class OrderSyncService {
           sku: item.sku || null,
           vendor: item.vendor || null,
           quantity: item.quantity || 1,
-          price: parseFloat(item.price || "0"),
-          totalPrice: parseFloat(item.price || "0") * (item.quantity || 1),
-          totalDiscount: parseFloat(item.totalDiscount || "0"),
+          price: unitPrice,
+          totalPrice: unitPrice * (item.quantity || 1),
+          totalDiscount: totalDiscount,
           requiresShipping: item.requiresShipping !== false,
           taxable: item.taxable !== false,
           giftCard: false, // Will need to check product type
@@ -583,7 +630,7 @@ export class OrderSyncService {
           id: refundId,
           orderId,
           shopifyRefundId,
-          amount: parseFloat(refund.totalRefunded?.amount || "0"),
+          amount: parseFloat(refund.totalRefundedSet?.shopMoney?.amount || "0"),
           shippingAmount: 0, // Not available in this query
           taxAmount: 0, // Not available in this query
           reason: null,
@@ -609,7 +656,7 @@ export class OrderSyncService {
               refundId,
               shopifyLineItemId,
               quantity: item.quantity || 1,
-              subtotal: parseFloat(item.subtotal?.amount || "0"),
+              subtotal: parseFloat(item.subtotalSet?.shopMoney?.amount || "0"),
               createdAt: new Date()
             }
           });
@@ -724,21 +771,48 @@ export class OrderSyncService {
         order(id: $id) {
           id
           name
-          orderNumber
           email
           createdAt
           updatedAt
           processedAt
-          currency
-          subtotalPrice
-          totalDiscounts
-          totalShippingPrice
-          totalTax
-          totalPrice
-          totalRefunded
-          netPayment
-          financialStatus
-          fulfillmentStatus
+          currencyCode
+          subtotalPriceSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalDiscountsSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalShippingPriceSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalTaxSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalPriceSet {
+            shopMoney {
+              amount
+            }
+          }
+          totalRefundedSet {
+            shopMoney {
+              amount
+            }
+          }
+          netPaymentSet {
+            shopMoney {
+              amount
+            }
+          }
+          displayFinancialStatus
+          displayFulfillmentStatus
           customer {
             id
             email
@@ -752,8 +826,16 @@ export class OrderSyncService {
                 sku
                 vendor
                 quantity
-                price
-                totalDiscount
+                originalUnitPriceSet {
+                  shopMoney {
+                    amount
+                  }
+                }
+                totalDiscountSet {
+                  shopMoney {
+                    amount
+                  }
+                }
                 requiresShipping
                 taxable
                 product {
@@ -776,11 +858,19 @@ export class OrderSyncService {
                     id
                   }
                   quantity
-                  subtotal
+                  subtotalSet {
+                    shopMoney {
+                      amount
+                    }
+                  }
                 }
               }
             }
-            totalRefunded
+            totalRefundedSet {
+              shopMoney {
+                amount
+              }
+            }
           }
         }
       }
