@@ -16,15 +16,14 @@ import {
   Badge,
   Banner,
   TextField,
-  Select,
   Divider,
+  Modal,
+  List,
 } from "@shopify/polaris";
 import {
   CheckCircleIcon,
   AlertCircleIcon,
-  ArrowRightIcon,
-  ArrowLeftIcon,
-  RefreshIcon,
+  StarFilledIcon,
 } from "~/utils/polaris-icons";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
@@ -48,6 +47,16 @@ interface LoaderData {
     storeName: string | null;
   };
   currentStep: number;
+  maxAllowedStep: number;
+}
+
+// Helper function to calculate max allowed step based on completion
+function getMaxAllowedStep(onboarding: LoaderData["onboarding"]): number {
+  // Step 0 (welcome) is always accessible
+  if (!onboarding.syncedCustomers) return 1;
+  if (!onboarding.createdTiers) return 2;
+  if (!onboarding.syncedOrders) return 3;
+  return 4;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -55,10 +64,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.log("[Onboarding Loader] Request received:", {
     url: url.pathname + url.search,
     method: request.method,
-    headers: {
-      referer: request.headers.get("referer"),
-      shopifyApiRequest: request.headers.get("x-shopify-api-request-failure-reauthorize"),
-    }
   });
 
   try {
@@ -67,7 +72,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.log("[Onboarding Loader] Authenticated for shop:", shop);
 
     // Fetch onboarding status
-    console.log("[Onboarding Loader] Fetching shop settings...");
     const shopSettings = await db.shopSettings.findUnique({
       where: { shop },
       select: {
@@ -81,7 +85,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         storeName: true,
       },
     });
-    console.log("[Onboarding Loader] Shop settings:", shopSettings);
 
     // Redirect to dashboard if onboarding is completed or dismissed
     if (shopSettings?.onboardingCompleted || shopSettings?.onboardingDismissed) {
@@ -90,42 +93,46 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // Get counts for display
-    console.log("[Onboarding Loader] Fetching counts...");
     const [orderCount, tierCount, customerCount] = await Promise.all([
       db.order.count({ where: { shop } }),
       db.tier.count({ where: { shop } }),
       db.customer.count({ where: { shop } }),
     ]);
-    console.log("[Onboarding Loader] Counts:", { orderCount, tierCount, customerCount });
 
-    // Determine current step based on completion status
-    // New order: 1. Customers, 2. Tiers, 3. Orders, 4. Settings
-    let currentStep = 1;
-    if (shopSettings?.onboardingSyncedCustomers) currentStep = 2;
-    if (shopSettings?.onboardingCreatedTiers) currentStep = 3;
-    if (shopSettings?.onboardingSyncedOrders) currentStep = 4;
+    const onboarding = {
+      syncedOrders: shopSettings?.onboardingSyncedOrders || false,
+      createdTiers: shopSettings?.onboardingCreatedTiers || false,
+      syncedCustomers: shopSettings?.onboardingSyncedCustomers || false,
+      configuredSettings: shopSettings?.onboardingConfiguredSettings || false,
+      completed: shopSettings?.onboardingCompleted || false,
+    };
 
-    // Check URL parameter for step override
+    // Calculate max allowed step based on completion
+    const maxAllowedStep = getMaxAllowedStep(onboarding);
+
+    // Determine current step from URL or from completion status
     const stepParam = url.searchParams.get("step");
+    let currentStep = 0; // Default to welcome screen
+
     if (stepParam) {
-      const step = parseInt(stepParam, 10);
-      if (step >= 1 && step <= 4) {
-        console.log("[Onboarding Loader] Step override from URL:", step);
-        currentStep = step;
+      const requestedStep = parseInt(stepParam, 10);
+      // Enforce step gating - can't skip ahead
+      if (requestedStep >= 0 && requestedStep <= 4) {
+        currentStep = Math.min(requestedStep, maxAllowedStep);
+
+        // If user tried to skip ahead, redirect to max allowed step
+        if (requestedStep > maxAllowedStep) {
+          console.log("[Onboarding Loader] User tried to skip ahead, redirecting to step:", maxAllowedStep);
+          return redirect(`/app/onboarding?step=${maxAllowedStep}`);
+        }
       }
     }
 
-    console.log("[Onboarding Loader] Current step determined:", currentStep);
+    console.log("[Onboarding Loader] Current step:", currentStep, "Max allowed:", maxAllowedStep);
 
     const responseData = {
       shop,
-      onboarding: {
-        syncedOrders: shopSettings?.onboardingSyncedOrders || false,
-        createdTiers: shopSettings?.onboardingCreatedTiers || false,
-        syncedCustomers: shopSettings?.onboardingSyncedCustomers || false,
-        configuredSettings: shopSettings?.onboardingConfiguredSettings || false,
-        completed: shopSettings?.onboardingCompleted || false,
-      },
+      onboarding,
       counts: {
         orders: orderCount,
         tiers: tierCount,
@@ -136,9 +143,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         storeName: shopSettings?.storeName || null,
       },
       currentStep,
+      maxAllowedStep,
     };
 
-    console.log("[Onboarding Loader] Returning response:", responseData);
     return json<LoaderData>(responseData);
   } catch (error) {
     console.error("[Onboarding Loader] Error:", error);
@@ -147,48 +154,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  console.log("[Onboarding Action] Request received:", {
-    url: request.url,
-    method: request.method,
-  });
+  console.log("[Onboarding Action] Request received");
 
   try {
     const { session } = await authenticate.admin(request);
     const shop = session.shop;
-    console.log("[Onboarding Action] Authenticated for shop:", shop);
 
     const formData = await request.formData();
     const actionType = formData.get("action");
     console.log("[Onboarding Action] Action type:", actionType);
 
     switch (actionType) {
-      case "save-settings": {
-        const currency = formData.get("currency") as string;
-        const storeName = formData.get("storeName") as string;
-        console.log("[Onboarding Action] Saving settings:", { currency, storeName });
-
-        await db.shopSettings.update({
-          where: { shop },
-          data: {
-            storeCurrency: currency,
-            storeName: storeName,
-            onboardingConfiguredSettings: true,
-            onboardingCompleted: true, // Mark as completed when settings saved
-          },
-        });
-
-        console.log("[Onboarding Action] Settings saved, redirecting to /app");
-        return redirect("/app?onboarding=completed");
+      case "start-onboarding": {
+        console.log("[Onboarding Action] Starting onboarding");
+        // Just navigate to step 1
+        return json({ success: true, nextStep: 1 });
       }
 
-      case "skip-onboarding": {
-        console.log("[Onboarding Action] Skipping onboarding");
+      case "dismiss-onboarding": {
+        console.log("[Onboarding Action] Dismissing onboarding");
         await db.shopSettings.update({
           where: { shop },
           data: { onboardingDismissed: true },
         });
-
-        console.log("[Onboarding Action] Onboarding dismissed, redirecting to /app");
         return redirect("/app");
       }
 
@@ -198,49 +186,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const cashbackPercent = Number(formData.get("tierCashback"));
         const evaluationPeriod = (formData.get("tierEvaluationPeriod") as string) || "ANNUAL";
 
-        console.log("[Onboarding Action] Creating tier:", {
-          name,
-          minSpend,
-          cashbackPercent,
-          evaluationPeriod
-        });
+        console.log("[Onboarding Action] Creating tier:", { name, minSpend, cashbackPercent, evaluationPeriod });
 
         // Validate inputs
         if (!name || name.trim().length === 0) {
-          console.log("[Onboarding Action] Validation failed: Empty tier name");
           return json({ success: false, error: "Please enter a tier name" }, { status: 400 });
         }
         if (isNaN(minSpend) || minSpend < 0) {
-          console.log("[Onboarding Action] Validation failed: Invalid minSpend");
           return json({ success: false, error: "Please enter a valid minimum spend amount" }, { status: 400 });
         }
         if (isNaN(cashbackPercent) || cashbackPercent < 0 || cashbackPercent > 100) {
-          console.log("[Onboarding Action] Validation failed: Invalid cashbackPercent");
           return json({ success: false, error: "Please enter a valid cashback percentage (0-100)" }, { status: 400 });
-        }
-        if (evaluationPeriod !== "ANNUAL" && evaluationPeriod !== "LIFETIME") {
-          console.log("[Onboarding Action] Validation failed: Invalid evaluationPeriod");
-          return json({ success: false, error: "Invalid evaluation period" }, { status: 400 });
         }
 
         // Check for duplicate tier name
-        console.log("[Onboarding Action] Checking for duplicate tier name");
         const existing = await db.tier.findFirst({
           where: { shop, name: name.trim() },
         });
 
         if (existing) {
-          console.log("[Onboarding Action] Duplicate tier found:", existing.id);
           return json({ success: false, error: `A tier named "${name}" already exists` }, { status: 400 });
         }
 
-        // Create tier ID matching tier-products pattern
+        // Create tier ID
         const storeName = shop.split('.')[0];
         const tierId = `${storeName}-${name.trim().toLowerCase().replace(/\s+/g, '-')}`;
-        console.log("[Onboarding Action] Generated tier ID:", tierId);
 
-        // Create the tier with timestamps
-        console.log("[Onboarding Action] Creating tier in database");
+        // Create the tier
         await db.tier.create({
           data: {
             id: tierId,
@@ -255,12 +227,37 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         // Mark tiers as created
-        console.log("[Onboarding Action] Updating onboarding progress");
-        const { updateOnboardingProgress } = await import("~/utils/onboarding");
-        await updateOnboardingProgress(shop, { createdTiers: true });
+        await db.shopSettings.update({
+          where: { shop },
+          data: { onboardingCreatedTiers: true },
+        });
 
         console.log("[Onboarding Action] Tier created successfully");
-        return json({ success: true, message: "Tier created successfully" });
+        return json({ success: true, message: "Tier created successfully!" });
+      }
+
+      case "save-settings": {
+        const currency = formData.get("currency") as string;
+        const storeName = formData.get("storeName") as string;
+
+        console.log("[Onboarding Action] Saving settings:", { currency, storeName });
+
+        if (!storeName || !storeName.trim()) {
+          return json({ success: false, error: "Please enter your store name" }, { status: 400 });
+        }
+
+        await db.shopSettings.update({
+          where: { shop },
+          data: {
+            storeCurrency: currency,
+            storeName: storeName,
+            onboardingConfiguredSettings: true,
+            onboardingCompleted: true,
+          },
+        });
+
+        console.log("[Onboarding Action] Settings saved, onboarding complete");
+        return json({ success: true, completed: true });
       }
 
       default:
@@ -268,7 +265,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ success: false, error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
-    console.error("[Onboarding Action] Error processing action:", error);
+    console.error("[Onboarding Action] Error:", error);
     return json({ success: false, error: "Action failed" }, { status: 500 });
   }
 };
@@ -279,8 +276,9 @@ export default function OnboardingPage() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const submit = useSubmit();
-  const [currency, setCurrency] = useState(data.settings.storeCurrency || "USD");
-  const [storeName, setStoreName] = useState(data.settings.storeName || "");
+
+  // State
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -290,113 +288,95 @@ export default function OnboardingPage() {
   const [tierCashback, setTierCashback] = useState("5");
   const [tierEvaluationPeriod, setTierEvaluationPeriod] = useState<"ANNUAL" | "LIFETIME">("ANNUAL");
 
+  // Settings form state
+  const [storeName, setStoreName] = useState(data.settings.storeName || "");
+  const [currency, setCurrency] = useState(data.settings.storeCurrency || "USD");
+
   const isSubmitting = navigation.state === "submitting";
 
-  // Log component mount and data changes
+  // Handle action responses
   useEffect(() => {
-    console.log("[Onboarding Component] Mounted/Updated with data:", {
-      shop: data.shop,
-      currentStep: data.currentStep,
-      onboarding: data.onboarding,
-      counts: data.counts,
-    });
-  }, [data]);
+    if (actionData) {
+      console.log("[Onboarding Component] Action data received:", actionData);
 
-  // Log navigation state changes
-  useEffect(() => {
-    console.log("[Onboarding Component] Navigation state changed:", navigation.state);
-  }, [navigation.state]);
-
-  // Handle action response for tier creation
-  useEffect(() => {
-    console.log("[Onboarding Component] Action data received:", actionData);
-    if (actionData && "success" in actionData) {
-      if (actionData.success) {
-        console.log("[Onboarding Component] Tier creation successful, showing success message");
-        setSuccessMessage(actionData.message || "Tier created successfully");
-        setErrorMessage(null);
-        // Reset form
-        setTierName("");
-        setTierMinSpend("0");
-        setTierCashback("5");
-        setTierEvaluationPeriod("ANNUAL");
-        // Navigate to refresh the page data without a full reload
-        console.log("[Onboarding Component] Scheduling navigation to refresh data");
-        setTimeout(() => {
-          console.log("[Onboarding Component] Navigating to /app/onboarding?step=2");
-          navigate("/app/onboarding?step=2", { replace: true });
-        }, 1500);
-      } else {
-        console.log("[Onboarding Component] Tier creation failed:", actionData.error);
-        setErrorMessage(actionData.error || "Failed to create tier");
+      if ("success" in actionData && actionData.success) {
+        if ("completed" in actionData && actionData.completed) {
+          // Show completion modal
+          setShowCompletionModal(true);
+        } else if ("message" in actionData) {
+          setSuccessMessage(actionData.message as string);
+          setErrorMessage(null);
+          // Reset tier form
+          setTierName("");
+          setTierMinSpend("0");
+          setTierCashback("5");
+          setTierEvaluationPeriod("ANNUAL");
+          // Navigate to next step after brief delay to show success message
+          setTimeout(() => {
+            navigate(`/app/onboarding?step=3`);
+          }, 1000);
+        }
+      } else if ("error" in actionData) {
+        setErrorMessage(actionData.error as string);
         setSuccessMessage(null);
       }
     }
   }, [actionData, navigate]);
 
-  const totalSteps = 4;
-  const progress = (data.currentStep / totalSteps) * 100;
+  const handleStartOnboarding = () => {
+    console.log("[Onboarding Component] Starting onboarding");
+    navigate("/app/onboarding?step=1");
+  };
+
+  const handleDismiss = () => {
+    console.log("[Onboarding Component] Dismissing onboarding");
+    submit({ action: "dismiss-onboarding" }, { method: "post" });
+  };
 
   const handleNextStep = () => {
-    console.log("[Onboarding Component] Next step clicked, current:", data.currentStep);
-    if (data.currentStep < totalSteps) {
-      const nextStep = data.currentStep + 1;
-      console.log("[Onboarding Component] Navigating to step:", nextStep);
+    const nextStep = data.currentStep + 1;
+    console.log("[Onboarding Component] Moving to next step:", nextStep);
+    if (nextStep <= 4) {
       navigate(`/app/onboarding?step=${nextStep}`);
     }
   };
 
   const handlePreviousStep = () => {
-    console.log("[Onboarding Component] Previous step clicked, current:", data.currentStep);
-    if (data.currentStep > 1) {
-      const prevStep = data.currentStep - 1;
-      console.log("[Onboarding Component] Navigating to step:", prevStep);
+    const prevStep = data.currentStep - 1;
+    console.log("[Onboarding Component] Moving to previous step:", prevStep);
+    if (prevStep >= 0) {
       navigate(`/app/onboarding?step=${prevStep}`);
     }
   };
 
-  const handleSkip = () => {
-    console.log("[Onboarding Component] Skip onboarding clicked");
-    submit({ action: "skip-onboarding" }, { method: "post" });
-  };
-
   const handleCreateTier = () => {
-    console.log("[Onboarding Component] Create tier clicked:", {
-      tierName,
-      tierMinSpend,
-      tierCashback,
-      tierEvaluationPeriod
-    });
     if (!tierName.trim()) {
-      console.log("[Onboarding Component] Validation failed: Empty tier name");
       setErrorMessage("Please enter a tier name");
       return;
     }
     setErrorMessage(null);
     setSuccessMessage(null);
+
     const formData = new FormData();
     formData.append("action", "create-tier");
     formData.append("tierName", tierName);
     formData.append("tierMinSpend", tierMinSpend);
     formData.append("tierCashback", tierCashback);
     formData.append("tierEvaluationPeriod", tierEvaluationPeriod);
-    console.log("[Onboarding Component] Submitting tier creation form");
     submit(formData, { method: "post" });
   };
 
   const handleSaveSettings = () => {
-    console.log("[Onboarding Component] Save settings clicked:", { currency, storeName });
     if (!storeName.trim()) {
-      console.log("[Onboarding Component] Validation failed: Empty store name");
       setErrorMessage("Please enter your store name");
       return;
     }
     setErrorMessage(null);
+
     const formData = new FormData();
     formData.append("action", "save-settings");
     formData.append("currency", currency);
     formData.append("storeName", storeName);
-    console.log("[Onboarding Component] Submitting save settings form");
     submit(formData, { method: "post" });
   };
 
@@ -411,54 +391,165 @@ export default function OnboardingPage() {
     { label: "INR - Indian Rupee", value: "INR" },
   ];
 
+  const totalSteps = 4;
+  const progress = data.currentStep === 0 ? 0 : (data.currentStep / totalSteps) * 100;
+
+  // Check if current step can proceed
+  const canProceedFromStep = (step: number): boolean => {
+    switch (step) {
+      case 0: return true; // Welcome screen can always proceed
+      case 1: return data.onboarding.syncedCustomers;
+      case 2: return data.onboarding.createdTiers;
+      case 3: return data.onboarding.syncedOrders;
+      case 4: return data.onboarding.configuredSettings;
+      default: return false;
+    }
+  };
+
   return (
     <Page
-      title="Welcome to RewardsPro"
-      subtitle="Let's get your loyalty program set up in 4 simple steps"
-      secondaryActions={[
+      title={data.currentStep === 0 ? "Welcome to RewardsPro!" : "Getting Started"}
+      subtitle={data.currentStep === 0 ? "Set up your loyalty program in just a few minutes" : undefined}
+      secondaryActions={data.currentStep > 0 ? [
         {
-          content: "Skip Setup",
-          onAction: handleSkip,
+          content: "I'll Do This Later",
+          onAction: handleDismiss,
         },
-      ]}
+      ] : undefined}
     >
       <Layout>
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              {/* Progress Header */}
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="h2" variant="headingMd">
-                    Step {data.currentStep} of {totalSteps}
-                  </Text>
-                  <Badge tone="info">
-                    {Math.round(progress)}% Complete
-                  </Badge>
-                </InlineStack>
-                <ProgressBar progress={progress} tone="primary" />
-              </BlockStack>
+              {/* Progress indicator (hide on welcome screen) */}
+              {data.currentStep > 0 && (
+                <>
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">
+                      Step {data.currentStep} of {totalSteps}
+                    </Text>
+                    <Badge tone="info">
+                      {Math.round(progress)}% Complete
+                    </Badge>
+                  </InlineStack>
+                  <ProgressBar
+                    progress={progress}
+                    tone="primary"
+                    size="small"
+                  />
+                  <Divider />
+                </>
+              )}
 
-              <Divider />
-
-              {/* Step 1: Sync Customers */}
-              {data.currentStep === 1 && (
-                <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="start">
-                    <BlockStack gap="200">
+              {/* Welcome Screen (Step 0) */}
+              {data.currentStep === 0 && (
+                <BlockStack gap="500">
+                  <Box paddingBlockStart="400">
+                    <BlockStack gap="300">
                       <InlineStack gap="200" blockAlign="center">
-                        <Icon
-                          source={data.onboarding.syncedCustomers ? CheckCircleIcon : AlertCircleIcon}
-                          tone={data.onboarding.syncedCustomers ? "success" : "base"}
-                        />
-                        <Text as="h3" variant="headingLg">
-                          Sync Your Customers
+                        <Icon source={StarFilledIcon} tone="magic" />
+                        <Text as="h2" variant="headingLg">
+                          Let's set up your loyalty program
                         </Text>
                       </InlineStack>
+
+                      <Text as="p" variant="bodyLg" tone="subdued">
+                        In just a few minutes, you'll have a fully functional rewards program
+                        that automatically tracks customer spending and issues cashback rewards.
+                      </Text>
+                    </BlockStack>
+                  </Box>
+
+                  <Card>
+                    <BlockStack gap="400">
+                      <Text as="h3" variant="headingSm">
+                        What you'll set up:
+                      </Text>
+
+                      <BlockStack gap="300">
+                        <InlineStack gap="300" blockAlign="start">
+                          <Icon source={CheckCircleIcon} tone="subdued" />
+                          <BlockStack gap="100">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              Import your customers
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              We'll import your Shopify customers to track their rewards
+                            </Text>
+                          </BlockStack>
+                        </InlineStack>
+
+                        <InlineStack gap="300" blockAlign="start">
+                          <Icon source={CheckCircleIcon} tone="subdued" />
+                          <BlockStack gap="100">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              Create reward tiers
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Set up tiers with different cashback percentages
+                            </Text>
+                          </BlockStack>
+                        </InlineStack>
+
+                        <InlineStack gap="300" blockAlign="start">
+                          <Icon source={CheckCircleIcon} tone="subdued" />
+                          <BlockStack gap="100">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              Sync order history
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Import past orders to calculate existing rewards
+                            </Text>
+                          </BlockStack>
+                        </InlineStack>
+
+                        <InlineStack gap="300" blockAlign="start">
+                          <Icon source={CheckCircleIcon} tone="subdued" />
+                          <BlockStack gap="100">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              Configure store settings
+                            </Text>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Set your currency and store details
+                            </Text>
+                          </BlockStack>
+                        </InlineStack>
+                      </BlockStack>
+                    </BlockStack>
+                  </Card>
+
+                  <Banner tone="info">
+                    <Text as="p" variant="bodySm">
+                      <strong>Estimated time:</strong> 5 minutes
+                    </Text>
+                  </Banner>
+
+                  <InlineStack align="end" gap="200">
+                    <Button onClick={handleDismiss}>
+                      I'll Do This Later
+                    </Button>
+                    <Button variant="primary" onClick={handleStartOnboarding}>
+                      Get Started
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+              )}
+
+              {/* Step 1: Import Customers */}
+              {data.currentStep === 1 && (
+                <BlockStack gap="400">
+                  <InlineStack gap="300" blockAlign="start">
+                    <Icon
+                      source={data.onboarding.syncedCustomers ? CheckCircleIcon : AlertCircleIcon}
+                      tone={data.onboarding.syncedCustomers ? "success" : "base"}
+                    />
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingLg">
+                        Import Your Customers
+                      </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Import your Shopify customers first. This is important because orders need
-                        customer records to exist. Customers will be automatically assigned to tiers
-                        based on their spending history in the next step.
+                        Customer records must exist before we can link orders and calculate rewards.
+                        We'll import all your Shopify customers now.
                       </Text>
                     </BlockStack>
                   </InlineStack>
@@ -467,42 +558,50 @@ export default function OnboardingPage() {
                     <Banner tone="success">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          ✓ Customers Synced Successfully
+                          ✓ Successfully imported {data.counts.customers} customers
                         </Text>
                         <Text as="p" variant="bodySm">
-                          {data.counts.customers} customers imported from your store.
+                          Your customer data is ready. You can now create reward tiers.
                         </Text>
                       </BlockStack>
                     </Banner>
                   ) : (
-                    <Banner tone="info">
-                      <BlockStack gap="300">
-                        <Text as="p" variant="bodyMd">
-                          Visit the Customers page to sync your customer list. This ensures that when
-                          you sync orders later, they'll be properly linked to customers.
+                    <>
+                      <Banner tone="info">
+                        <BlockStack gap="300">
+                          <Text as="p" variant="bodyMd">
+                            To import customers, please visit the Customers page. You can return here
+                            after the sync is complete to continue setting up your rewards program.
+                          </Text>
+                          <InlineStack gap="200">
+                            <Button onClick={() => navigate("/app/customers")}>
+                              Go to Customers Page
+                            </Button>
+                          </InlineStack>
+                        </BlockStack>
+                      </Banner>
+
+                      <Banner tone="warning">
+                        <Text as="p" variant="bodySm">
+                          <strong>Note:</strong> You'll need to complete this step before you can proceed
+                          to creating reward tiers.
                         </Text>
-                        <InlineStack gap="200">
-                          <Button
-                            icon={RefreshIcon}
-                            onClick={() => navigate("/app/customers")}
-                          >
-                            Go to Customers Page
-                          </Button>
-                        </InlineStack>
-                      </BlockStack>
-                    </Banner>
+                      </Banner>
+                    </>
                   )}
 
                   <Divider />
 
-                  {/* Navigation */}
-                  <InlineStack align="end" gap="200">
+                  <InlineStack align="space-between">
+                    <Button onClick={handlePreviousStep}>
+                      Back
+                    </Button>
                     <Button
-                      onClick={handleNextStep}
                       variant="primary"
-                      icon={ArrowRightIcon}
+                      onClick={handleNextStep}
+                      disabled={!canProceedFromStep(1)}
                     >
-                      Next Step
+                      {canProceedFromStep(1) ? "Continue" : "Complete This Step First"}
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -511,21 +610,18 @@ export default function OnboardingPage() {
               {/* Step 2: Create Tiers */}
               {data.currentStep === 2 && (
                 <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="start">
+                  <InlineStack gap="300" blockAlign="start">
+                    <Icon
+                      source={data.onboarding.createdTiers ? CheckCircleIcon : AlertCircleIcon}
+                      tone={data.onboarding.createdTiers ? "success" : "base"}
+                    />
                     <BlockStack gap="200">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Icon
-                          source={data.onboarding.createdTiers ? CheckCircleIcon : AlertCircleIcon}
-                          tone={data.onboarding.createdTiers ? "success" : "base"}
-                        />
-                        <Text as="h3" variant="headingLg">
-                          Create Loyalty Tiers
-                        </Text>
-                      </InlineStack>
+                      <Text as="h3" variant="headingLg">
+                        Create Your First Reward Tier
+                      </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Set up loyalty tiers with different cashback percentages to reward your
-                        best customers. Customers automatically move up tiers based on their total
-                        spending.
+                        Reward tiers give different cashback percentages based on customer spending.
+                        Start with one tier and add more later from the Tier Products page.
                       </Text>
                     </BlockStack>
                   </InlineStack>
@@ -534,10 +630,10 @@ export default function OnboardingPage() {
                     <Banner tone="success">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          ✓ Tiers Created Successfully
+                          ✓ You've created {data.counts.tiers} reward tier{data.counts.tiers !== 1 ? 's' : ''}
                         </Text>
                         <Text as="p" variant="bodySm">
-                          {data.counts.tiers} loyalty tiers are active.
+                          Great! Now let's import your orders to calculate rewards.
                         </Text>
                       </BlockStack>
                     </Banner>
@@ -545,40 +641,31 @@ export default function OnboardingPage() {
                     <>
                       {successMessage && (
                         <Banner tone="success" onDismiss={() => setSuccessMessage(null)}>
-                          <Text as="p" variant="bodyMd">
-                            {successMessage}
-                          </Text>
+                          {successMessage}
                         </Banner>
                       )}
 
                       {errorMessage && (
                         <Banner tone="critical" onDismiss={() => setErrorMessage(null)}>
-                          <Text as="p" variant="bodyMd">
-                            {errorMessage}
-                          </Text>
+                          {errorMessage}
                         </Banner>
                       )}
 
                       <Banner tone="info">
-                        <Text as="p" variant="bodyMd">
-                          Create your first loyalty tier below. You can add more tiers later from
-                          the Tier Products page.
+                        <Text as="p" variant="bodySm">
+                          <strong>Example:</strong> A "Bronze" tier with 5% cashback for customers who've spent $0 or more
                         </Text>
                       </Banner>
 
                       <Card>
                         <BlockStack gap="400">
-                          <Text as="p" variant="headingSm">
-                            Create Your First Tier
-                          </Text>
-
                           <TextField
                             label="Tier Name"
                             value={tierName}
                             onChange={setTierName}
-                            placeholder="e.g., Bronze, VIP, Starter"
-                            autoComplete="off"
+                            placeholder="e.g., Bronze, Silver, Gold"
                             helpText="Give your tier a memorable name"
+                            autoComplete="off"
                           />
 
                           <TextField
@@ -587,7 +674,7 @@ export default function OnboardingPage() {
                             value={tierMinSpend}
                             onChange={setTierMinSpend}
                             prefix={data.settings.storeCurrency || "USD"}
-                            helpText="Minimum amount customers must spend to reach this tier (use 0 for entry-level tier)"
+                            helpText="Use 0 for entry-level tier - customers need to spend this much to qualify"
                             autoComplete="off"
                           />
 
@@ -597,20 +684,44 @@ export default function OnboardingPage() {
                             value={tierCashback}
                             onChange={setTierCashback}
                             suffix="%"
-                            helpText="Percentage of order value customers earn as store credit"
+                            helpText="Percentage of each order value returned as store credit"
                             autoComplete="off"
                           />
 
-                          <Select
-                            label="Evaluation Period"
-                            options={[
-                              { label: "Annual (resets yearly)", value: "ANNUAL" },
-                              { label: "Lifetime (cumulative)", value: "LIFETIME" },
-                            ]}
-                            value={tierEvaluationPeriod}
-                            onChange={(value) => setTierEvaluationPeriod(value as "ANNUAL" | "LIFETIME")}
-                            helpText="Annual resets customer spending each year, Lifetime tracks total spending forever"
-                          />
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              Evaluation Period
+                            </Text>
+                            <BlockStack gap="200">
+                              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                                <input
+                                  type="radio"
+                                  value="LIFETIME"
+                                  checked={tierEvaluationPeriod === "LIFETIME"}
+                                  onChange={() => setTierEvaluationPeriod("LIFETIME")}
+                                  style={{ cursor: "pointer" }}
+                                />
+                                <Text as="span" variant="bodyMd">
+                                  Lifetime - Cumulative spending tracked forever
+                                </Text>
+                              </label>
+                              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                                <input
+                                  type="radio"
+                                  value="ANNUAL"
+                                  checked={tierEvaluationPeriod === "ANNUAL"}
+                                  onChange={() => setTierEvaluationPeriod("ANNUAL")}
+                                  style={{ cursor: "pointer" }}
+                                />
+                                <Text as="span" variant="bodyMd">
+                                  Annual - Spending resets each January
+                                </Text>
+                              </label>
+                            </BlockStack>
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Choose how customer spending is calculated for tier qualification
+                            </Text>
+                          </BlockStack>
 
                           <InlineStack align="start">
                             <Button
@@ -628,17 +739,16 @@ export default function OnboardingPage() {
 
                   <Divider />
 
-                  {/* Navigation */}
                   <InlineStack align="space-between">
-                    <Button onClick={handlePreviousStep} icon={ArrowLeftIcon}>
-                      Previous
+                    <Button onClick={handlePreviousStep}>
+                      Back
                     </Button>
                     <Button
-                      onClick={handleNextStep}
                       variant="primary"
-                      icon={ArrowRightIcon}
+                      onClick={handleNextStep}
+                      disabled={!canProceedFromStep(2)}
                     >
-                      Next Step
+                      {canProceedFromStep(2) ? "Continue" : "Create a Tier First"}
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -647,21 +757,18 @@ export default function OnboardingPage() {
               {/* Step 3: Sync Orders */}
               {data.currentStep === 3 && (
                 <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="start">
+                  <InlineStack gap="300" blockAlign="start">
+                    <Icon
+                      source={data.onboarding.syncedOrders ? CheckCircleIcon : AlertCircleIcon}
+                      tone={data.onboarding.syncedOrders ? "success" : "base"}
+                    />
                     <BlockStack gap="200">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Icon
-                          source={data.onboarding.syncedOrders ? CheckCircleIcon : AlertCircleIcon}
-                          tone={data.onboarding.syncedOrders ? "success" : "base"}
-                        />
-                        <Text as="h3" variant="headingLg">
-                          Sync Your Orders
-                        </Text>
-                      </InlineStack>
+                      <Text as="h3" variant="headingLg">
+                        Import Order History
+                      </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Now that your customers are imported, sync your Shopify orders. Orders will be
-                        automatically linked to existing customers, and cashback will be calculated based
-                        on tier levels. This completes your loyalty program data.
+                        Now we'll import your orders and link them to customers. This calculates
+                        their tier status and cashback balance based on past purchases.
                       </Text>
                     </BlockStack>
                   </InlineStack>
@@ -670,45 +777,52 @@ export default function OnboardingPage() {
                     <Banner tone="success">
                       <BlockStack gap="200">
                         <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          ✓ Orders Synced Successfully
+                          ✓ Successfully imported {data.counts.orders} orders
                         </Text>
                         <Text as="p" variant="bodySm">
-                          {data.counts.orders} orders imported and linked to customers.
+                          Orders are linked to customers and rewards have been calculated.
+                          Let's finish by configuring your store settings.
                         </Text>
                       </BlockStack>
                     </Banner>
                   ) : (
-                    <Banner tone="info">
-                      <BlockStack gap="300">
-                        <Text as="p" variant="bodyMd">
-                          Visit the Orders page to sync your order history. Orders will be automatically
-                          linked to the customers you imported in step 1.
+                    <>
+                      <Banner tone="info">
+                        <BlockStack gap="300">
+                          <Text as="p" variant="bodyMd">
+                            To import orders, please visit the Orders page. Orders will be automatically
+                            linked to the customers you imported in Step 1, and rewards will be calculated
+                            based on your tier settings.
+                          </Text>
+                          <InlineStack gap="200">
+                            <Button onClick={() => navigate("/app/orders")}>
+                              Go to Orders Page
+                            </Button>
+                          </InlineStack>
+                        </BlockStack>
+                      </Banner>
+
+                      <Banner tone="warning">
+                        <Text as="p" variant="bodySm">
+                          <strong>Note:</strong> Orders without matching customers will be skipped.
+                          This is why we imported customers first.
                         </Text>
-                        <InlineStack gap="200">
-                          <Button
-                            icon={RefreshIcon}
-                            onClick={() => navigate("/app/orders")}
-                          >
-                            Go to Orders Page
-                          </Button>
-                        </InlineStack>
-                      </BlockStack>
-                    </Banner>
+                      </Banner>
+                    </>
                   )}
 
                   <Divider />
 
-                  {/* Navigation */}
                   <InlineStack align="space-between">
-                    <Button onClick={handlePreviousStep} icon={ArrowLeftIcon}>
-                      Previous
+                    <Button onClick={handlePreviousStep}>
+                      Back
                     </Button>
                     <Button
-                      onClick={handleNextStep}
                       variant="primary"
-                      icon={ArrowRightIcon}
+                      onClick={handleNextStep}
+                      disabled={!canProceedFromStep(3)}
                     >
-                      Next Step
+                      {canProceedFromStep(3) ? "Continue" : "Complete This Step First"}
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -717,23 +831,33 @@ export default function OnboardingPage() {
               {/* Step 4: Configure Settings */}
               {data.currentStep === 4 && (
                 <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="start">
+                  <InlineStack gap="300" blockAlign="start">
+                    <Icon
+                      source={data.onboarding.configuredSettings ? CheckCircleIcon : AlertCircleIcon}
+                      tone={data.onboarding.configuredSettings ? "success" : "base"}
+                    />
                     <BlockStack gap="200">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Icon
-                          source={data.onboarding.configuredSettings ? CheckCircleIcon : AlertCircleIcon}
-                          tone={data.onboarding.configuredSettings ? "success" : "base"}
-                        />
-                        <Text as="h3" variant="headingLg">
-                          Configure Your Settings
-                        </Text>
-                      </InlineStack>
+                      <Text as="h3" variant="headingLg">
+                        Configure Store Settings
+                      </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Set your store's currency and name to complete your rewards program setup.
-                        These settings ensure cashback amounts are displayed correctly.
+                        Almost done! Just set your store details so we can display rewards
+                        correctly to your customers.
                       </Text>
                     </BlockStack>
                   </InlineStack>
+
+                  {errorMessage && (
+                    <Banner tone="critical" onDismiss={() => setErrorMessage(null)}>
+                      {errorMessage}
+                    </Banner>
+                  )}
+
+                  <Banner tone="success">
+                    <Text as="p" variant="bodyMd">
+                      🎉 <strong>You're almost there!</strong> Just one more step to complete your setup.
+                    </Text>
+                  </Banner>
 
                   <Card>
                     <BlockStack gap="400">
@@ -741,46 +865,54 @@ export default function OnboardingPage() {
                         label="Store Name"
                         value={storeName}
                         onChange={setStoreName}
-                        placeholder="Enter your store name"
+                        placeholder="My Awesome Store"
+                        helpText="Used in customer emails and notifications"
                         autoComplete="off"
-                        helpText="This will be displayed in customer communications"
                       />
 
-                      <Select
-                        label="Store Currency"
-                        options={currencyOptions}
-                        value={currency}
-                        onChange={setCurrency}
-                        helpText="Select the primary currency for your store"
-                      />
+                      <BlockStack gap="200">
+                        <Text as="p" variant="bodyMd" fontWeight="semibold">
+                          Store Currency
+                        </Text>
+                        <select
+                          value={currency}
+                          onChange={(e) => setCurrency(e.target.value)}
+                          style={{
+                            padding: "8px 12px",
+                            fontSize: "14px",
+                            border: "1px solid #c9cccf",
+                            borderRadius: "8px",
+                            width: "100%",
+                          }}
+                        >
+                          {currencyOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          All reward amounts will be displayed in this currency
+                        </Text>
+                      </BlockStack>
+
+                      <InlineStack align="start">
+                        <Button
+                          variant="primary"
+                          onClick={handleSaveSettings}
+                          loading={isSubmitting}
+                        >
+                          Complete Setup
+                        </Button>
+                      </InlineStack>
                     </BlockStack>
                   </Card>
 
-                  <Banner tone="success">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        🎉 Almost Done!
-                      </Text>
-                      <Text as="p" variant="bodySm">
-                        Click "Complete Setup" to finish onboarding and start rewarding your
-                        customers.
-                      </Text>
-                    </BlockStack>
-                  </Banner>
-
                   <Divider />
 
-                  {/* Navigation */}
-                  <InlineStack align="space-between">
-                    <Button onClick={handlePreviousStep} icon={ArrowLeftIcon}>
-                      Previous
-                    </Button>
-                    <Button
-                      onClick={handleSaveSettings}
-                      variant="primary"
-                      loading={isSubmitting}
-                    >
-                      Complete Setup
+                  <InlineStack align="start">
+                    <Button onClick={handlePreviousStep}>
+                      Back
                     </Button>
                   </InlineStack>
                 </BlockStack>
@@ -789,6 +921,59 @@ export default function OnboardingPage() {
           </Card>
         </Layout.Section>
       </Layout>
+
+      {/* Completion Modal */}
+      <Modal
+        open={showCompletionModal}
+        onClose={() => {
+          setShowCompletionModal(false);
+          navigate("/app");
+        }}
+        title="🎉 You're All Set!"
+        primaryAction={{
+          content: "Go to Dashboard",
+          onAction: () => navigate("/app"),
+        }}
+        secondaryActions={[
+          {
+            content: "View Analytics",
+            onAction: () => navigate("/app/analytics"),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            <Text as="p" variant="bodyMd">
+              Your loyalty program is now active and ready to reward your customers!
+            </Text>
+
+            <BlockStack gap="300">
+              <Text as="p" variant="headingSm">
+                What you've accomplished:
+              </Text>
+              <List type="bullet">
+                <List.Item>Imported {data.counts.customers} customers</List.Item>
+                <List.Item>Created {data.counts.tiers} reward tier{data.counts.tiers !== 1 ? 's' : ''}</List.Item>
+                <List.Item>Synced {data.counts.orders} orders</List.Item>
+                <List.Item>Configured store settings</List.Item>
+              </List>
+            </BlockStack>
+
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text as="p" variant="headingSm">
+                  Next steps:
+                </Text>
+                <List type="bullet">
+                  <List.Item>View your analytics dashboard to see customer insights</List.Item>
+                  <List.Item>Add more reward tiers from the Tier Products page</List.Item>
+                  <List.Item>Customize customer notifications in Settings</List.Item>
+                </List>
+              </BlockStack>
+            </Banner>
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
