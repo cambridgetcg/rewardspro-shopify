@@ -338,7 +338,13 @@ export class IncrementalOrderSync {
     } else {
       // Create new order in a transaction
       return await db.$transaction(async (tx) => {
-        const customerId = await this.getOrCreateCustomer(shop, orderData.customer, orderData.email);
+        // Check if customer exists in database
+        const customerId = await this.findCustomer(shop, orderData.customer, orderData.email);
+
+        if (!customerId) {
+          console.log(`[IncrementalSync] Skipping order ${orderData.name} - customer not in database`);
+          return { skipped: true };
+        }
 
         // Import tier management functions
         const { assignDefaultTierToCustomer, calculateAndAssignTier } = await import('./tier-management.server');
@@ -527,7 +533,39 @@ export class IncrementalOrderSync {
   }
 
   /**
+   * Find customer in database (without creating)
+   * Returns customer ID if found, null if not found
+   */
+  private async findCustomer(shop: string, customerData: any, orderEmail?: string): Promise<string | null> {
+    // Handle guest customers - skip them
+    if (!customerData) {
+      console.log(`[IncrementalSync] No customer data - skipping guest order`);
+      return null;
+    }
+
+    // Extract customer ID
+    const customerId = extractNumericId(customerData.id) || customerData.legacyResourceId;
+    if (!customerId) {
+      console.log(`[IncrementalSync] No customer ID - skipping order`);
+      return null;
+    }
+
+    // Check if customer exists in our database
+    const existingCustomer = await db.customer.findFirst({
+      where: { shop, shopifyCustomerId: customerId }
+    });
+
+    if (existingCustomer) {
+      return existingCustomer.id;
+    }
+
+    console.log(`[IncrementalSync] Customer ${customerId} not found in database - skipping order`);
+    return null;
+  }
+
+  /**
    * Get or create customer with transaction support
+   * DEPRECATED: Use findCustomer instead to skip orders without customers
    */
   private async getOrCreateCustomer(shop: string, customerData: any, orderEmail?: string): Promise<string> {
     // Handle guest customers

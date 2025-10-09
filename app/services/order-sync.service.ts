@@ -581,41 +581,11 @@ export class OrderSyncService {
           tierName: customer.currentTier?.name
         });
       } else {
-        console.log(`[PROCESS] ⚠️ Customer NOT found in database, creating...`, {
-          shopifyCustomerId
+        console.log(`[PROCESS] ⚠️ Customer NOT found in database - skipping order`, {
+          shopifyCustomerId,
+          orderName: order.name
         });
-
-        // Create the customer before creating the order
-        const customerId = uuidv4();
-        const now = new Date();
-
-        customer = await db.customer.create({
-          data: {
-            id: customerId,
-            shop: this.options.shop,
-            shopifyCustomerId,
-            email: order.customer?.email || order.email || "",
-            firstName: order.customer?.firstName || "",
-            lastName: order.customer?.lastName || "",
-            phone: order.customer?.phone || null,
-            totalSpent: parseFloat(order.customer?.amountSpent?.amount || "0"),
-            ordersCount: order.customer?.numberOfOrders || 0,
-            currentTierId: null,
-            lifetimeBalance: 0,
-            currentBalance: 0,
-            pendingBalance: 0,
-            createdAt: now,
-            updatedAt: now,
-          },
-          include: {
-            currentTier: true
-          }
-        });
-
-        console.log(`[PROCESS] ✅ Customer created:`, {
-          customerId: customer.id,
-          email: customer.email
-        });
+        return; // Skip orders for customers not in our database
       }
     } else {
       console.log(`[PROCESS] ⚠️ Skipping order - no customer ID (guest checkout)`);
