@@ -154,12 +154,25 @@ const shopify = shopifyApp({
     afterAuth: async ({ session, admin }) => {
       console.log(`[AfterAuth] App installed/authenticated for shop: ${session.shop}`);
 
-      // Trigger background customer sync - non-blocking
-      syncCustomersInBackground(session.shop, admin).catch((error) => {
-        console.error(`[AfterAuth] Customer sync failed for ${session.shop}:`, error);
+      // Import db here to avoid circular dependencies
+      const db = (await import("./db.server")).default;
+
+      // Check if initial sync already completed
+      const shopSettings = await db.shopSettings.findUnique({
+        where: { shop: session.shop }
       });
 
-      console.log(`[AfterAuth] Customer sync started in background for ${session.shop}`);
+      if (!shopSettings?.customersInitialSynced) {
+        // First install or sync not completed - trigger sync
+        console.log(`[AfterAuth] Starting initial customer sync for ${session.shop}`);
+
+        syncCustomersInBackground(session.shop, admin).catch((error) => {
+          console.error(`[AfterAuth] Customer sync failed for ${session.shop}:`, error);
+        });
+      } else {
+        // Re-auth - customers already synced
+        console.log(`[AfterAuth] Customers already synced for ${session.shop}, skipping re-sync`);
+      }
     },
   },
   future: {
