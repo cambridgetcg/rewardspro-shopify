@@ -35,9 +35,24 @@ import { updatePlanLimit, unlockShop } from "~/utils/plan-access-control.server"
 
 // Rate limiting function for billing attempts
 async function checkRecentBillingAttempts(shop: string): Promise<number> {
+  console.log("[Billing Debug] checkRecentBillingAttempts called for shop:", shop);
+  console.log("[Billing Debug] db object type:", typeof db);
+  console.log("[Billing Debug] db.billingAuditLog exists:", !!db.billingAuditLog);
+  console.log("[Billing Debug] db.billingAuditLog.count exists:", !!(db.billingAuditLog && db.billingAuditLog.count));
+
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  console.log("[Billing Debug] fifteenMinutesAgo:", fifteenMinutesAgo.toISOString());
 
   try {
+    console.log("[Billing Debug] About to call db.billingAuditLog.count with query:", {
+      where: {
+        shop,
+        attemptedAt: {
+          gte: fifteenMinutesAgo
+        }
+      }
+    });
+
     const recentAttempts = await db.billingAuditLog.count({
       where: {
         shop,
@@ -47,9 +62,12 @@ async function checkRecentBillingAttempts(shop: string): Promise<number> {
       }
     });
 
+    console.log("[Billing Debug] Recent attempts count:", recentAttempts);
     return recentAttempts;
   } catch (error) {
     console.error("[Billing] Error checking recent attempts:", error);
+    console.error("[Billing Debug] Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    console.error("[Billing Debug] Error details:", JSON.stringify(error, null, 2));
     // If we can't check, allow the attempt but log the error
     return 0;
   }

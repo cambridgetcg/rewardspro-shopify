@@ -1152,6 +1152,8 @@ export function createDataAPIPrismaClient() {
           tierPurchase: new DataAPIModelProxy("TierPurchase", txAuroraClient),
           bulkOperationLog: new DataAPIModelProxy("BulkOperationLog", txAuroraClient),
           syncStatus: new DataAPIModelProxy("SyncStatus", txAuroraClient),
+          billingAuditLog: new DataAPIModelProxy("BillingAuditLog", txAuroraClient),
+          billingSubscription: new DataAPIModelProxy("BillingSubscription", txAuroraClient),
 
           // Raw query support for the transaction
           $executeRaw: async (sql: any, ...params: any[]) => {
@@ -1255,6 +1257,8 @@ export function createDataAPIPrismaClient() {
     tierPurchase: new DataAPIModelProxy("TierPurchase", client),
     bulkOperationLog: new DataAPIModelProxy("BulkOperationLog", client),
     syncStatus: new DataAPIModelProxy("SyncStatus", client),
+    billingAuditLog: new DataAPIModelProxy("BillingAuditLog", client),
+    billingSubscription: new DataAPIModelProxy("BillingSubscription", client),
 
     // Disconnect (no-op for Data API)
     $disconnect: async () => {
