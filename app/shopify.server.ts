@@ -44,11 +44,11 @@ const shopify = shopifyApp({
         }
       ],
     },
-    // Pro plan - $49/month
+    // Pro plan - $39/month
     [PRO_PLAN]: {
       lineItems: [
         {
-          amount: 49,
+          amount: 39,
           currencyCode: 'USD',
           interval: BillingInterval.Every30Days,
         }
