@@ -28,7 +28,7 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon, PhoneIcon, EmailIcon, ChevronDownIcon, ChevronUpIcon } from "@shopify/polaris-icons";
 import { authenticate, PRO_PLAN, MAX_PLAN, ULTRA_PLAN, ENTERPRISE_PLAN } from "../shopify.server";
-import db from "../db.server";
+import { db } from "../db.server";
 import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { updatePlanLimit, unlockShop } from "~/utils/plan-access-control.server";
@@ -346,7 +346,7 @@ export default function BillingPage() {
     {
       name: "Pro",
       id: "pro",
-      price: "$49",
+      price: "$39",
       description: "Everything you need to grow your loyalty program",
       features: [
         "Up to 2,000 customers",
