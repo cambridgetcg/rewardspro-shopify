@@ -199,6 +199,8 @@ interface DashboardData {
   shopSettings: {
     storeCurrency: string;
     currencyDisplayType: string;
+    customersInitialSynced?: boolean;
+    customersSyncInProgress?: boolean;
   } | null;
   // Billing data
   currentPlan: any | null;
@@ -514,6 +516,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
+        customersInitialSynced: shopSettings.customersInitialSynced,
+        customersSyncInProgress: shopSettings.customersSyncInProgress,
       } : null,
       // Billing data
       currentPlan: serializedPlan,
@@ -619,6 +623,36 @@ export default function Dashboard() {
       ]}
     >
       <Layout>
+        {/* Customer Sync Status Banner */}
+        {data.shopSettings?.customersSyncInProgress && (
+          <Layout.Section>
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text variant="bodyMd" as="p">
+                  🔄 Syncing your customers from Shopify...
+                </Text>
+                <Text variant="bodySm" tone="subdued" as="p">
+                  This may take a few minutes. You can continue using the app while this completes in the background.
+                </Text>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {!data.shopSettings?.customersInitialSynced && !data.shopSettings?.customersSyncInProgress && (
+          <Layout.Section>
+            <Banner
+              title="Customer sync needed"
+              tone="warning"
+              action={{ content: "Sync customers", url: "/app/customers" }}
+            >
+              <Text variant="bodyMd" as="p">
+                Your customers haven't been synced yet. Sync them to start tracking rewards and tiers.
+              </Text>
+            </Banner>
+          </Layout.Section>
+        )}
+
         {/* Key Metrics Overview */}
         <Layout.Section>
           <StatsOverview

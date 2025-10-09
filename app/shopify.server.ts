@@ -7,6 +7,7 @@ import {
   DeliveryMethod,
 } from "@shopify/shopify-app-remix/server";
 import { createDataAPISessionStorage } from "./utils/session-data-api-adapter";
+import { syncCustomersInBackground } from "./services/background-customer-sync.server";
 
 // Define billing plan names (should match Partner Dashboard configuration)
 export const FREE_PLAN = "RewardsPro Free";
@@ -147,6 +148,18 @@ const shopify = shopifyApp({
     APP_UNINSTALLED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks/app/uninstalled",
+    },
+  },
+  hooks: {
+    afterAuth: async ({ session, admin }) => {
+      console.log(`[AfterAuth] App installed/authenticated for shop: ${session.shop}`);
+
+      // Trigger background customer sync - non-blocking
+      syncCustomersInBackground(session.shop, admin).catch((error) => {
+        console.error(`[AfterAuth] Customer sync failed for ${session.shop}:`, error);
+      });
+
+      console.log(`[AfterAuth] Customer sync started in background for ${session.shop}`);
     },
   },
   future: {

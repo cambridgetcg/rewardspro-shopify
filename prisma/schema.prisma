@@ -82,6 +82,10 @@ model ShopSettings {
   billingStatus           String?             @default("INACTIVE")  // ACTIVE, INACTIVE, TRIAL
   currentPlan             String?             @default("free")  // free, pro, max, ultra
 
+  // Initial Data Sync Status
+  customersInitialSynced  Boolean             @default(false)  // Has initial customer sync completed
+  customersSyncInProgress Boolean             @default(false)  // Is customer sync currently running
+
   // Metadata
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
