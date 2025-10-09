@@ -2,11 +2,18 @@
 
 This directory contains Data API-compatible migration scripts for Aurora Serverless.
 
+Following the successful migration pattern documented in `/docs/03-deployment/successful-migration-method-guide.md`, all migrations use:
+- **AWS Data API transactions** for atomicity
+- **Granular statement execution** for clear error handling
+- **Conditional operations** (`IF EXISTS`/`IF NOT EXISTS`) for idempotency
+- **Prisma migration tracking** via `_prisma_migrations` table
+
 ## Available Migrations
 
 ### Add Customer Sync Status Fields
 
 **File:** `migrate-add-customer-sync-fields.ts`
+**Migration Name:** `20251009_add_customer_sync_fields`
 
 Adds two new boolean fields to the `ShopSettings` table to track customer sync status:
 - `customersInitialSynced` - Has initial customer sync completed?
@@ -15,7 +22,7 @@ Adds two new boolean fields to the `ShopSettings` table to track customer sync s
 #### Usage
 
 ```bash
-# Using npx (recommended)
+# Using npx with ts-node (recommended)
 npx ts-node scripts/migrate-add-customer-sync-fields.ts
 
 # Or using tsx
@@ -24,10 +31,14 @@ npx tsx scripts/migrate-add-customer-sync-fields.ts
 
 #### What it does
 
-1. Adds `customersInitialSynced` column (BOOLEAN, default: false)
-2. Adds `customersSyncInProgress` column (BOOLEAN, default: false)
-3. Verifies the migration completed successfully
-4. Shows sample data from existing shops
+**Within a single transaction:**
+1. Adds `customersInitialSynced` column (BOOLEAN, NOT NULL, default: false)
+2. Adds `customersSyncInProgress` column (BOOLEAN, NOT NULL, default: false)
+3. Records migration in `_prisma_migrations` table
+
+**After transaction commits:**
+4. Verifies the migration completed successfully
+5. Shows sample data from existing shops
 
 #### Expected Output
 
@@ -35,11 +46,16 @@ npx tsx scripts/migrate-add-customer-sync-fields.ts
 🔄 Starting migration: Add customer sync status fields to ShopSettings
 ==================================================================
 
-[1/2] Adding customersInitialSynced column...
-✅ customersInitialSynced column added
+Step 1: Adding customersInitialSynced column...
+  ✓ customersInitialSynced column added
 
-[2/2] Adding customersSyncInProgress column...
-✅ customersSyncInProgress column added
+Step 2: Adding customersSyncInProgress column...
+  ✓ customersSyncInProgress column added
+
+Step 3: Recording migration in _prisma_migrations...
+  ✓ Migration recorded
+
+💾 Transaction committed successfully
 
 🔍 Verifying migration...
 ✅ Migration verified successfully!
@@ -85,7 +101,7 @@ These fields track customer sync status after app installation.
 
 ### Error: "Column already exists"
 
-If you see this error, the migration has already been run. The script uses `IF NOT EXISTS` to make it idempotent (safe to run multiple times).
+If you see this error, the migration has already been run. The script uses `IF NOT EXISTS` to make it idempotent (safe to run multiple times). The transaction will still commit successfully.
 
 ### Error: "Cannot connect to database"
 
@@ -93,13 +109,26 @@ Check your AWS credentials and Data API configuration:
 1. Verify `.env` file has correct ARNs
 2. Check IAM permissions for Data API access
 3. Ensure Aurora cluster is running
+4. Verify AWS_REGION is set correctly
 
 ### Error: "Permission denied"
 
 Your IAM role needs these permissions:
 - `rds-data:ExecuteStatement`
 - `rds-data:BatchExecuteStatement`
+- `rds-data:BeginTransaction`
+- `rds-data:CommitTransaction`
+- `rds-data:RollbackTransaction`
 - `secretsmanager:GetSecretValue`
+
+### Error: "Signature mismatch"
+
+**Cause:** Malformed AWS credentials (truncated secret key)
+**Solution:** Ensure `AWS_SECRET_ACCESS_KEY` is exactly 40 characters and properly copied from AWS
+
+### Transaction Rollback
+
+If any step fails during the migration, the entire transaction is automatically rolled back and no changes are applied to the database. This ensures database consistency. Check the error message to identify which step failed.
 
 ## Alternative: Prisma Migrate
 
@@ -160,12 +189,35 @@ main()
 
 ## Best Practices
 
-1. **Always use `IF NOT EXISTS`** - Makes migrations idempotent
-2. **Verify after each change** - Query `information_schema` to confirm
-3. **Test on dev first** - Never run untested migrations in production
-4. **Add defaults** - Use `DEFAULT` values for non-nullable columns
-5. **Document everything** - Update this README for each new migration
-6. **Backup first** - Take a database snapshot before major migrations
+Based on the successful migration pattern documented in `/docs/03-deployment/successful-migration-method-guide.md`:
+
+### 1. Transaction Management
+- **Always wrap migrations in transactions** using `aurora.executeTransaction()`
+- All changes are committed together or rolled back on error
+- Ensures database consistency and atomicity
+
+### 2. Granular Statement Execution
+- **One logical operation per `execute()` call**
+- Breaking complex SQL into individual statements avoids parsing issues
+- Each statement can be debugged independently
+- Clear error messages for specific operations
+
+### 3. Conditional Operations
+- **Use `IF EXISTS` and `IF NOT EXISTS` clauses** for idempotency
+- Migration can be safely re-run if needed
+- Handles partially applied migrations gracefully
+
+### 4. Migration Tracking
+- **Always record migrations** in `_prisma_migrations` table
+- Use unique IDs (`crypto.randomBytes(18)`) and checksums
+- Use `ON CONFLICT DO NOTHING` to prevent duplicate entries
+- Track which migrations have been applied
+
+### 5. Development Workflow
+- **Test on development environment first** - Never run untested migrations in production
+- Verify each step independently before committing
+- Take database snapshot before major migrations
+- Document everything - Update this README for each new migration
 
 ## Support
 

@@ -10,6 +10,7 @@
 
 import { createDataAPIPrismaClient } from '../app/utils/prisma-data-api-adapter';
 import { getAuroraClient } from '../app/utils/aurora-data-api';
+import crypto from 'crypto';
 import 'dotenv/config';
 
 const prisma = createDataAPIPrismaClient();
@@ -20,21 +21,56 @@ async function main() {
   console.log('==================================================================\n');
 
   try {
-    // Step 1: Add customersInitialSynced column
-    console.log('[1/2] Adding customersInitialSynced column...');
-    await aurora.executeStatement(`
-      ALTER TABLE "ShopSettings"
-      ADD COLUMN IF NOT EXISTS "customersInitialSynced" BOOLEAN NOT NULL DEFAULT false;
-    `, []);
-    console.log('✅ customersInitialSynced column added\n');
+    // Execute migration in a transaction for atomicity
+    await aurora.executeTransaction(async (execute) => {
+      // Step 1: Add customersInitialSynced column
+      console.log('Step 1: Adding customersInitialSynced column...');
+      await execute(`
+        ALTER TABLE "ShopSettings"
+        ADD COLUMN IF NOT EXISTS "customersInitialSynced" BOOLEAN NOT NULL DEFAULT false;
+      `);
+      console.log('  ✓ customersInitialSynced column added\n');
 
-    // Step 2: Add customersSyncInProgress column
-    console.log('[2/2] Adding customersSyncInProgress column...');
-    await aurora.executeStatement(`
-      ALTER TABLE "ShopSettings"
-      ADD COLUMN IF NOT EXISTS "customersSyncInProgress" BOOLEAN NOT NULL DEFAULT false;
-    `, []);
-    console.log('✅ customersSyncInProgress column added\n');
+      // Step 2: Add customersSyncInProgress column
+      console.log('Step 2: Adding customersSyncInProgress column...');
+      await execute(`
+        ALTER TABLE "ShopSettings"
+        ADD COLUMN IF NOT EXISTS "customersSyncInProgress" BOOLEAN NOT NULL DEFAULT false;
+      `);
+      console.log('  ✓ customersSyncInProgress column added\n');
+
+      // Step 3: Record migration in Prisma's tracking table
+      console.log('Step 3: Recording migration in _prisma_migrations...');
+      const migrationId = crypto.randomBytes(18).toString('hex');
+      const migrationName = '20251009_add_customer_sync_fields';
+      const checksum = crypto.createHash('md5').update(migrationName).digest('hex');
+
+      // Check if migration already recorded
+      const existingMigration = await execute(`
+        SELECT id FROM "_prisma_migrations"
+        WHERE migration_name = :name
+        LIMIT 1;
+      `, [
+        { name: 'name', value: { stringValue: migrationName }},
+      ]);
+
+      if (existingMigration.records.length === 0) {
+        await execute(`
+          INSERT INTO "_prisma_migrations"
+          (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+          VALUES (:id, :checksum, NOW(), :name, NULL, NULL, NOW(), 2);
+        `, [
+          { name: 'id', value: { stringValue: migrationId }},
+          { name: 'checksum', value: { stringValue: checksum }},
+          { name: 'name', value: { stringValue: migrationName }},
+        ]);
+        console.log('  ✓ Migration recorded\n');
+      } else {
+        console.log('  ℹ Migration already recorded (skipping)\n');
+      }
+    });
+
+    console.log('💾 Transaction committed successfully\n');
 
     // Verify the migration
     console.log('🔍 Verifying migration...');
@@ -85,6 +121,7 @@ async function main() {
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
     }
+    console.error('\n⚠️  Transaction rolled back - no changes were applied to the database.');
     process.exit(1);
   }
 }
