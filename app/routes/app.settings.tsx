@@ -787,34 +787,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
-    // Handle reset onboarding
-    if (intent === "reset-onboarding") {
-      console.log("[Settings Action] Resetting onboarding for shop:", shop);
-      try {
-        await db.shopSettings.update({
-          where: { shop },
-          data: {
-            onboardingCompleted: false,
-            onboardingDismissed: false,
-            onboardingSyncedCustomers: false,
-            onboardingCreatedTiers: false,
-            onboardingSyncedOrders: false,
-            onboardingConfiguredSettings: false,
-          },
-        });
-        console.log("[Settings Action] Onboarding reset successful");
-        return json({
-          success: true,
-          message: "Onboarding has been reset. You can now access the setup wizard again."
-        });
-      } catch (error: any) {
-        console.error("[Settings Action] Error resetting onboarding:", error);
-        return json({
-          error: "Failed to reset onboarding. Please try again."
-        }, { status: 500 });
-      }
-    }
-
     if (intent !== "update") {
       return json({ error: "Invalid action" }, { status: 400 });
     }
@@ -1358,44 +1330,6 @@ export default function SettingsPage() {
                         )}
                       </BlockStack>
 
-                      <Divider />
-
-                      {/* Reset Onboarding Section */}
-                      <BlockStack gap="300">
-                        <BlockStack gap="200">
-                          <Text variant="bodyMd" fontWeight="semibold">
-                            Reset Onboarding Wizard
-                          </Text>
-                          <Text variant="bodySm" tone="subdued">
-                            Reset the onboarding progress to go through the setup wizard again.
-                            This won't delete any existing data (customers, orders, tiers, etc.).
-                          </Text>
-                        </BlockStack>
-
-                        <InlineStack align="start">
-                          <Button
-                            onClick={() => {
-                              if (confirm("Are you sure you want to reset the onboarding wizard? This will allow you to go through the setup steps again.")) {
-                                const formData = new FormData();
-                                formData.append("intent", "reset-onboarding");
-                                fetcher.submit(formData, { method: "post" });
-                              }
-                            }}
-                            tone="critical"
-                          >
-                            Reset Onboarding
-                          </Button>
-                        </InlineStack>
-
-                        {fetcher.data?.success && fetcher.data?.message?.includes("reset") && (
-                          <Banner tone="success">
-                            {fetcher.data.message}
-                            <Button variant="plain" onClick={() => navigate("/app/onboarding")}>
-                              Go to Onboarding
-                            </Button>
-                          </Banner>
-                        )}
-                      </BlockStack>
                     </BlockStack>
                   )}
 
