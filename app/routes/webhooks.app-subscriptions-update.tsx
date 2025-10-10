@@ -71,6 +71,15 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: true, message: "No subscription data" });
     }
 
+    // Extract line items to identify recurring and usage charges
+    const lineItems = subscription.line_items || [];
+    const recurringLineItem = lineItems.find((item: any) =>
+      item.plan?.pricing_details?.__typename === 'AppRecurringPricing'
+    );
+    const usageLineItem = lineItems.find((item: any) =>
+      item.plan?.pricing_details?.__typename === 'AppUsagePricing'
+    );
+
     console.log(`[APP_SUBSCRIPTIONS_UPDATE] Processing subscription update:`, {
       shop: shopDomain,
       subscriptionId: subscription.admin_graphql_api_id,
@@ -81,6 +90,8 @@ export async function action({ request }: ActionFunctionArgs) {
       cappedAmount: subscription.capped_amount?.amount,
       balanceUsed: subscription.balance_used,
       balanceRemaining: subscription.balance_remaining,
+      recurringLineItemId: recurringLineItem?.id,
+      usageLineItemId: usageLineItem?.id,
     });
 
     // 5. Check if BillingSubscription table exists and update database
@@ -112,14 +123,11 @@ export async function action({ request }: ActionFunctionArgs) {
         const subscriptionData = {
           shop: shopDomain,
           subscriptionId: subscription.admin_graphql_api_id,
-          planName: subscription.name || "Unknown",
-          status: subscription.status || "ACTIVE",
-          isTest: subscription.test === true,
+          subscriptionStatus: subscription.status || "ACTIVE",
           currentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end) : null,
-          cappedAmount: subscription.capped_amount?.amount ? parseFloat(subscription.capped_amount.amount) : null,
-          balanceUsed: subscription.balance_used ? parseFloat(subscription.balance_used) : 0,
-          balanceRemaining: subscription.balance_remaining ? parseFloat(subscription.balance_remaining) : null,
-          createdAt: subscription.created_at ? new Date(subscription.created_at) : new Date(),
+          recurringLineItemId: recurringLineItem?.id || null,
+          usageLineItemId: usageLineItem?.id || null,
+          billingVersion: 'graphql',
           updatedAt: new Date(),
         };
 

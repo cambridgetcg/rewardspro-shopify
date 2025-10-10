@@ -21,6 +21,12 @@ export interface PlanConfig {
   orderLimit: number;        // 500
   description: string;
   isTest: boolean;
+  // Usage-based pricing (optional)
+  usageEnabled?: boolean;    // true if usage-based billing
+  usageRate?: number;        // Rate per order overage (e.g., 0.10 = $0.10/order)
+  usageCap?: number;         // Maximum usage charges per month
+  usageBatchSize?: number;   // Batch size for charging (e.g., 100 orders)
+  usageTerms?: string;       // Description shown to merchant
 }
 
 export interface BillingResult {
@@ -56,14 +62,26 @@ export const PLAN_CONFIGS: Record<string, Omit<PlanConfig, 'isTest'>> = {
     planName: "RewardsPro Pro",
     price: 39.00,
     orderLimit: 500,
-    description: "Pro plan with advanced features"
+    description: "Pro plan with advanced features",
+    // Usage-based pricing: $10 per 100 orders over limit
+    usageEnabled: true,
+    usageRate: 0.10,        // $0.10 per order overage
+    usageCap: 50.00,        // Max $50 usage charges per month
+    usageBatchSize: 100,    // Charge in batches of 100 orders
+    usageTerms: "$10 per 100 orders over 500/month limit (max $50/month)"
   },
   max: {
     planId: "max",
     planName: "RewardsPro Max",
     price: 149.00,
     orderLimit: 2000,
-    description: "Max plan for growing businesses"
+    description: "Max plan for growing businesses",
+    // Usage-based pricing: $5 per 100 orders over limit
+    usageEnabled: true,
+    usageRate: 0.05,        // $0.05 per order overage
+    usageCap: 100.00,       // Max $100 usage charges per month
+    usageBatchSize: 100,    // Charge in batches of 100 orders
+    usageTerms: "$5 per 100 orders over 2,000/month limit (max $100/month)"
   },
   ultra: {
     planId: "ultra",
@@ -71,6 +89,7 @@ export const PLAN_CONFIGS: Record<string, Omit<PlanConfig, 'isTest'>> = {
     price: 499.00,
     orderLimit: 999999,
     description: "Unlimited everything"
+    // No usage-based pricing - unlimited orders
   }
 };
 

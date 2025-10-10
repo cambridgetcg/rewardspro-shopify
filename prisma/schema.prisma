@@ -326,6 +326,7 @@ model BillingSubscription {
   currentPeriodUsageFee   Decimal   @default(0) @db.Decimal(10, 2)
   lastUsageReset          DateTime?
   usageCappedAmount       Decimal?  @db.Decimal(10, 2)
+  lastChargedBatch        Int?      // Track which batch was last charged (e.g., 1 = first 100, 2 = second 100)
 
   // Migration Info
   billingVersion          String    @default("graphql") // "legacy" or "graphql"

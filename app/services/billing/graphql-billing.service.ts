@@ -203,9 +203,19 @@ export class GraphQLBillingService {
     }
 
     try {
+      // Check if development store for test mode
+      const isDevStore = await this.checkIfDevStore(shop);
+      const isTestMode = process.env.NODE_ENV === 'development' || isDevStore;
+
+      console.log(`[GraphQLBilling] Creating subscription for ${shop}:`, {
+        planType,
+        isDevStore,
+        isTestMode
+      });
+
       // Build return URL with shop parameter
       const returnUrl = options.returnUrl ||
-        `${process.env.SHOPIFY_APP_URL}/app/billing/callback?shop=${shop}`;
+        `${process.env.SHOPIFY_APP_URL}/app/billing/callback?shop=${shop}&plan=${planType}`;
 
       // Build line items array
       const lineItems: any[] = [
@@ -224,16 +234,24 @@ export class GraphQLBillingService {
 
       // Add usage pricing if configured
       if (planConfig.usageRate && planConfig.usageCap) {
+        const usageTerms = planConfig.usageTerms ||
+          `$${(planConfig.usageRate * 100).toFixed(2)} per 100 orders over ${planConfig.orderLimit} orders/month (max $${planConfig.usageCap}/month)`;
+
         lineItems.push({
           plan: {
             appUsagePricingDetails: {
-              terms: `$${planConfig.usageRate} per order over ${planConfig.orderLimit} orders`,
+              terms: usageTerms,
               cappedAmount: {
                 amount: formatMoneyInput(planConfig.usageCap),
                 currencyCode: getCurrencyCode(shop)
               }
             }
           }
+        });
+
+        console.log(`[GraphQLBilling] Added usage line item:`, {
+          terms: usageTerms,
+          cappedAmount: planConfig.usageCap
         });
       }
 
@@ -245,7 +263,7 @@ export class GraphQLBillingService {
         replacementBehavior: isUpgrade
           ? BillingConfig.replacementBehavior.upgrade
           : BillingConfig.replacementBehavior.downgrade,
-        test: isDevelopmentStore(shop)
+        test: isTestMode  // Auto-detect test mode
       };
 
       const response = await this.admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
@@ -642,5 +660,37 @@ export class GraphQLBillingService {
     }
 
     return { expired: false };
+  }
+
+  /**
+   * Check if shop is a development store
+   */
+  private async checkIfDevStore(shop: string): Promise<boolean> {
+    try {
+      const query = `#graphql
+        query GetShopPlan {
+          shop {
+            plan {
+              partnerDevelopment
+            }
+          }
+        }
+      `;
+
+      const response = await this.admin.graphql(query);
+      const result = await response.json();
+
+      const isDevStore = result.data?.shop?.plan?.partnerDevelopment || false;
+
+      console.log(`[GraphQLBilling] Shop ${shop} is dev store: ${isDevStore}`);
+
+      return isDevStore;
+    } catch (error) {
+      console.error("[GraphQLBilling] Error checking dev store:", error);
+      // Fallback: check domain patterns
+      const fallback = shop.includes('.myshopify.io') || shop.includes('-dev.');
+      console.log(`[GraphQLBilling] Using fallback dev detection for ${shop}: ${fallback}`);
+      return fallback;
+    }
   }
 }
