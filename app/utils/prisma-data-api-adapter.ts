@@ -1128,7 +1128,7 @@ export function createDataAPIPrismaClient() {
           customer: new DataAPIModelProxy("Customer", txAuroraClient),
           storeCreditLedger: new DataAPIModelProxy("StoreCreditLedger", txAuroraClient),
           tierChangeLog: new DataAPIModelProxy("TierChangeLog", txAuroraClient),
-          billingPlan: new DataAPIModelProxy("BillingPlan", txAuroraClient),
+          // billingPlan removed - legacy REST API billing
           usageRecord: new DataAPIModelProxy("UsageRecord", txAuroraClient),
           billingHistory: new DataAPIModelProxy("BillingHistory", txAuroraClient),
           notification: new DataAPIModelProxy("Notification", txAuroraClient),
@@ -1231,7 +1231,7 @@ export function createDataAPIPrismaClient() {
     customer: new DataAPIModelProxy("Customer", client),
     storeCreditLedger: new DataAPIModelProxy("StoreCreditLedger", client),
     tierChangeLog: new DataAPIModelProxy("TierChangeLog", client),
-    billingPlan: new DataAPIModelProxy("BillingPlan", client),
+    // billingPlan removed - legacy REST API billing
     usageRecord: new DataAPIModelProxy("UsageRecord", client),
     billingHistory: new DataAPIModelProxy("BillingHistory", client),
     notification: new DataAPIModelProxy("Notification", client),

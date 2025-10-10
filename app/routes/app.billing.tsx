@@ -252,7 +252,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       plans: [ULTRA_PLAN],
       onFailure: () => billing.request({
         plan: ULTRA_PLAN,
-        isTest: process.NODE_ENV === 'development',
+        isTest: process.env.NODE_ENV === 'development',
       }),
     });
 
