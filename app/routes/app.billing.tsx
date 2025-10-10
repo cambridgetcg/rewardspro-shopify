@@ -94,25 +94,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     userAgent: request.headers.get("user-agent") || "unknown",
   };
 
-  // Create subscription
-  const result = await createSubscription(
-    session.shop,
-    planId,
-    billing,
-    metadata
-  );
+  try {
+    // Create subscription
+    const result = await createSubscription(
+      session.shop,
+      planId,
+      billing,
+      metadata
+    );
 
-  if (result.success && result.confirmationUrl) {
-    // Redirect to Shopify confirmation page
-    return json<BillingResult>(result, {
-      status: 302,
-      headers: {
-        Location: result.confirmationUrl,
-      },
-    });
+    if (result.success && result.confirmationUrl) {
+      // Redirect to Shopify confirmation page
+      return json<BillingResult>(result, {
+        status: 302,
+        headers: {
+          Location: result.confirmationUrl,
+        },
+      });
+    }
+
+    return json<BillingResult>(result);
+  } catch (error) {
+    // billing.request() throws a Response when it needs merchant approval
+    if (error instanceof Response) {
+      console.log(`[Billing Action] Redirecting to Shopify confirmation page`);
+      return error; // Return the redirect response
+    }
+
+    // Handle other errors
+    console.error(`[Billing Action] Unexpected error:`, error);
+    return json<BillingResult>({
+      success: false,
+      error: error instanceof Error ? error.message : "An unexpected error occurred"
+    }, { status: 500 });
   }
-
-  return json<BillingResult>(result);
 };
 
 // ============================================

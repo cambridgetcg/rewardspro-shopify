@@ -307,6 +307,12 @@ export async function createSubscription(
     };
 
   } catch (error) {
+    // If billing.request() throws a Response (redirect to confirmation page), re-throw it
+    if (error instanceof Response) {
+      console.log(`[BillingService] Billing requires merchant approval, redirecting...`);
+      throw error; // Let the action handler deal with the redirect
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[BillingService] Error creating subscription:`, error);
 
