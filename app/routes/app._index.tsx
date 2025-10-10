@@ -259,13 +259,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       customers,
       tiers,
       recentTransactions,
-      billingPlan,
+      billingSubscription,
     ] = await Promise.all([
       // Shop settings
-      db.shopSettings.findUnique({ 
-        where: { shop } 
+      db.shopSettings.findUnique({
+        where: { shop }
       }),
-      
+
       // All customers with tier info
       db.customer.findMany({
         where: { shop },
@@ -274,13 +274,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
         orderBy: { storeCredit: 'desc' },
       }),
-      
+
       // All tiers
       db.tier.findMany({
         where: { shop },
         orderBy: { minSpend: 'asc' },
       }),
-      
+
       // Recent transactions (last 20)
       db.storeCreditLedger.findMany({
         where: { shop },
@@ -298,10 +298,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
       }),
 
-      // Billing plan from database
-      db.billingPlan.findUnique({
+      // Billing subscription from database (new GraphQL billing)
+      db.billingSubscription.findUnique({
         where: { shop },
-      }),
+      }).catch(() => null), // Gracefully handle if table doesn't exist yet
     ]);
 
     console.log(`[Dashboard] Fetched data - Customers: ${customers.length}, Tiers: ${tiers.length}, Transactions: ${recentTransactions.length}`);
@@ -480,23 +480,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     console.log(`[Dashboard] Final count: ${orderCount} using strategy: ${orderCountStrategy}`);
 
-    // Serialize billing plan data
-    const serializedPlan = billingPlan ? {
-      ...billingPlan,
-      monthlyPrice: Number(billingPlan.monthlyPrice || 0),
-      usageCap: billingPlan.usageCap ? Number(billingPlan.usageCap) : null,
-      currentPeriodEnd: billingPlan.currentPeriodEnd instanceof Date
-        ? billingPlan.currentPeriodEnd.toISOString()
-        : billingPlan.currentPeriodEnd,
-      lastCapAlert: billingPlan.lastCapAlert instanceof Date
-        ? billingPlan.lastCapAlert.toISOString()
-        : billingPlan.lastCapAlert,
-      createdAt: billingPlan.createdAt instanceof Date
-        ? billingPlan.createdAt.toISOString()
-        : billingPlan.createdAt,
-      updatedAt: billingPlan.updatedAt instanceof Date
-        ? billingPlan.updatedAt.toISOString()
-        : billingPlan.updatedAt,
+    // Serialize billing subscription data (new GraphQL billing)
+    const serializedPlan = billingSubscription ? {
+      ...billingSubscription,
+      planName: billingSubscription.planName || planName,
+      cappedAmount: billingSubscription.cappedAmount ? Number(billingSubscription.cappedAmount) : null,
+      balanceUsed: billingSubscription.balanceUsed ? Number(billingSubscription.balanceUsed) : 0,
+      balanceRemaining: billingSubscription.balanceRemaining ? Number(billingSubscription.balanceRemaining) : null,
+      currentPeriodEnd: billingSubscription.currentPeriodEnd instanceof Date
+        ? billingSubscription.currentPeriodEnd.toISOString()
+        : billingSubscription.currentPeriodEnd,
+      createdAt: billingSubscription.createdAt instanceof Date
+        ? billingSubscription.createdAt.toISOString()
+        : billingSubscription.createdAt,
+      updatedAt: billingSubscription.updatedAt instanceof Date
+        ? billingSubscription.updatedAt.toISOString()
+        : billingSubscription.updatedAt,
     } : null;
 
     const dashboardData: DashboardData = {

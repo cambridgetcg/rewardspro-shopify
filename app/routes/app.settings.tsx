@@ -490,10 +490,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Fetch billing plan from database
-    const billingPlan = await db.billingPlan.findUnique({
+    // Fetch billing subscription from database (new GraphQL billing)
+    const billingSubscription = await db.billingSubscription.findUnique({
       where: { shop },
-    });
+    }).catch(() => null); // Gracefully handle if table doesn't exist yet
 
     // Get monthly order usage
     const now = new Date();
@@ -573,23 +573,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         : settings.updatedAt,
     };
 
-    // Serialize billing plan
-    const serializedPlan = billingPlan ? {
-      ...billingPlan,
-      monthlyPrice: Number(billingPlan.monthlyPrice || 0),
-      usageCap: billingPlan.usageCap ? Number(billingPlan.usageCap) : null,
-      currentPeriodEnd: billingPlan.currentPeriodEnd instanceof Date
-        ? billingPlan.currentPeriodEnd.toISOString()
-        : billingPlan.currentPeriodEnd,
-      lastCapAlert: billingPlan.lastCapAlert instanceof Date
-        ? billingPlan.lastCapAlert.toISOString()
-        : billingPlan.lastCapAlert,
-      createdAt: billingPlan.createdAt instanceof Date
-        ? billingPlan.createdAt.toISOString()
-        : String(billingPlan.createdAt),
-      updatedAt: billingPlan.updatedAt instanceof Date
-        ? billingPlan.updatedAt.toISOString()
-        : String(billingPlan.updatedAt),
+    // Serialize billing subscription (new GraphQL billing)
+    const serializedPlan = billingSubscription ? {
+      ...billingSubscription,
+      planName: billingSubscription.planName || planName,
+      cappedAmount: billingSubscription.cappedAmount ? Number(billingSubscription.cappedAmount) : null,
+      balanceUsed: billingSubscription.balanceUsed ? Number(billingSubscription.balanceUsed) : 0,
+      balanceRemaining: billingSubscription.balanceRemaining ? Number(billingSubscription.balanceRemaining) : null,
+      currentPeriodEnd: billingSubscription.currentPeriodEnd instanceof Date
+        ? billingSubscription.currentPeriodEnd.toISOString()
+        : billingSubscription.currentPeriodEnd,
+      createdAt: billingSubscription.createdAt instanceof Date
+        ? billingSubscription.createdAt.toISOString()
+        : String(billingSubscription.createdAt),
+      updatedAt: billingSubscription.updatedAt instanceof Date
+        ? billingSubscription.updatedAt.toISOString()
+        : String(billingSubscription.updatedAt),
     } : null;
 
     return json<LoaderData>({

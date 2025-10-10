@@ -53,10 +53,6 @@
       "routes/app.settings": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.billing": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.billing.callback": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/app.billing.callback.new": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/app.billing.upgrade": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/app.billing.plans": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/app.billing.new": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app._index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.locked": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.orders": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0"
@@ -454,34 +450,6 @@
         "path": "callback",
         "config": {}
       },
-      "routes/app.billing.callback.new": {
-        "id": "routes/app.billing.callback.new",
-        "parentId": "routes/app.billing.callback",
-        "file": "app/routes/app.billing.callback.new.tsx",
-        "path": "new",
-        "config": {}
-      },
-      "routes/app.billing.upgrade": {
-        "id": "routes/app.billing.upgrade",
-        "parentId": "routes/app.billing",
-        "file": "app/routes/app.billing.upgrade.tsx",
-        "path": "upgrade",
-        "config": {}
-      },
-      "routes/app.billing.plans": {
-        "id": "routes/app.billing.plans",
-        "parentId": "routes/app.billing",
-        "file": "app/routes/app.billing.plans.tsx",
-        "path": "plans",
-        "config": {}
-      },
-      "routes/app.billing.new": {
-        "id": "routes/app.billing.new",
-        "parentId": "routes/app.billing",
-        "file": "app/routes/app.billing.new.tsx",
-        "path": "new",
-        "config": {}
-      },
       "routes/app._index": {
         "id": "routes/app._index",
         "parentId": "routes/app",
@@ -795,30 +763,6 @@
         "parentId": "routes/app.billing",
         "file": "routes/app.billing.callback.tsx",
         "path": "callback"
-      },
-      "routes/app.billing.callback.new": {
-        "id": "routes/app.billing.callback.new",
-        "parentId": "routes/app.billing.callback",
-        "file": "routes/app.billing.callback.new.tsx",
-        "path": "new"
-      },
-      "routes/app.billing.upgrade": {
-        "id": "routes/app.billing.upgrade",
-        "parentId": "routes/app.billing",
-        "file": "routes/app.billing.upgrade.tsx",
-        "path": "upgrade"
-      },
-      "routes/app.billing.plans": {
-        "id": "routes/app.billing.plans",
-        "parentId": "routes/app.billing",
-        "file": "routes/app.billing.plans.tsx",
-        "path": "plans"
-      },
-      "routes/app.billing.new": {
-        "id": "routes/app.billing.new",
-        "parentId": "routes/app.billing",
-        "file": "routes/app.billing.new.tsx",
-        "path": "new"
       },
       "routes/app._index": {
         "id": "routes/app._index",

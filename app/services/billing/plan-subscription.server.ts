@@ -195,6 +195,14 @@ export async function getSubscriptionStatus(
 /**
  * Create a new subscription for a shop
  * This is the main entry point when user clicks "Upgrade to X Plan"
+ *
+ * NOTE: This service uses Shopify's billing.require()/billing.request() abstraction,
+ * which handles replacementBehavior internally. For more control over replacementBehavior,
+ * use GraphQLBillingService instead (see BILLING_SERVICES_GUIDE.md).
+ *
+ * Shopify's default behavior for plan changes:
+ * - Upgrade: STANDARD (immediate with proration)
+ * - Downgrade: Applied at end of current billing cycle
  */
 export async function createSubscription(
   shop: string,
