@@ -31,7 +31,6 @@
       "routes/webhooks.orders.create": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.webhook-register": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.orders.paid": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/webhooks.orders.paid.old": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.shop.update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.compliance": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.billing.usage": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -257,13 +256,6 @@
         "config": {
           "runtime": "nodejs"
         }
-      },
-      "routes/webhooks.orders.paid.old": {
-        "id": "routes/webhooks.orders.paid.old",
-        "parentId": "routes/webhooks.orders.paid",
-        "file": "app/routes/webhooks.orders.paid.old.tsx",
-        "path": "old",
-        "config": {}
       },
       "routes/webhooks.shop.update": {
         "id": "routes/webhooks.shop.update",
@@ -665,12 +657,6 @@
         "parentId": "root",
         "file": "routes/webhooks.orders.paid.tsx",
         "path": "webhooks/orders/paid"
-      },
-      "routes/webhooks.orders.paid.old": {
-        "id": "routes/webhooks.orders.paid.old",
-        "parentId": "routes/webhooks.orders.paid",
-        "file": "routes/webhooks.orders.paid.old.tsx",
-        "path": "old"
       },
       "routes/webhooks.shop.update": {
         "id": "routes/webhooks.shop.update",
