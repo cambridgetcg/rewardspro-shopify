@@ -51,6 +51,8 @@ import { PriceSyncService } from "../services/subscription/price-sync.server";
 import { SubscriptionOptionsManager, type SubscriptionOption } from "../components/SubscriptionOptionsManager";
 import { v4 as uuidv4 } from 'uuid';
 import { generateTierSKU as generateSKUFromUtils, isValidSKU } from "../utils/sku-generator";
+import { getCurrentPlan, hasFeature } from "../utils/plan-limits";
+import { FeatureGate, LockedFeature } from "../components/FeatureGate";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -90,6 +92,8 @@ interface LoaderData {
   } | null;
   shop: string;
   tierDistribution: Record<string, number>;
+  canCreateProducts: boolean;
+  currentPlan: string;
 }
 
 // ============================================
@@ -148,6 +152,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
   
   try {
+    // Fetch billing subscription to check plan access
+    const billingSubscription = await db.billingSubscription.findUnique({
+      where: { shop }
+    });
+
+    const currentPlan = getCurrentPlan(null, billingSubscription);
+    const canCreateProducts = hasFeature(currentPlan, 'purchasableTiers');
+
     // Fetch tiers, shop settings, and tier distribution
     const [tiers, shopSettings, customers] = await Promise.all([
       db.tier.findMany({
@@ -291,6 +303,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       } : null,
       shop,
       tierDistribution,
+      canCreateProducts,
+      currentPlan,
     });
   } catch (error) {
     console.error("[TierProducts] Loader error:", error);
@@ -437,6 +451,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (intent === "create-product") {
+      // Check plan access (server-side validation)
+      const billingSubscription = await db.billingSubscription.findUnique({
+        where: { shop }
+      });
+      const currentPlan = getCurrentPlan(null, billingSubscription);
+      const canCreateProducts = hasFeature(currentPlan, 'purchasableTiers');
+
+      if (!canCreateProducts) {
+        return json({
+          success: false,
+          error: "Upgrade to Pro plan or higher to create purchasable tier products"
+        }, { status: 403 });
+      }
+
       const tierId = formData.get("tierId") as string;
       const tierName = formData.get("tierName") as string;
       const price = parseFloat(formData.get("price") as string);
@@ -1698,12 +1726,12 @@ export default function TierProducts() {
       <Page
         title="Tier Products"
         subtitle="Create and manage membership products for your loyalty tiers"
-        primaryAction={{
+        primaryAction={data.canCreateProducts ? {
           content: "Create Product",
           icon: PlusIcon,
           onAction: handleModalOpen,
-        }}
-        secondaryActions={[
+        } : undefined}
+        secondaryActions={data.canCreateProducts ? [
           {
             content: "Reset Subscription Descriptions",
             onAction: () => {
@@ -1714,7 +1742,7 @@ export default function TierProducts() {
               }
             },
           }
-        ]}
+        ] : undefined}
       >
         <Layout>
           {/* Loading State Banner */}
@@ -1730,6 +1758,16 @@ export default function TierProducts() {
                   </Text>
                 </InlineStack>
               </Banner>
+            </Layout.Section>
+          )}
+
+          {/* Plan Upgrade Banner */}
+          {!data.canCreateProducts && (
+            <Layout.Section>
+              <LockedFeature
+                feature="Purchasable Tier Products"
+                upgradeMessage="Upgrade to Pro plan or higher to create products that customers can purchase to unlock tier benefits. This feature allows you to sell tier memberships as one-time purchases or recurring subscriptions."
+              />
             </Layout.Section>
           )}
 
@@ -1925,15 +1963,22 @@ export default function TierProducts() {
               <Card>
                 <EmptyState
                   heading="No tier products yet"
-                  action={{
+                  action={data.canCreateProducts ? {
                     content: "Create your first product",
                     onAction: handleModalOpen,
-                  }}
+                  } : undefined}
                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                 >
                   <p>
                     Start creating membership products that customers can purchase to unlock tier benefits.
                   </p>
+                  {!data.canCreateProducts && (
+                    <Box paddingBlockStart="400">
+                      <Text as="p" tone="subdued">
+                        This feature requires Pro plan or higher. <Button variant="plain" url="/app/billing">Upgrade now</Button>
+                      </Text>
+                    </Box>
+                  )}
                 </EmptyState>
               </Card>
             ) : (
