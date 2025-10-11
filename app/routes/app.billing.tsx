@@ -159,7 +159,6 @@ export default function BillingPage() {
       price: "$39",
       description: "Everything you need to grow your loyalty program",
       features: [
-        "Up to 2,000 customers",
         "500 orders/month",
         "Batch processing cashback",
         "Priority support",
@@ -174,7 +173,6 @@ export default function BillingPage() {
       price: "$149",
       description: "For established businesses with advanced needs",
       features: [
-        "Unlimited customers",
         "2,000 orders/month",
         "Sell tier memberships",
         "White label email",
@@ -190,7 +188,6 @@ export default function BillingPage() {
       price: "$499",
       description: "Unlimited everything for growing enterprises",
       features: [
-        "Unlimited customers",
         "Unlimited orders",
         "Unlimited emails",
         "Full white label solution",

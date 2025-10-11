@@ -741,6 +741,54 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
+    // Handle subscription cancellation
+    if (intent === "cancel-subscription") {
+      if (!admin) {
+        return json({ error: "Admin context not available" }, { status: 500 });
+      }
+
+      try {
+        console.log(`[Settings Action] ${shop} cancelling subscription`);
+
+        // Import and use GraphQL billing service
+        const { GraphQLBillingService } = await import("~/services/billing/graphql-billing.service");
+        const billingService = new GraphQLBillingService(admin);
+
+        // Cancel subscription via GraphQL
+        const result = await billingService.cancelSubscription(shop);
+
+        if (!result.success) {
+          return json({
+            error: result.error || "Failed to cancel subscription"
+          }, { status: 500 });
+        }
+
+        // Log the cancellation
+        await db.billingAuditLog.create({
+          data: {
+            id: uuidv4(),
+            shop,
+            action: "cancel-subscription",
+            planName: "Cancelled",
+            success: true,
+            ipAddress: request.headers.get("x-forwarded-for") || "unknown",
+            userAgent: request.headers.get("user-agent") || "unknown",
+            attemptedAt: new Date()
+          }
+        });
+
+        return json({
+          success: true,
+          message: "Subscription cancelled successfully. You will be downgraded to the Free plan at the end of your billing period."
+        });
+      } catch (error: any) {
+        console.error("[Settings Action] Error cancelling subscription:", error);
+        return json({
+          error: "Failed to cancel subscription. Please try again."
+        }, { status: 500 });
+      }
+    }
+
     // Handle downgrade to free plan
     if (intent === "downgrade-to-free") {
       if (!billing) {
@@ -966,6 +1014,16 @@ export default function SettingsPage() {
     );
   }, [fetcher]);
 
+  // Handle subscription cancellation
+  const handleCancelSubscription = useCallback(() => {
+    if (confirm("Are you sure you want to cancel your subscription? You will be downgraded to the Free plan at the end of your billing period.")) {
+      fetcher.submit(
+        { intent: "cancel-subscription" },
+        { method: "post" }
+      );
+    }
+  }, [fetcher]);
+
   // Handle sync completion
   useEffect(() => {
     if (fetcher.data?.syncStarted && isSyncing) {
@@ -995,7 +1053,7 @@ export default function SettingsPage() {
   };
 
   // Show success/error messages
-  const actionData = fetcher.data as { error?: string; success?: boolean } | undefined;
+  const actionData = fetcher.data as { error?: string; success?: boolean; message?: string } | undefined;
   const isLoading = navigation.state === "submitting" || fetcher.state === "submitting";
 
   // Reset unsaved changes flag on successful save
@@ -1066,7 +1124,7 @@ export default function SettingsPage() {
             )}
             {actionData?.success && (
               <Banner tone="success">
-                <p>Settings saved successfully!</p>
+                <p>{actionData.message || "Settings saved successfully!"}</p>
               </Banner>
             )}
             {hasUnsavedChanges && (
@@ -1362,7 +1420,7 @@ export default function SettingsPage() {
                         {activeSubscription && activeSubscription.name !== "RewardsPro Free" ? (
                           <BlockStack gap="300">
                             <Text variant="bodyMd" tone="subdued">
-                              Need to reduce costs? You can downgrade your subscription or switch to our free plan.
+                              Need to reduce costs? You can downgrade your subscription or cancel it completely.
                             </Text>
 
                             <InlineStack gap="200">
@@ -1373,26 +1431,19 @@ export default function SettingsPage() {
                                 Change Plan
                               </Button>
 
-                              {/* Show free plan option only for downgrades */}
                               <Button
                                 variant="plain"
                                 tone="critical"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to switch to the free plan? You will lose access to premium features.")) {
-                                    fetcher.submit(
-                                      { intent: "downgrade-to-free" },
-                                      { method: "post" }
-                                    );
-                                  }
-                                }}
+                                onClick={handleCancelSubscription}
+                                loading={isLoading}
                               >
-                                Switch to Free Plan (100 orders/month)
+                                Cancel Subscription
                               </Button>
                             </InlineStack>
 
                             <Banner tone="info">
                               <Text variant="bodySm">
-                                <strong>Free Plan includes:</strong> Up to 100 orders/month, 500 customers max, basic tier management, store credit system, and email support.
+                                <strong>Cancellation Policy:</strong> Your subscription will remain active until the end of your current billing period, then automatically downgrade to the Free plan (100 orders/month).
                               </Text>
                             </Banner>
                           </BlockStack>
