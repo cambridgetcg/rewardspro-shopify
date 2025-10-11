@@ -697,7 +697,7 @@ export default function Dashboard() {
             showCountStrategy={false}
             showProjectedUsage={true}
             compact={false}
-            onUpgrade={() => navigate("/app/billing/plans")}
+            onUpgrade={() => navigate("/app/billing")}
           />
         </Layout.Section>
         

@@ -1348,7 +1348,7 @@ export default function SettingsPage() {
                         showOverageBanner={true}
                         showCountStrategy={false}
                         showProjectedUsage={true}
-                        onUpgrade={() => navigate("/app/billing/plans")}
+                        onUpgrade={() => navigate("/app/billing")}
                       />
 
                       <Divider />
@@ -1368,7 +1368,7 @@ export default function SettingsPage() {
                             <InlineStack gap="200">
                               <Button
                                 variant="secondary"
-                                onClick={() => navigate("/app/billing/plans")}
+                                onClick={() => navigate("/app/billing")}
                               >
                                 Change Plan
                               </Button>
@@ -1403,7 +1403,7 @@ export default function SettingsPage() {
                             </Text>
                             <Button
                               variant="primary"
-                              onClick={() => navigate("/app/billing/plans")}
+                              onClick={() => navigate("/app/billing")}
                             >
                               View Upgrade Options
                             </Button>
