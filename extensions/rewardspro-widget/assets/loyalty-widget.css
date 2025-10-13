@@ -1,0 +1,400 @@
+/**
+ * RewardsPro Loyalty Widget Styles
+ * Scoped with .rewardspro- prefix to avoid theme conflicts
+ */
+
+/* Base Widget Container */
+.rewardspro-loyalty-widget {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.rewardspro-loyalty-widget *,
+.rewardspro-loyalty-widget *::before,
+.rewardspro-loyalty-widget *::after {
+  box-sizing: inherit;
+}
+
+/* Loading State */
+.rewardspro-widget-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #6B7280;
+}
+
+.rewardspro-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #E5E7EB;
+  border-top-color: #4F46E5;
+  border-radius: 50%;
+  animation: rewardspro-spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes rewardspro-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.rewardspro-widget-error {
+  padding: 1rem;
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 0.5rem;
+  color: #991B1B;
+  text-align: center;
+}
+
+/* Fade-in Animation */
+.rewardspro-fade-in {
+  animation: rewardspro-fade-in 0.3s ease-in;
+}
+
+@keyframes rewardspro-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   Card Variant (Default)
+   ============================================ */
+.rewardspro-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  color: white;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+}
+
+.rewardspro-tier {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.rewardspro-tier-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.rewardspro-tier-name {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rewardspro-balance {
+  margin-bottom: 1.5rem;
+}
+
+.rewardspro-balance-amount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.rewardspro-balance-label {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.rewardspro-progress {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rewardspro-progress-label {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.95;
+}
+
+.rewardspro-progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.rewardspro-progress-fill {
+  height: 100%;
+  background: white;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.rewardspro-progress-percentage {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  text-align: right;
+}
+
+.rewardspro-expiring {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.rewardspro-warning-icon {
+  flex-shrink: 0;
+  color: #FCD34D;
+}
+
+.rewardspro-cta {
+  display: block;
+  width: 100%;
+  background: white;
+  color: #4F46E5;
+  text-align: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.rewardspro-cta:hover {
+  background: #F9FAFB;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================
+   Compact Variant
+   ============================================ */
+.rewardspro-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.rewardspro-balance-compact {
+  font-weight: 600;
+  color: #1F2937;
+  font-size: 0.875rem;
+}
+
+.rewardspro-link {
+  color: #4F46E5;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.rewardspro-link:hover {
+  text-decoration: underline;
+}
+
+/* ============================================
+   Inline Variant
+   ============================================ */
+.rewardspro-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.rewardspro-inline-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rewardspro-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+}
+
+.rewardspro-balance-inline {
+  font-weight: 600;
+  color: #1F2937;
+  font-size: 1rem;
+}
+
+.rewardspro-progress-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.rewardspro-progress-inline .rewardspro-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #E5E7EB;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.rewardspro-progress-inline .rewardspro-progress-fill {
+  height: 100%;
+  background: #4F46E5;
+  border-radius: 999px;
+}
+
+.rewardspro-progress-text {
+  font-size: 0.75rem;
+  color: #6B7280;
+  white-space: nowrap;
+}
+
+.rewardspro-cta-inline {
+  padding: 0.5rem 1rem;
+  background: #4F46E5;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.rewardspro-cta-inline:hover {
+  background: #4338CA;
+}
+
+/* ============================================
+   Login Prompt (Non-logged in users)
+   ============================================ */
+.rewardspro-login-prompt {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.rewardspro-login-prompt p {
+  margin: 0 0 1rem 0;
+  color: #6B7280;
+}
+
+.rewardspro-login-button {
+  display: inline-block;
+  padding: 0.625rem 1.25rem;
+  background: #4F46E5;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.rewardspro-login-button:hover {
+  background: #4338CA;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+@media (max-width: 640px) {
+  .rewardspro-card {
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+  }
+
+  .rewardspro-balance-amount {
+    font-size: 2rem;
+  }
+
+  .rewardspro-inline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rewardspro-inline-info {
+    width: 100%;
+  }
+
+  .rewardspro-progress-inline {
+    width: 100%;
+  }
+
+  .rewardspro-cta-inline {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ============================================
+   Theme Customization (via Liquid settings)
+   ============================================ */
+.rewardspro-loyalty-widget[data-primary-color] .rewardspro-cta-inline,
+.rewardspro-loyalty-widget[data-primary-color] .rewardspro-login-button {
+  background: var(--rewardspro-primary-color, #4F46E5);
+}
+
+.rewardspro-loyalty-widget[data-background-color] .rewardspro-inline,
+.rewardspro-loyalty-widget[data-background-color] .rewardspro-login-prompt {
+  background: var(--rewardspro-background-color, #F9FAFB);
+}
+
+/* ============================================
+   Accessibility
+   ============================================ */
+.rewardspro-cta:focus,
+.rewardspro-link:focus,
+.rewardspro-cta-inline:focus,
+.rewardspro-login-button:focus {
+  outline: 2px solid #4F46E5;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rewardspro-spinner,
+  .rewardspro-fade-in,
+  .rewardspro-progress-fill,
+  .rewardspro-cta,
+  .rewardspro-cta-inline,
+  .rewardspro-login-button {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .rewardspro-card,
+  .rewardspro-compact,
+  .rewardspro-inline,
+  .rewardspro-login-prompt {
+    border: 2px solid currentColor;
+  }
+}

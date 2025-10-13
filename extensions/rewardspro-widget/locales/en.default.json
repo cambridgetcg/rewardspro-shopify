@@ -1,0 +1,18 @@
+{
+  "ratings": {
+    "stars": {
+      "label": "Ratings"
+    },
+    "home": {
+      "recommendationText": "Recommended Product!"
+    }
+  },
+  "loyalty": {
+    "widget": {
+      "loading": "Loading your rewards...",
+      "error": "Unable to load rewards. Please try again.",
+      "login_prompt": "Sign in to view your loyalty rewards",
+      "login_button": "Sign In"
+    }
+  }
+}
