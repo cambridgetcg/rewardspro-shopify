@@ -27,6 +27,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   console.log(`[Billing Callback] Shop: ${session.shop}, Plan: ${planId}, Charge: ${chargeId}`);
 
+  // Handle cancellation - when merchant clicks "Cancel" on Shopify payment page
+  if (!chargeId && planId) {
+    console.log(`[Billing Callback] Merchant cancelled subscription for ${session.shop}`);
+    await logBillingAttempt(session.shop, planId, false, "Merchant cancelled subscription");
+    return redirect("/app/billing?cancelled=true");
+  }
+
   if (!planId) {
     console.error("[Billing Callback] No plan ID provided");
     return redirect("/app/billing?error=missing_plan");

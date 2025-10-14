@@ -368,12 +368,27 @@ export async function createSubscription(
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[BillingService] Error creating subscription:`, error);
+    console.error(`[BillingService] Full error details:`, {
+      shop,
+      planId,
+      planName: planConfig.planName,
+      isTest: process.env.NODE_ENV === 'development',
+      error: errorMessage
+    });
+
+    // Provide user-friendly error messages
+    let userError = errorMessage;
+    if (errorMessage.includes("cannot accept the provided charge") || errorMessage.includes("shop cannot accept")) {
+      userError = "This app is still in development mode. Please contact support to enable billing for your shop.";
+    } else if (errorMessage.includes("not approved for billing")) {
+      userError = "Billing is not yet approved for this app. Please try again later or contact support.";
+    }
 
     await logBillingAttempt(shop, planId, false, errorMessage, metadata);
 
     return {
       success: false,
-      error: errorMessage
+      error: userError
     };
   }
 }

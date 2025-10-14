@@ -144,6 +144,16 @@ export default function BillingPage() {
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
+  // Check URL params for cancellation or errors
+  const [searchParams] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search);
+    }
+    return new URLSearchParams();
+  });
+  const cancelled = searchParams.get('cancelled') === 'true';
+  const urlError = searchParams.get('error');
+
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
     formData.set("action", `subscribe-${planId}`);
@@ -226,6 +236,18 @@ export default function BillingPage() {
             {actionData?.success && (
               <Banner tone="success">
                 <p>Successfully subscribed to {actionData.planName}!</p>
+              </Banner>
+            )}
+
+            {cancelled && (
+              <Banner tone="info">
+                <p>Subscription upgrade was cancelled. Your current plan remains active.</p>
+              </Banner>
+            )}
+
+            {urlError && (
+              <Banner tone="critical">
+                <p>Error: {urlError.replace(/_/g, ' ')}</p>
               </Banner>
             )}
 
