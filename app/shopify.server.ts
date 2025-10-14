@@ -12,8 +12,11 @@ import { syncCustomersInBackground } from "./services/background-customer-sync.s
 // Define billing plan names (should match Partner Dashboard configuration)
 export const FREE_PLAN = "RewardsPro Free";
 export const PRO_PLAN = "RewardsPro Pro";
+export const PRO_ANNUAL_PLAN = "RewardsPro Pro Annual";
 export const MAX_PLAN = "RewardsPro Max";
+export const MAX_ANNUAL_PLAN = "RewardsPro Max Annual";
 export const ULTRA_PLAN = "RewardsPro Ultra";
+export const ULTRA_ANNUAL_PLAN = "RewardsPro Ultra Annual";
 export const ENTERPRISE_PLAN = "RewardsPro Enterprise";
 
 // Legacy plans - keeping for backward compatibility
@@ -54,6 +57,17 @@ const shopify = shopifyApp({
         }
       ],
     },
+    // Pro Annual - $336/year (28% discount - save $132/year)
+    // Monthly equivalent: $28/month
+    [PRO_ANNUAL_PLAN]: {
+      lineItems: [
+        {
+          amount: 336,
+          currencyCode: 'USD',
+          interval: BillingInterval.Annual,
+        }
+      ],
+    },
     // Max plan - $149/month
     [MAX_PLAN]: {
       lineItems: [
@@ -64,6 +78,17 @@ const shopify = shopifyApp({
         }
       ],
     },
+    // Max Annual - $1,296/year (27% discount - save $492/year)
+    // Monthly equivalent: $108/month
+    [MAX_ANNUAL_PLAN]: {
+      lineItems: [
+        {
+          amount: 1296,
+          currencyCode: 'USD',
+          interval: BillingInterval.Annual,
+        }
+      ],
+    },
     // Ultra plan - $499/month (unlimited everything)
     [ULTRA_PLAN]: {
       lineItems: [
@@ -71,6 +96,17 @@ const shopify = shopifyApp({
           amount: 499,
           currencyCode: 'USD',
           interval: BillingInterval.Every30Days,
+        }
+      ],
+    },
+    // Ultra Annual - $4,296/year (28% discount - save $1,692/year)
+    // Monthly equivalent: $358/month
+    [ULTRA_ANNUAL_PLAN]: {
+      lineItems: [
+        {
+          amount: 4296,
+          currencyCode: 'USD',
+          interval: BillingInterval.Annual,
         }
       ],
     },

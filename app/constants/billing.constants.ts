@@ -33,7 +33,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   "RewardsPro Pro": {
     name: "RewardsPro Pro",
     displayName: "Pro",
-    price: 49,
+    price: 39,
     interval: "month",
     ordersIncluded: 500,
     overageRate: 0.10, // $10 per 100 orders = $0.10 per order
@@ -44,6 +44,25 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
       "Batch processing cashback",
       "1,000 emails/month",
       "Priority support"
+    ],
+    isFree: false
+  },
+  "RewardsPro Pro Annual": {
+    name: "RewardsPro Pro Annual",
+    displayName: "Pro Annual",
+    price: 336,
+    interval: "year",
+    ordersIncluded: 500,
+    overageRate: 0.10,
+    features: [
+      "Up to 2,000 total customers",
+      "Up to 500 orders/month",
+      "$10 per 100 additional orders",
+      "Batch processing cashback",
+      "1,000 emails/month",
+      "Priority support",
+      "💰 Save $132/year (28% discount)",
+      "🗓️ $28/month when billed annually"
     ],
     isFree: false
   },
@@ -65,6 +84,26 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
     ],
     isFree: false
   },
+  "RewardsPro Max Annual": {
+    name: "RewardsPro Max Annual",
+    displayName: "Max Annual",
+    price: 1296,
+    interval: "year",
+    ordersIncluded: 2000,
+    overageRate: 0.05,
+    features: [
+      "Unlimited customers",
+      "Up to 2,000 orders/month",
+      "$5 per 100 additional orders",
+      "Sell tier memberships",
+      "White label email",
+      "5,000 emails/month",
+      "Advanced analytics",
+      "💰 Save $492/year (27% discount)",
+      "🗓️ $108/month when billed annually"
+    ],
+    isFree: false
+  },
   "RewardsPro Ultra": {
     name: "RewardsPro Ultra",
     displayName: "Ultra",
@@ -80,6 +119,26 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
       "Full white label solution",
       "Custom SMTP integration",
       "Dedicated support"
+    ],
+    isFree: false
+  },
+  "RewardsPro Ultra Annual": {
+    name: "RewardsPro Ultra Annual",
+    displayName: "Ultra Annual",
+    price: 4296,
+    interval: "year",
+    ordersIncluded: 999999,
+    overageRate: 0,
+    features: [
+      "Unlimited everything",
+      "Unlimited customers",
+      "Unlimited orders",
+      "Unlimited emails",
+      "Full white label solution",
+      "Custom SMTP integration",
+      "Dedicated support",
+      "💰 Save $1,692/year (28% discount)",
+      "🗓️ $358/month when billed annually"
     ],
     isFree: false
   }

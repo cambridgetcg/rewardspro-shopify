@@ -19,6 +19,7 @@ import {
   Box,
   Divider,
   Icon,
+  ButtonGroup,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
@@ -141,7 +142,7 @@ export default function BillingPage() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
-  const [selectedTab, setSelectedTab] = useState(0);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
@@ -151,12 +152,16 @@ export default function BillingPage() {
 
   const currentPlan = data.subscriptionStatus.currentPlan;
 
-  // Define plan UI configurations
+  // Define plan UI configurations with both monthly and annual pricing
   const planCards = [
     {
       id: "pro",
+      idAnnual: "pro-annual",
       name: "Pro",
-      price: "$39",
+      monthlyPrice: "$39",
+      annualPrice: "$336",
+      annualMonthlyEquivalent: "$28",
+      annualSavings: "Save $132/year",
       description: "Everything you need to grow your loyalty program",
       features: [
         "500 orders/month",
@@ -169,8 +174,12 @@ export default function BillingPage() {
     },
     {
       id: "max",
+      idAnnual: "max-annual",
       name: "Max",
-      price: "$149",
+      monthlyPrice: "$149",
+      annualPrice: "$1,296",
+      annualMonthlyEquivalent: "$108",
+      annualSavings: "Save $492/year",
       description: "For established businesses with advanced needs",
       features: [
         "2,000 orders/month",
@@ -184,8 +193,12 @@ export default function BillingPage() {
     },
     {
       id: "ultra",
+      idAnnual: "ultra-annual",
       name: "Ultra",
-      price: "$499",
+      monthlyPrice: "$499",
+      annualPrice: "$4,296",
+      annualMonthlyEquivalent: "$358",
+      annualSavings: "Save $1,692/year",
       description: "Unlimited everything for growing enterprises",
       features: [
         "Unlimited orders",
@@ -239,6 +252,34 @@ export default function BillingPage() {
               </Card>
             )}
 
+            {/* Billing Interval Toggle */}
+            <Card>
+              <Box padding="400">
+                <InlineStack align="center" blockAlign="center" gap="400">
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    Billing Interval:
+                  </Text>
+                  <ButtonGroup variant="segmented">
+                    <Button
+                      pressed={billingInterval === 'monthly'}
+                      onClick={() => setBillingInterval('monthly')}
+                    >
+                      Monthly
+                    </Button>
+                    <Button
+                      pressed={billingInterval === 'annual'}
+                      onClick={() => setBillingInterval('annual')}
+                    >
+                      <InlineStack gap="200" blockAlign="center">
+                        <span>Annual</span>
+                        <Badge tone="success">Save up to 28%</Badge>
+                      </InlineStack>
+                    </Button>
+                  </ButtonGroup>
+                </InlineStack>
+              </Box>
+            </Card>
+
             {/* Plan Cards */}
             <div style={{
               display: 'grid',
@@ -246,7 +287,9 @@ export default function BillingPage() {
               gap: '16px',
             }}>
               {planCards.map((plan) => {
-                const isCurrentPlan = currentPlan === `RewardsPro ${plan.name}`;
+                const planIdToUse = billingInterval === 'annual' ? plan.idAnnual : plan.id;
+                const isCurrentPlan = currentPlan === `RewardsPro ${plan.name}` ||
+                                     currentPlan === `RewardsPro ${plan.name} Annual`;
 
                 return (
                   <Card key={plan.id}>
@@ -267,14 +310,30 @@ export default function BillingPage() {
 
                         {/* Price */}
                         <BlockStack gap="200">
-                          <InlineStack align="start" gap="100">
-                            <Text as="p" variant="heading2xl">
-                              {plan.price}
-                            </Text>
-                            <Text as="span" variant="bodyLg" tone="subdued">
-                              /month
-                            </Text>
-                          </InlineStack>
+                          {billingInterval === 'monthly' ? (
+                            <InlineStack align="start" gap="100">
+                              <Text as="p" variant="heading2xl">
+                                {plan.monthlyPrice}
+                              </Text>
+                              <Text as="span" variant="bodyLg" tone="subdued">
+                                /month
+                              </Text>
+                            </InlineStack>
+                          ) : (
+                            <BlockStack gap="100">
+                              <InlineStack align="start" gap="100">
+                                <Text as="p" variant="heading2xl">
+                                  {plan.annualMonthlyEquivalent}
+                                </Text>
+                                <Text as="span" variant="bodyLg" tone="subdued">
+                                  /month
+                                </Text>
+                              </InlineStack>
+                              <Text as="p" variant="bodyMd" tone="subdued">
+                                {plan.annualPrice}/year • {plan.annualSavings}
+                              </Text>
+                            </BlockStack>
+                          )}
                         </BlockStack>
 
                         {/* Description */}
@@ -289,7 +348,7 @@ export default function BillingPage() {
                           variant={isCurrentPlan ? "secondary" : (plan.recommended ? "primary" : "primary")}
                           disabled={isCurrentPlan || isSubmitting}
                           loading={isSubmitting}
-                          onClick={() => handleSubscribe(plan.id)}
+                          onClick={() => handleSubscribe(planIdToUse)}
                         >
                           {isCurrentPlan ? "Current Plan" : `Upgrade to ${plan.name}`}
                         </Button>
