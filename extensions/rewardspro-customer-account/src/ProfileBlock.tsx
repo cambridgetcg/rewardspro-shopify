@@ -15,6 +15,7 @@ import { useLoyaltyData } from './hooks/useLoyaltyData';
 import { BalanceCard } from './components/profile/BalanceCard';
 import { RewardsHistory } from './components/profile/RewardsHistory';
 import { useEffect } from 'react';
+import { Logger } from './utils/logger';
 
 export default reactExtension(
   'customer-account.profile.block.render',
@@ -22,12 +23,12 @@ export default reactExtension(
 );
 
 function LoyaltyProfileBlock() {
-  console.log('[ProfileBlock] ========== COMPONENT RENDER ==========');
+  Logger.mount('ProfileBlock');
 
   const { data, loading, error } = useLoyaltyData();
 
   useEffect(() => {
-    console.log('[ProfileBlock] State update:', {
+    Logger.stateChange('ProfileBlock', {
       loading,
       hasError: !!error,
       errorMessage: error,
@@ -38,9 +39,16 @@ function LoyaltyProfileBlock() {
     });
   }, [data, loading, error]);
 
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      Logger.unmount('ProfileBlock');
+    };
+  }, []);
+
   // Loading state with skeleton
   if (loading) {
-    console.log('[ProfileBlock] Rendering: LOADING state');
+    Logger.render('ProfileBlock', 'LOADING');
     return (
       <BlockStack spacing="base">
         <SkeletonText />
@@ -52,18 +60,16 @@ function LoyaltyProfileBlock() {
 
   // Error state - accessible error banner
   if (error) {
-    console.log('[ProfileBlock] Rendering: ERROR state -', error);
+    Logger.render('ProfileBlock', `ERROR - ${error}`);
     return (
       <Banner status="critical" title="Unable to load rewards">
         <BlockStack spacing="tight">
           <Text>
             We're having trouble loading your rewards information. Please try refreshing the page.
           </Text>
-          {process.env.NODE_ENV === 'development' && (
-            <Text appearance="subdued" size="small">
-              Error: {error}
-            </Text>
-          )}
+          <Text appearance="subdued" size="small">
+            Error: {error}
+          </Text>
         </BlockStack>
       </Banner>
     );
@@ -71,7 +77,7 @@ function LoyaltyProfileBlock() {
 
   // No data state
   if (!data) {
-    console.log('[ProfileBlock] Rendering: NO DATA state');
+    Logger.render('ProfileBlock', 'NO DATA');
     return (
       <Banner status="info" title="Rewards information unavailable">
         <Text>
@@ -83,7 +89,7 @@ function LoyaltyProfileBlock() {
 
   // Not enrolled state - personalized CTA
   if (!data.enrolled) {
-    console.log('[ProfileBlock] Rendering: NOT ENROLLED state');
+    Logger.render('ProfileBlock', 'NOT ENROLLED');
     return (
       <Banner status="info" title="Join our rewards program">
         <BlockStack spacing="base">
@@ -103,7 +109,12 @@ function LoyaltyProfileBlock() {
   // Success state - Display rewards dashboard
   // Following mobile-first responsive layout with vertical stacking
   // Cards don't add external margins - BlockStack with spacing separates them
-  console.log('[ProfileBlock] Rendering: SUCCESS state with rewards dashboard');
+  Logger.render('ProfileBlock', 'SUCCESS - Rewards Dashboard');
+  Logger.success('Rewards data loaded successfully', {
+    tierName: data.memberData?.tierName,
+    storeCredit: data.memberData?.storeCredit
+  });
+
   return (
     <BlockStack spacing="loose">
       {/* Store Credit and Membership Card */}
