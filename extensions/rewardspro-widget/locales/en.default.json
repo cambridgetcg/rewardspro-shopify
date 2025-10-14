@@ -7,6 +7,14 @@
       "recommendationText": "Recommended Product!"
     }
   },
+  "customer": {
+    "login": {
+      "title": "Sign In"
+    },
+    "register": {
+      "title": "Join Now"
+    }
+  },
   "loyalty": {
     "widget": {
       "loading": "Loading your rewards...",

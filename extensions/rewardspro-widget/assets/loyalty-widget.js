@@ -150,87 +150,206 @@ class RewardsProWidget {
   }
 
   renderCard(data) {
-    const html = `
-      <div class="rewardspro-card">
-        ${data.tier ? `
-          <div class="rewardspro-tier">
-            <span class="rewardspro-tier-icon">${data.tier.icon}</span>
-            <span class="rewardspro-tier-name" style="color: ${data.tier.color}">${data.tier.name}</span>
-          </div>
-        ` : ''}
+    // Clear existing content
+    this.contentEl.innerHTML = '';
 
-        <div class="rewardspro-balance">
-          <div class="rewardspro-balance-amount">${this.formatPoints(data.balance)}</div>
-          <div class="rewardspro-balance-label">Points Available</div>
-        </div>
+    const card = document.createElement('div');
+    card.className = 'rewardspro-card';
 
-        ${this.showProgress && data.progress ? `
-          <div class="rewardspro-progress">
-            <div class="rewardspro-progress-label">
-              ${data.progress.current} / ${data.progress.next} points to next tier
-            </div>
-            <div class="rewardspro-progress-bar">
-              <div class="rewardspro-progress-fill" style="width: ${data.progress.percentage}%"></div>
-            </div>
-            <div class="rewardspro-progress-percentage">${data.progress.percentage}%</div>
-          </div>
-        ` : ''}
+    // Tier section
+    if (data.tier) {
+      const tierDiv = document.createElement('div');
+      tierDiv.className = 'rewardspro-tier';
 
-        ${this.showExpiring && data.expiringPoints ? `
-          <div class="rewardspro-expiring">
-            <svg class="rewardspro-warning-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 1L1 14H15L8 1Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <path d="M8 6V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="8" cy="11.5" r="0.5" fill="currentColor"/>
-            </svg>
-            <span>${this.formatPoints(data.expiringPoints.amount)} points expiring ${this.formatDate(data.expiringPoints.date)}</span>
-          </div>
-        ` : ''}
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'rewardspro-tier-icon';
+      iconSpan.textContent = data.tier.icon || '⭐';
 
-        <a href="${this.ctaUrl}" class="rewardspro-cta">
-          ${this.ctaText}
-        </a>
-      </div>
-    `;
-    this.contentEl.innerHTML = html;
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'rewardspro-tier-name';
+      nameSpan.textContent = data.tier.name;
+      nameSpan.style.color = this.sanitizeColor(data.tier.color);
+
+      tierDiv.appendChild(iconSpan);
+      tierDiv.appendChild(nameSpan);
+      card.appendChild(tierDiv);
+    }
+
+    // Balance section
+    const balanceDiv = document.createElement('div');
+    balanceDiv.className = 'rewardspro-balance';
+
+    const amountDiv = document.createElement('div');
+    amountDiv.className = 'rewardspro-balance-amount';
+    amountDiv.textContent = this.formatPoints(data.balance);
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'rewardspro-balance-label';
+    labelDiv.textContent = 'Points Available';
+
+    balanceDiv.appendChild(amountDiv);
+    balanceDiv.appendChild(labelDiv);
+    card.appendChild(balanceDiv);
+
+    // Progress section
+    if (this.showProgress && data.progress) {
+      const progressDiv = document.createElement('div');
+      progressDiv.className = 'rewardspro-progress';
+
+      const progressLabel = document.createElement('div');
+      progressLabel.className = 'rewardspro-progress-label';
+      progressLabel.textContent = `${data.progress.current} / ${data.progress.next} points to next tier`;
+
+      const progressBar = document.createElement('div');
+      progressBar.className = 'rewardspro-progress-bar';
+
+      const progressFill = document.createElement('div');
+      progressFill.className = 'rewardspro-progress-fill';
+      progressFill.style.width = `${Math.min(100, Math.max(0, data.progress.percentage))}%`;
+
+      const progressPercentage = document.createElement('div');
+      progressPercentage.className = 'rewardspro-progress-percentage';
+      progressPercentage.textContent = `${data.progress.percentage}%`;
+
+      progressBar.appendChild(progressFill);
+      progressDiv.appendChild(progressLabel);
+      progressDiv.appendChild(progressBar);
+      progressDiv.appendChild(progressPercentage);
+      card.appendChild(progressDiv);
+    }
+
+    // Expiring points section
+    if (this.showExpiring && data.expiringPoints) {
+      const expiringDiv = document.createElement('div');
+      expiringDiv.className = 'rewardspro-expiring';
+
+      // Create SVG warning icon
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'rewardspro-warning-icon');
+      svg.setAttribute('width', '16');
+      svg.setAttribute('height', '16');
+      svg.setAttribute('viewBox', '0 0 16 16');
+      svg.setAttribute('fill', 'none');
+
+      const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path1.setAttribute('d', 'M8 1L1 14H15L8 1Z');
+      path1.setAttribute('stroke', 'currentColor');
+      path1.setAttribute('stroke-width', '2');
+      path1.setAttribute('stroke-linejoin', 'round');
+
+      const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path2.setAttribute('d', 'M8 6V9');
+      path2.setAttribute('stroke', 'currentColor');
+      path2.setAttribute('stroke-width', '2');
+      path2.setAttribute('stroke-linecap', 'round');
+
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', '8');
+      circle.setAttribute('cy', '11.5');
+      circle.setAttribute('r', '0.5');
+      circle.setAttribute('fill', 'currentColor');
+
+      svg.appendChild(path1);
+      svg.appendChild(path2);
+      svg.appendChild(circle);
+
+      const textSpan = document.createElement('span');
+      textSpan.textContent = `${this.formatPoints(data.expiringPoints.amount)} points expiring ${this.formatDate(data.expiringPoints.date)}`;
+
+      expiringDiv.appendChild(svg);
+      expiringDiv.appendChild(textSpan);
+      card.appendChild(expiringDiv);
+    }
+
+    // CTA button
+    const ctaLink = document.createElement('a');
+    ctaLink.href = this.sanitizeUrl(this.ctaUrl);
+    ctaLink.className = 'rewardspro-cta';
+    ctaLink.textContent = this.ctaText;
+    card.appendChild(ctaLink);
+
+    this.contentEl.appendChild(card);
   }
 
   renderCompact(data) {
-    const html = `
-      <div class="rewardspro-compact">
-        ${data.tier ? `
-          <span class="rewardspro-tier-icon">${data.tier.icon}</span>
-        ` : ''}
-        <span class="rewardspro-balance-compact">${this.formatPoints(data.balance)} pts</span>
-        <a href="${this.ctaUrl}" class="rewardspro-link">View</a>
-      </div>
-    `;
-    this.contentEl.innerHTML = html;
+    this.contentEl.innerHTML = '';
+
+    const compact = document.createElement('div');
+    compact.className = 'rewardspro-compact';
+
+    if (data.tier) {
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'rewardspro-tier-icon';
+      iconSpan.textContent = data.tier.icon || '⭐';
+      compact.appendChild(iconSpan);
+    }
+
+    const balanceSpan = document.createElement('span');
+    balanceSpan.className = 'rewardspro-balance-compact';
+    balanceSpan.textContent = `${this.formatPoints(data.balance)} pts`;
+    compact.appendChild(balanceSpan);
+
+    const link = document.createElement('a');
+    link.href = this.sanitizeUrl(this.ctaUrl);
+    link.className = 'rewardspro-link';
+    link.textContent = 'View';
+    compact.appendChild(link);
+
+    this.contentEl.appendChild(compact);
   }
 
   renderInline(data) {
-    const html = `
-      <div class="rewardspro-inline">
-        <div class="rewardspro-inline-info">
-          ${data.tier ? `
-            <span class="rewardspro-tier-badge" style="background-color: ${data.tier.color}">
-              ${data.tier.icon} ${data.tier.name}
-            </span>
-          ` : ''}
-          <span class="rewardspro-balance-inline">${this.formatPoints(data.balance)} points</span>
-        </div>
-        ${this.showProgress && data.progress ? `
-          <div class="rewardspro-progress-inline">
-            <div class="rewardspro-progress-bar">
-              <div class="rewardspro-progress-fill" style="width: ${data.progress.percentage}%"></div>
-            </div>
-            <span class="rewardspro-progress-text">${data.progress.percentage}% to next tier</span>
-          </div>
-        ` : ''}
-        <a href="${this.ctaUrl}" class="rewardspro-cta-inline">${this.ctaText}</a>
-      </div>
-    `;
-    this.contentEl.innerHTML = html;
+    this.contentEl.innerHTML = '';
+
+    const inline = document.createElement('div');
+    inline.className = 'rewardspro-inline';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'rewardspro-inline-info';
+
+    if (data.tier) {
+      const badge = document.createElement('span');
+      badge.className = 'rewardspro-tier-badge';
+      badge.style.backgroundColor = this.sanitizeColor(data.tier.color);
+      badge.textContent = `${data.tier.icon || '⭐'} ${data.tier.name}`;
+      infoDiv.appendChild(badge);
+    }
+
+    const balanceSpan = document.createElement('span');
+    balanceSpan.className = 'rewardspro-balance-inline';
+    balanceSpan.textContent = `${this.formatPoints(data.balance)} points`;
+    infoDiv.appendChild(balanceSpan);
+
+    inline.appendChild(infoDiv);
+
+    if (this.showProgress && data.progress) {
+      const progressDiv = document.createElement('div');
+      progressDiv.className = 'rewardspro-progress-inline';
+
+      const progressBar = document.createElement('div');
+      progressBar.className = 'rewardspro-progress-bar';
+
+      const progressFill = document.createElement('div');
+      progressFill.className = 'rewardspro-progress-fill';
+      progressFill.style.width = `${Math.min(100, Math.max(0, data.progress.percentage))}%`;
+
+      const progressText = document.createElement('span');
+      progressText.className = 'rewardspro-progress-text';
+      progressText.textContent = `${data.progress.percentage}% to next tier`;
+
+      progressBar.appendChild(progressFill);
+      progressDiv.appendChild(progressBar);
+      progressDiv.appendChild(progressText);
+      inline.appendChild(progressDiv);
+    }
+
+    const link = document.createElement('a');
+    link.href = this.sanitizeUrl(this.ctaUrl);
+    link.className = 'rewardspro-cta-inline';
+    link.textContent = this.ctaText;
+    inline.appendChild(link);
+
+    this.contentEl.appendChild(inline);
   }
 
   showError(message) {
@@ -245,17 +364,39 @@ class RewardsProWidget {
     this.contentEl.style.display = 'none';
     this.errorEl.style.display = 'block';
 
-    // Update error element with setup message
-    this.errorEl.innerHTML = `
-      <div class="rewardspro-setup-required">
-        <h3>Setup Required</h3>
-        <p>The RewardsPro app needs to configure your rewards data.</p>
-        <p class="rewardspro-setup-note">
-          <strong>For merchants:</strong> Please contact <a href="mailto:support@rewardspro.app">support@rewardspro.app</a>
-          or check the app admin panel to complete setup.
-        </p>
-      </div>
-    `;
+    // Clear existing content
+    this.errorEl.innerHTML = '';
+
+    // Build setup message with DOM APIs (XSS-safe)
+    const setupDiv = document.createElement('div');
+    setupDiv.className = 'rewardspro-setup-required';
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'Setup Required';
+    setupDiv.appendChild(heading);
+
+    const para1 = document.createElement('p');
+    para1.textContent = 'The RewardsPro app needs to configure your rewards data.';
+    setupDiv.appendChild(para1);
+
+    const para2 = document.createElement('p');
+    para2.className = 'rewardspro-setup-note';
+
+    const strong = document.createElement('strong');
+    strong.textContent = 'For merchants:';
+    para2.appendChild(strong);
+
+    para2.appendChild(document.createTextNode(' Please contact '));
+
+    const link = document.createElement('a');
+    link.href = 'mailto:support@rewardspro.app';
+    link.textContent = 'support@rewardspro.app';
+    para2.appendChild(link);
+
+    para2.appendChild(document.createTextNode(' or check the app admin panel to complete setup.'));
+    setupDiv.appendChild(para2);
+
+    this.errorEl.appendChild(setupDiv);
 
     console.warn('[RewardsPro] Customer metafield not set. Merchants should run the setup endpoint in the app admin.');
   }
@@ -276,6 +417,52 @@ class RewardsProWidget {
     if (diffDays < 30) return `in ${Math.ceil(diffDays / 7)} weeks`;
 
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  /**
+   * Sanitize color value to prevent XSS
+   * Only allows hex colors and CSS color names
+   */
+  sanitizeColor(color) {
+    if (!color) return '#FFD700'; // Default gold color
+
+    // Allow hex colors (#RGB or #RRGGBB)
+    if (/^#([0-9A-F]{3}){1,2}$/i.test(color)) {
+      return color;
+    }
+
+    // Allow rgb/rgba
+    if (/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\)$/i.test(color)) {
+      return color;
+    }
+
+    // Allow hsl/hsla
+    if (/^hsla?\(\s*\d+\s*,\s*\d+%\s*,\s*\d+%\s*(,\s*[\d.]+\s*)?\)$/i.test(color)) {
+      return color;
+    }
+
+    // Fallback to default
+    console.warn('[RewardsPro] Invalid color value:', color);
+    return '#FFD700';
+  }
+
+  /**
+   * Sanitize URL to prevent javascript: and data: URLs
+   */
+  sanitizeUrl(url) {
+    if (!url) return '/account';
+
+    const urlString = String(url).trim().toLowerCase();
+
+    // Block dangerous protocols
+    if (urlString.startsWith('javascript:') ||
+        urlString.startsWith('data:') ||
+        urlString.startsWith('vbscript:')) {
+      console.warn('[RewardsPro] Blocked dangerous URL:', url);
+      return '/account';
+    }
+
+    return url;
   }
 }
 

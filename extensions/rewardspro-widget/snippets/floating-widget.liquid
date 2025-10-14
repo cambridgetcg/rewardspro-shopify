@@ -1,19 +1,38 @@
 {% comment %}
-  RewardsPro Floating Widget
+  RewardsPro Floating Widget (Snippet)
   A persistent, minimizable widget that appears on all pages
 
-  Usage: Add {% render 'floating-widget' %} to theme.liquid before </body>
+  ⚠️  DEPRECATED: Use the App Embed version instead!
+
+  This snippet is kept for backward compatibility only.
+  NEW INSTALLATIONS: Enable the app embed in Theme Editor → App embeds
+
+  Manual Usage (legacy):
+  Add {% render 'floating-widget' %} to theme.liquid before </body>
 {% endcomment %}
 
+{% comment %}
+  Prevent conflicts: Only render if app embed is not already active
+  App embed sets a marker in window to signal it's loaded
+{% endcomment %}
 {% if customer %}
   {% assign customer_id = customer.metafield.rewardspro.customer_id.value %}
 {% endif %}
 
-<div id="rewardspro-floating-widget-root"></div>
-
 <script>
-  window.RewardsProConfig = {
-    isAuthenticated: {{ customer != null }},
+  // Check if app embed already loaded (by checking for the DOM element)
+  // This is more reliable than a flag check since the embed creates the element before this script runs
+  if (document.getElementById('rewardspro-floating-widget-root')) {
+    console.warn('[RewardsPro] App embed already active. Skipping snippet to prevent conflicts.');
+  } else {
+    // Legacy snippet mode
+    (function() {
+      const root = document.createElement('div');
+      root.id = 'rewardspro-floating-widget-root';
+      document.body.appendChild(root);
+
+      window.RewardsProConfig = {
+    isAuthenticated: {% if customer %}true{% else %}false{% endif %},
     customerId: {{ customer_id | json }},
     shop: {
       domain: {{ shop.permanent_domain | json }},
@@ -40,11 +59,21 @@
       signInText: {{ 'customer.login.title' | t | default: 'Sign In' | json }},
       registerText: {{ 'customer.register.title' | t | default: 'Join Now' | json }}
     }
-  };
-</script>
+      };
 
-{{ 'floating-widget.css' | asset_url | stylesheet_tag }}
-<script src="{{ 'floating-widget.js' | asset_url }}" defer></script>
+      // Load assets
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '{{ 'floating-widget.css' | asset_url }}';
+      document.head.appendChild(link);
+
+      const script = document.createElement('script');
+      script.src = '{{ 'floating-widget.js' | asset_url }}';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  }
+</script>
 
 <style>
   /* Position-based styling */
@@ -78,124 +107,3 @@
     }
   {% endif %}
 </style>
-
-{% schema %}
-{
-  "name": "RewardsPro Floating Widget",
-  "target": "body",
-  "settings": [
-    {
-      "type": "paragraph",
-      "content": "Configure the RewardsPro floating loyalty widget that appears on all pages."
-    },
-    {
-      "type": "checkbox",
-      "id": "rewardspro_enabled",
-      "label": "Enable Floating Widget",
-      "default": true
-    },
-    {
-      "type": "text",
-      "id": "rewardspro_api_url",
-      "label": "App API URL",
-      "info": "Your RewardsPro app URL (leave blank to use default production URL)",
-      "placeholder": "https://rewardspro-production.vercel.app"
-    },
-    {
-      "type": "header",
-      "content": "Display Settings"
-    },
-    {
-      "type": "select",
-      "id": "rewardspro_position",
-      "label": "Widget Position",
-      "options": [
-        {
-          "value": "bottom-right",
-          "label": "Bottom Right"
-        },
-        {
-          "value": "bottom-left",
-          "label": "Bottom Left"
-        },
-        {
-          "value": "top-right",
-          "label": "Top Right"
-        },
-        {
-          "value": "top-left",
-          "label": "Top Left"
-        }
-      ],
-      "default": "bottom-right"
-    },
-    {
-      "type": "checkbox",
-      "id": "rewardspro_start_minimized",
-      "label": "Start Minimized",
-      "info": "Widget starts as a small icon instead of expanded",
-      "default": true
-    },
-    {
-      "type": "checkbox",
-      "id": "rewardspro_remember_state",
-      "label": "Remember Widget State",
-      "info": "Remember if user minimized/expanded the widget",
-      "default": true
-    },
-    {
-      "type": "range",
-      "id": "rewardspro_auto_hide",
-      "label": "Auto-Hide Delay (seconds)",
-      "info": "Auto-minimize after this many seconds (0 = never)",
-      "min": 0,
-      "max": 30,
-      "step": 5,
-      "default": 0
-    },
-    {
-      "type": "header",
-      "content": "Styling"
-    },
-    {
-      "type": "color",
-      "id": "rewardspro_theme_color",
-      "label": "Theme Color",
-      "default": "#5C6AC4"
-    },
-    {
-      "type": "select",
-      "id": "rewardspro_icon_style",
-      "label": "Icon Style",
-      "options": [
-        {
-          "value": "emoji",
-          "label": "Emoji (⭐)"
-        },
-        {
-          "value": "text",
-          "label": "Text (Rewards)"
-        }
-      ],
-      "default": "emoji"
-    },
-    {
-      "type": "header",
-      "content": "Content"
-    },
-    {
-      "type": "text",
-      "id": "rewardspro_widget_title",
-      "label": "Widget Title",
-      "default": "Rewards Center"
-    },
-    {
-      "type": "textarea",
-      "id": "rewardspro_guest_message",
-      "label": "Guest Message",
-      "info": "Message shown to non-logged-in customers",
-      "default": "Join our rewards program and earn cashback on every purchase!"
-    }
-  ]
-}
-{% endschema %}
