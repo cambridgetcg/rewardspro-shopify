@@ -652,6 +652,76 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
+        {/* Widget Setup Nudge */}
+        <Layout.Section>
+          <Banner
+            title="Important: Add RewardsPro widget to your store theme"
+            tone="warning"
+          >
+            <BlockStack gap="300">
+              <Text variant="bodyMd" as="p">
+                To make sure RewardsPro works properly, you'll need to add it as an app embed in your Shopify theme.
+                Without this step, customers may not see the rewards widget on your storefront.
+              </Text>
+
+              <Box paddingBlock="200">
+                <Banner tone="info">
+                  <BlockStack gap="200">
+                    <Text variant="bodySm" as="p" fontWeight="semibold">
+                      We couldn't detect the RewardsPro widget on your store. Follow the steps below:
+                    </Text>
+                  </BlockStack>
+                </Banner>
+              </Box>
+
+              <BlockStack gap="200">
+                <Text variant="bodyMd" as="p" fontWeight="semibold">
+                  Quick setup (takes 30 seconds):
+                </Text>
+                <ol style={{ paddingLeft: '20px', margin: '8px 0' }}>
+                  <li style={{ marginBottom: '8px' }}>
+                    <Text variant="bodySm" as="span">
+                      Go to <strong>Online Store → Themes → Customize</strong>
+                    </Text>
+                  </li>
+                  <li style={{ marginBottom: '8px' }}>
+                    <Text variant="bodySm" as="span">
+                      Click the <strong>App embeds</strong> icon in the left sidebar (puzzle piece icon)
+                    </Text>
+                  </li>
+                  <li style={{ marginBottom: '8px' }}>
+                    <Text variant="bodySm" as="span">
+                      Find <strong>"RewardsPro Widget"</strong> and toggle it <strong>ON</strong>
+                    </Text>
+                  </li>
+                  <li style={{ marginBottom: '8px' }}>
+                    <Text variant="bodySm" as="span">
+                      Click <strong>Save</strong> in the top-right corner
+                    </Text>
+                  </li>
+                </ol>
+              </BlockStack>
+
+              <InlineStack gap="200">
+                <Button
+                  url={`https://${data.shop}/admin/themes/current/editor?context=apps`}
+                  target="_blank"
+                  variant="primary"
+                >
+                  Open theme editor
+                </Button>
+                <Button
+                  url="https://help.shopify.com/en/manual/online-store/themes/theme-structure/extend/apps#enable-app-embeds"
+                  target="_blank"
+                  variant="plain"
+                >
+                  View Shopify's guide
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Banner>
+        </Layout.Section>
+
         {/* Key Metrics Overview */}
         <Layout.Section>
           <StatsOverview
