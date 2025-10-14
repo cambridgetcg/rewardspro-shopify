@@ -1,4 +1,12 @@
 {
+  "ratings": {
+    "stars": {
+      "label": "Rating"
+    },
+    "home": {
+      "recommendationText": "Recommended"
+    }
+  },
   "widget": {
     "title": "Rewards Center",
     "close": "Close rewards widget",

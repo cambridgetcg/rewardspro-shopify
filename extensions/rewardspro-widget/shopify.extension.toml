@@ -1,3 +1,10 @@
-name = "rewardspro-widget"
-type = "theme"
+api_version = "2024-10"
+
+[[extensions]]
 uid = "85f7a055-7cd7-7058-fb1f-0ad8e411368587a1e5ba"
+type = "theme"
+name = "RewardsPro Widget"
+handle = "rewardspro-widget"
+
+[[extensions.targeting]]
+target = "body"

@@ -10,8 +10,8 @@
   "enabled_on": {
     "templates": ["*"]
   },
-  "stylesheet": "widget.css",
-  "javascript": "widget.js",
+  "stylesheet": "widget-compact.css",
+  "javascript": "widget-compact.js",
   "settings": [
     {
       "type": "checkbox",
@@ -240,7 +240,6 @@
   {% comment %} Meta tags for session detection (server-side verified) {% endcomment %}
   {% if customer %}
     <meta name="rewardspro-session" content="authenticated">
-    <meta name="rewardspro-session-check" content="{{ 'now' | date: '%s' | hmac: shop.domain }}">
   {% else %}
     <meta name="rewardspro-session" content="guest">
   {% endif %}
