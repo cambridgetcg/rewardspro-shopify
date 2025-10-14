@@ -473,6 +473,17 @@
     async loadData() {
       if (this.state.isLoading) return;
 
+      // Validate metafield exists
+      if (!this.config.customerId || this.config.customerId === 'null' || this.config.customerId === 'undefined') {
+        console.warn('[RewardsPro] Customer metafield not configured. Setup required.');
+        this.setState({
+          error: 'Setup required - please contact store administrator',
+          isLoading: false
+        });
+        this.updateContent();
+        return;
+      }
+
       this.setState({ isLoading: true, error: null });
       this.updateContent();
 

@@ -101,6 +101,11 @@ model Tier {
   cashbackPercent   Int
   evaluationPeriod  EvaluationPeriod    @default(ANNUAL)
 
+  // Display properties for storefront widgets
+  icon              String?             @default("⭐")  // Emoji or icon identifier
+  color             String?             @default("#FFD700")  // Hex color code
+  threshold         Int?                // Alternative field for progress tracking (can map to minSpend)
+
   // Subscription pricing
   monthlyPrice      Decimal?            @db.Decimal(10, 2)  // Monthly subscription price
   billingInterval   BillingInterval?    // Billing interval for subscriptions
@@ -179,11 +184,19 @@ model Customer {
   id                String          @id @default(uuid())
   shop              String
   shopifyCustomerId String          @db.VarChar(255)
+
+  // Storefront widget authentication
+  shopifyCustomerMetafieldId String?  @db.VarChar(255)  // Metafield ID for storefront API auth
+
   email             String          @db.VarChar(255)
   firstName         String?         @db.VarChar(255)  // Added for Shopify sync
   lastName          String?         @db.VarChar(255)  // Added for Shopify sync
   tags              String?         @db.Text           // Added for customer tagging
   storeCredit       Decimal         @default(0) @db.Decimal(10, 2)
+
+  // Points tracking for loyalty widgets
+  pointsBalance     Decimal         @default(0) @db.Decimal(10, 2)  // Current available points
+  lifetimePoints    Decimal         @default(0) @db.Decimal(10, 2)  // Total points ever earned
 
   // Spending tracking fields
   totalSpent            Decimal     @default(0) @db.Decimal(10, 2)  // Total order value
@@ -220,6 +233,7 @@ model Customer {
   @@unique([shop, shopifyCustomerId])  // Prevent duplicate customers per shop
   @@index([shop])                      // Speed up queries by shop
   @@index([email])                     // Speed up queries by email
+  @@index([shop, shopifyCustomerMetafieldId])  // Speed up storefront widget queries
 }
 
 model StoreCreditLedger {
@@ -247,15 +261,19 @@ model StoreCreditLedger {
   
   // Flexible data field
   metadata          Json?       // Store everything else here (cashback %, order amount, description, etc.)
-  
+
+  // Point expiration (for storefront widgets)
+  expiresAt         DateTime?   // When points expire (null = never expires)
+
   createdAt         DateTime    @default(now())
-  
+
   customer          Customer    @relation(fields: [customerId], references: [id])
   
   @@unique([shop, shopifyOrderId, type]) // Prevent duplicate entries
   @@index([customerId])
   @@index([type])
   @@index([createdAt])
+  @@index([customerId, expiresAt])  // Speed up expiring points queries
 }
 
 model TierChangeLog {

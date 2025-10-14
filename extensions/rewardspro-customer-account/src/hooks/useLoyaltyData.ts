@@ -5,9 +5,12 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '@shopify/ui-extensions-react/customer-account';
 import type { LoyaltyData } from '../types/loyalty';
+import { getApiUrl, getApiTimeout, isDebugEnabled } from '../config';
 
-// LOCAL DEVELOPMENT: Using tunnel URL from `shopify app dev`
-const API_URL = 'https://modifications-grid-heel-configuration.trycloudflare.com/api/customer-account/loyalty';
+// Get API URL from config (supports environment variables)
+const API_URL = getApiUrl();
+const API_TIMEOUT = getApiTimeout();
+const DEBUG_LOGS = isDebugEnabled();
 
 export function useLoyaltyData() {
   const { sessionToken } = useApi();
@@ -21,8 +24,10 @@ export function useLoyaltyData() {
     async function fetchLoyaltyData() {
       const requestId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      console.log(`[${requestId}] ========== FRONTEND REQUEST START ==========`);
-      console.log(`[${requestId}] API URL:`, API_URL);
+      if (DEBUG_LOGS) {
+        console.log(`[${requestId}] ========== FRONTEND REQUEST START ==========`);
+        console.log(`[${requestId}] API URL:`, API_URL);
+      }
 
       try {
         setLoading(true);

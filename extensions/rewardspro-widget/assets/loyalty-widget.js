@@ -71,8 +71,14 @@ class RewardsProWidget {
   }
 
   async fetchData(background = false) {
-    if (!this.customerId || !this.shop) {
-      this.showError('Missing customer information');
+    // Check if metafield exists and is valid
+    if (!this.customerId || this.customerId === 'null' || this.customerId === 'undefined') {
+      this.showSetupRequired();
+      return;
+    }
+
+    if (!this.shop) {
+      this.showError('Missing shop information');
       return;
     }
 
@@ -232,6 +238,26 @@ class RewardsProWidget {
     this.contentEl.style.display = 'none';
     this.errorEl.style.display = 'block';
     console.error('RewardsPro Widget Error:', message);
+  }
+
+  showSetupRequired() {
+    this.loadingEl.style.display = 'none';
+    this.contentEl.style.display = 'none';
+    this.errorEl.style.display = 'block';
+
+    // Update error element with setup message
+    this.errorEl.innerHTML = `
+      <div class="rewardspro-setup-required">
+        <h3>Setup Required</h3>
+        <p>The RewardsPro app needs to configure your rewards data.</p>
+        <p class="rewardspro-setup-note">
+          <strong>For merchants:</strong> Please contact <a href="mailto:support@rewardspro.app">support@rewardspro.app</a>
+          or check the app admin panel to complete setup.
+        </p>
+      </div>
+    `;
+
+    console.warn('[RewardsPro] Customer metafield not set. Merchants should run the setup endpoint in the app admin.');
   }
 
   formatPoints(points) {

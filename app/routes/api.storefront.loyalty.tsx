@@ -31,30 +31,9 @@ interface LoyaltyData {
 
 // Handle CORS preflight requests
 export async function options({ request }: LoaderFunctionArgs) {
-  const requestOrigin = request.headers.get("origin");
-  let allowOrigin = "*";
-
-  if (requestOrigin) {
-    try {
-      const originUrl = new URL(requestOrigin);
-      const originHost = originUrl.hostname;
-
-      if (originHost.endsWith(".myshopify.com")) {
-        allowOrigin = requestOrigin;
-      }
-    } catch (error) {
-      // Invalid origin, keep default
-    }
-  }
-
   return new Response(null, {
     status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": allowOrigin,
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Accept",
-      "Access-Control-Max-Age": "86400" // 24 hours
-    }
+    headers: getCorsHeaders(request)
   });
 }
 
@@ -67,27 +46,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!customerMetafieldId || !shopDomain) {
     return json(
       { error: "Missing required parameters: customerId and shop" },
-      { status: 400 }
+      {
+        status: 400,
+        headers: getCorsHeaders(request)
+      }
     );
   }
 
   // Normalize shop domain (remove protocol, trailing slash)
   const normalizedShop = shopDomain
     .replace(/^https?:\/\//, "")
-    .replace(/\/$/, "")
-    .replace(".myshopify.com", "") + ".myshopify.com";
+    .replace(/\/$/, "");
+
+  // Ensure .myshopify.com domain
+  const shopWithDomain = normalizedShop.endsWith(".myshopify.com")
+    ? normalizedShop
+    : `${normalizedShop}.myshopify.com`;
 
   try {
-    // Verify shop exists in our system
-    const shop = await db.shop.findUnique({
-      where: { shop: normalizedShop },
-      select: { id: true, shop: true }
+    // Verify shop exists (use ShopSettings, not Shop)
+    const shopSettings = await db.shopSettings.findUnique({
+      where: { shop: shopWithDomain },
+      select: { id: true, shop: true, storeCurrency: true }
     });
 
-    if (!shop) {
+    if (!shopSettings) {
       return json(
         { error: "Shop not found" },
-        { status: 404 }
+        {
+          status: 404,
+          headers: getCorsHeaders(request)
+        }
       );
     }
 
@@ -95,7 +84,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const customer = await db.customer.findFirst({
       where: {
         shopifyCustomerMetafieldId: customerMetafieldId,
-        shop: normalizedShop
+        shop: shopWithDomain
       },
       select: {
         id: true,
@@ -103,14 +92,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
         firstName: true,
         lastName: true,
         pointsBalance: true,
-        currentTierId: true,
         lifetimePoints: true,
-        tier: {
+        currentTierId: true,
+        currentTier: {
           select: {
             id: true,
             name: true,
             icon: true,
             color: true,
+            minSpend: true,
             threshold: true
           }
         }
@@ -120,24 +110,41 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (!customer) {
       return json(
         { error: "Customer not found" },
-        { status: 404 }
+        {
+          status: 404,
+          headers: getCorsHeaders(request)
+        }
       );
     }
 
+    // Convert Decimal to number
+    const pointsBalance = typeof customer.pointsBalance === 'object' && 'toNumber' in customer.pointsBalance
+      ? (customer.pointsBalance as any).toNumber()
+      : Number(customer.pointsBalance);
+
+    const lifetimePoints = typeof customer.lifetimePoints === 'object' && 'toNumber' in customer.lifetimePoints
+      ? (customer.lifetimePoints as any).toNumber()
+      : Number(customer.lifetimePoints);
+
     // Get next tier for progress calculation
+    const currentTierThreshold = customer.currentTier
+      ? (customer.currentTier.threshold || customer.currentTier.minSpend)
+      : 0;
+
     const nextTier = await db.tier.findFirst({
       where: {
-        shop: normalizedShop,
-        threshold: {
-          gt: customer.lifetimePoints
+        shop: shopWithDomain,
+        minSpend: {
+          gt: currentTierThreshold
         }
       },
       orderBy: {
-        threshold: "asc"
+        minSpend: "asc"
       },
       select: {
         id: true,
         name: true,
+        minSpend: true,
         threshold: true
       }
     });
@@ -146,11 +153,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-    const expiringPointsData = await db.pointTransaction.aggregate({
+    const expiringPointsData = await db.storeCreditLedger.aggregate({
       where: {
         customerId: customer.id,
-        shop: normalizedShop,
-        points: {
+        shop: shopWithDomain,
+        amount: {
           gt: 0
         },
         expiresAt: {
@@ -159,16 +166,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       },
       _sum: {
-        points: true
+        amount: true
       }
     });
 
     // Get earliest expiration date
-    const earliestExpiration = await db.pointTransaction.findFirst({
+    const earliestExpiration = await db.storeCreditLedger.findFirst({
       where: {
         customerId: customer.id,
-        shop: normalizedShop,
-        points: {
+        shop: shopWithDomain,
+        amount: {
           gt: 0
         },
         expiresAt: {
@@ -184,52 +191,39 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     });
 
+    // Convert expiring points sum
+    const expiringSum = expiringPointsData._sum.amount
+      ? (typeof expiringPointsData._sum.amount === 'object' && 'toNumber' in expiringPointsData._sum.amount
+          ? (expiringPointsData._sum.amount as any).toNumber()
+          : Number(expiringPointsData._sum.amount))
+      : 0;
+
     // Build response
     const loyaltyData: LoyaltyData = {
-      balance: customer.pointsBalance,
-      tier: customer.tier ? {
-        id: customer.tier.id,
-        name: customer.tier.name,
-        icon: customer.tier.icon || "⭐",
-        color: customer.tier.color || "#FFD700"
+      balance: pointsBalance,
+      tier: customer.currentTier ? {
+        id: customer.currentTier.id,
+        name: customer.currentTier.name,
+        icon: customer.currentTier.icon || "⭐",
+        color: customer.currentTier.color || "#FFD700"
       } : null,
       progress: nextTier ? {
-        current: customer.lifetimePoints,
-        next: nextTier.threshold,
-        percentage: Math.round((customer.lifetimePoints / nextTier.threshold) * 100)
+        current: lifetimePoints,
+        next: nextTier.threshold || nextTier.minSpend,
+        percentage: Math.min(100, Math.round((lifetimePoints / (nextTier.threshold || nextTier.minSpend)) * 100))
       } : null,
-      expiringPoints: expiringPointsData._sum.points && earliestExpiration ? {
-        amount: expiringPointsData._sum.points,
+      expiringPoints: expiringSum > 0 && earliestExpiration ? {
+        amount: expiringSum,
         date: earliestExpiration.expiresAt!.toISOString()
       } : null
     };
 
-    // Determine CORS origin
-    const requestOrigin = request.headers.get("origin");
-    let allowOrigin = "*"; // Default to all origins
-
-    if (requestOrigin) {
-      try {
-        const originUrl = new URL(requestOrigin);
-        const originHost = originUrl.hostname;
-
-        // Allow shop's myshopify.com domain or any *.myshopify.com domain
-        if (originHost === normalizedShop || originHost.endsWith(".myshopify.com")) {
-          allowOrigin = requestOrigin;
-        }
-      } catch (error) {
-        // Invalid origin URL, keep default
-      }
-    }
-
     // Return with CORS headers for storefront access
     return json(loyaltyData, {
       headers: {
+        ...getCorsHeaders(request),
         "Cache-Control": "private, max-age=30", // 30 second cache
-        "Vary": "Origin",
-        "Access-Control-Allow-Origin": allowOrigin,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Accept"
+        "Vary": "Origin"
       }
     });
 
@@ -237,7 +231,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.error("Error fetching loyalty data:", error);
     return json(
       { error: "Internal server error" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: getCorsHeaders(request)
+      }
     );
   }
+}
+
+// CORS headers helper
+function getCorsHeaders(request: Request) {
+  const requestOrigin = request.headers.get("origin");
+  let allowOrigin = "*"; // Default to all origins for development
+
+  if (requestOrigin) {
+    try {
+      const originUrl = new URL(requestOrigin);
+      const originHost = originUrl.hostname;
+
+      // Allow *.myshopify.com domains
+      if (originHost.endsWith(".myshopify.com")) {
+        allowOrigin = requestOrigin;
+      }
+      // Allow custom domains (check against shop's storeUrl if needed)
+      // This is a simplified version - enhance as needed
+      else {
+        // For now, allow all origins (tighten in production)
+        allowOrigin = requestOrigin;
+      }
+    } catch (error) {
+      // Invalid origin URL, keep default
+    }
+  }
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept",
+    "Access-Control-Max-Age": "86400" // 24 hours
+  };
 }
