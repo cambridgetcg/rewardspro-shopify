@@ -253,32 +253,24 @@ export default function BillingPage() {
             )}
 
             {/* Billing Interval Toggle */}
-            <Card>
-              <Box padding="400">
-                <InlineStack align="center" blockAlign="center" gap="400">
-                  <Text as="p" variant="bodyMd" fontWeight="semibold">
-                    Billing Interval:
-                  </Text>
-                  <ButtonGroup variant="segmented">
-                    <Button
-                      pressed={billingInterval === 'monthly'}
-                      onClick={() => setBillingInterval('monthly')}
-                    >
-                      Monthly
-                    </Button>
-                    <Button
-                      pressed={billingInterval === 'annual'}
-                      onClick={() => setBillingInterval('annual')}
-                    >
-                      <InlineStack gap="200" blockAlign="center">
-                        <span>Annual</span>
-                        <Badge tone="success">Save up to 28%</Badge>
-                      </InlineStack>
-                    </Button>
-                  </ButtonGroup>
-                </InlineStack>
-              </Box>
-            </Card>
+            <InlineStack align="end" blockAlign="center">
+              <ButtonGroup variant="segmented">
+                <Button
+                  pressed={billingInterval === 'monthly'}
+                  onClick={() => setBillingInterval('monthly')}
+                  size="slim"
+                >
+                  Monthly
+                </Button>
+                <Button
+                  pressed={billingInterval === 'annual'}
+                  onClick={() => setBillingInterval('annual')}
+                  size="slim"
+                >
+                  Annual
+                </Button>
+              </ButtonGroup>
+            </InlineStack>
 
             {/* Plan Cards */}
             <div style={{

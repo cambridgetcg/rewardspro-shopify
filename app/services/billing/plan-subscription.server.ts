@@ -70,6 +70,19 @@ export const PLAN_CONFIGS: Record<string, Omit<PlanConfig, 'isTest'>> = {
     usageBatchSize: 100,    // Charge in batches of 100 orders
     usageTerms: "$10 per 100 orders over 500/month limit (max $50/month)"
   },
+  "pro-annual": {
+    planId: "pro-annual",
+    planName: "RewardsPro Pro Annual",
+    price: 336.00,
+    orderLimit: 500,
+    description: "Pro plan with annual billing (save 28%)",
+    // Usage-based pricing: $10 per 100 orders over limit
+    usageEnabled: true,
+    usageRate: 0.10,        // $0.10 per order overage
+    usageCap: 50.00,        // Max $50 usage charges per month
+    usageBatchSize: 100,    // Charge in batches of 100 orders
+    usageTerms: "$10 per 100 orders over 500/month limit (max $50/month)"
+  },
   max: {
     planId: "max",
     planName: "RewardsPro Max",
@@ -83,12 +96,33 @@ export const PLAN_CONFIGS: Record<string, Omit<PlanConfig, 'isTest'>> = {
     usageBatchSize: 100,    // Charge in batches of 100 orders
     usageTerms: "$5 per 100 orders over 2,000/month limit (max $100/month)"
   },
+  "max-annual": {
+    planId: "max-annual",
+    planName: "RewardsPro Max Annual",
+    price: 1296.00,
+    orderLimit: 2000,
+    description: "Max plan with annual billing (save 27%)",
+    // Usage-based pricing: $5 per 100 orders over limit
+    usageEnabled: true,
+    usageRate: 0.05,        // $0.05 per order overage
+    usageCap: 100.00,       // Max $100 usage charges per month
+    usageBatchSize: 100,    // Charge in batches of 100 orders
+    usageTerms: "$5 per 100 orders over 2,000/month limit (max $100/month)"
+  },
   ultra: {
     planId: "ultra",
     planName: "RewardsPro Ultra",
     price: 499.00,
     orderLimit: 999999,
     description: "Unlimited everything"
+    // No usage-based pricing - unlimited orders
+  },
+  "ultra-annual": {
+    planId: "ultra-annual",
+    planName: "RewardsPro Ultra Annual",
+    price: 4296.00,
+    orderLimit: 999999,
+    description: "Unlimited everything with annual billing (save 28%)"
     // No usage-based pricing - unlimited orders
   }
 };
