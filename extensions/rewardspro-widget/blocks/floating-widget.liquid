@@ -1,0 +1,193 @@
+{% comment %}
+  RewardsPro Floating Widget (App Embed)
+  A persistent, minimizable widget that appears on all pages
+
+  SETUP:
+  1. Enable this app embed in Theme Editor → App embeds
+  2. Customize settings (position, colors, behavior)
+  3. No manual theme.liquid editing required!
+{% endcomment %}
+
+{% if customer %}
+  {% assign customer_id = customer.metafield.rewardspro.customer_id.value %}
+{% endif %}
+
+<div id="rewardspro-floating-widget-root"></div>
+
+<script>
+  // Mark that app embed is active (prevents snippet conflicts)
+  window.RewardsProEmbedLoaded = true;
+
+  window.RewardsProConfig = {
+    isAuthenticated: {% if customer %}true{% else %}false{% endif %},
+    customerId: {{ customer_id | json }},
+    shop: {
+      domain: {{ shop.permanent_domain | json }},
+      locale: {{ request.locale.iso_code | json }},
+      currency: {{ shop.currency | json }}
+    },
+    urls: {
+      account: '{{ routes.account_url }}',
+      login: '{{ routes.account_login_url }}',
+      register: '{{ routes.account_register_url }}',
+      membershipApi: '/apps/rewardspro/loyalty'
+    },
+    settings: {
+      startMinimized: {{ block.settings.start_minimized | default: true }},
+      rememberState: {{ block.settings.remember_state | default: true }},
+      autoHideDelay: {{ block.settings.auto_hide | default: 0 }},
+      position: {{ block.settings.position | default: 'bottom-right' | json }},
+      iconStyle: {{ block.settings.icon_style | default: 'emoji' | json }},
+      themeColor: {{ block.settings.theme_color | default: '#5C6AC4' | json }}
+    },
+    content: {
+      title: {{ block.settings.widget_title | default: 'Rewards Center' | json }},
+      guestMessage: {{ block.settings.guest_message | default: 'Join our rewards program and earn cashback on every purchase!' | json }},
+      signInText: {{ 'customer.login.title' | t | default: 'Sign In' | json }},
+      registerText: {{ 'customer.register.title' | t | default: 'Join Now' | json }}
+    }
+  };
+</script>
+
+<style>
+  /* Position-based styling */
+  {% case block.settings.position %}
+    {% when 'bottom-right' %}
+      #rewardspro-floating-widget-root .rp-widget-container {
+        bottom: 20px;
+        right: 20px;
+      }
+    {% when 'bottom-left' %}
+      #rewardspro-floating-widget-root .rp-widget-container {
+        bottom: 20px;
+        left: 20px;
+      }
+    {% when 'top-right' %}
+      #rewardspro-floating-widget-root .rp-widget-container {
+        top: 20px;
+        right: 20px;
+      }
+    {% when 'top-left' %}
+      #rewardspro-floating-widget-root .rp-widget-container {
+        top: 20px;
+        left: 20px;
+      }
+  {% endcase %}
+
+  /* Theme color customization */
+  {% if block.settings.theme_color %}
+    #rewardspro-floating-widget-root .rp-widget-container {
+      --rp-theme-color: {{ block.settings.theme_color }};
+    }
+  {% endif %}
+</style>
+
+{% schema %}
+{
+  "name": "Rewards Widget",
+  "target": "body",
+  "stylesheet": "floating-widget.css",
+  "javascript": "floating-widget.js",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Configure the RewardsPro floating loyalty widget that appears on all pages."
+    },
+    {
+      "type": "header",
+      "content": "Display Settings"
+    },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Widget Position",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top Right"
+        },
+        {
+          "value": "top-left",
+          "label": "Top Left"
+        }
+      ],
+      "default": "bottom-right"
+    },
+    {
+      "type": "checkbox",
+      "id": "start_minimized",
+      "label": "Start Minimized",
+      "info": "Widget starts as a small icon instead of expanded",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "remember_state",
+      "label": "Remember Widget State",
+      "info": "Remember if user minimized/expanded the widget",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "auto_hide",
+      "label": "Auto-Hide Delay (seconds)",
+      "info": "Auto-minimize after this many seconds (0 = never)",
+      "min": 0,
+      "max": 30,
+      "step": 5,
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Styling"
+    },
+    {
+      "type": "color",
+      "id": "theme_color",
+      "label": "Theme Color",
+      "default": "#5C6AC4"
+    },
+    {
+      "type": "select",
+      "id": "icon_style",
+      "label": "Icon Style",
+      "options": [
+        {
+          "value": "emoji",
+          "label": "Emoji (⭐)"
+        },
+        {
+          "value": "text",
+          "label": "Text (Rewards)"
+        }
+      ],
+      "default": "emoji"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "widget_title",
+      "label": "Widget Title",
+      "default": "Rewards Center"
+    },
+    {
+      "type": "textarea",
+      "id": "guest_message",
+      "label": "Guest Message",
+      "info": "Message shown to non-logged-in customers",
+      "default": "Join our rewards program and earn cashback on every purchase!"
+    }
+  ]
+}
+{% endschema %}

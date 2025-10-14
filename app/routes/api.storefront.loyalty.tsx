@@ -2,7 +2,17 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import db from "../db.server";
 
 /**
- * Storefront API endpoint for loyalty widget
+ * DEPRECATED: Storefront API endpoint for loyalty widget
+ *
+ * ⚠️ This endpoint is deprecated and will be removed in a future version.
+ * New implementations should use the app proxy route: /apps/proxy/loyalty
+ *
+ * Kept for backward compatibility with existing installations that haven't
+ * updated to the app proxy version yet. Will be removed after all merchants
+ * have migrated to the new version.
+ *
+ * Migration Date: 2025-10-14
+ * Planned Removal: 2-4 weeks after app proxy deployment
  *
  * Authentication: Customer metafield ID + shop domain verification
  * No session tokens (not available on storefront)
@@ -39,11 +49,11 @@ export async function options({ request }: LoaderFunctionArgs) {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const customerMetafieldId = url.searchParams.get("customerId");
+  const customerIdFromMetafield = url.searchParams.get("customerId");
   const shopDomain = url.searchParams.get("shop");
 
   // Validate required parameters
-  if (!customerMetafieldId || !shopDomain) {
+  if (!customerIdFromMetafield || !shopDomain) {
     return json(
       { error: "Missing required parameters: customerId and shop" },
       {
@@ -80,10 +90,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // Find customer by metafield ID and shop (shop-scoped for security)
+    // Find customer by internal ID (from metafield value) and shop (shop-scoped for security)
     const customer = await db.customer.findFirst({
       where: {
-        shopifyCustomerMetafieldId: customerMetafieldId,
+        id: customerIdFromMetafield,
         shop: shopWithDomain
       },
       select: {
