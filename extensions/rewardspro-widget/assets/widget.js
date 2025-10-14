@@ -1,13 +1,13 @@
 /**
- * RewardsPro Floating Widget
- * Security-hardened implementation with no innerHTML
- * Persistent across pages with minimize/maximize state
+ * RewardsPro Widget - Security-Hardened Implementation
+ * No innerHTML usage - All DOM manipulation through secure APIs
+ * HMAC-verified app proxy communication
  */
 
 (function() {
   'use strict';
 
-  class RewardsProFloatingWidget {
+  class RewardsProWidget {
     constructor(config) {
       this.config = config || window.RewardsProConfig || {};
       this.state = {
@@ -18,23 +18,25 @@
         retryCount: 0,
         maxRetries: 3
       };
-
+      
+      // Localization
       this.locale = this.config.shop?.locale || 'en';
       this.translations = null;
-
+      
       // Bind methods
       this.handleMinimize = this.handleMinimize.bind(this);
       this.handleMaximize = this.handleMaximize.bind(this);
       this.handleKeydown = this.handleKeydown.bind(this);
       this.handleRetry = this.handleRetry.bind(this);
-
+      
       this.init();
     }
 
-    // Secure DOM element creation (no innerHTML)
+    // Secure DOM element creation
     createElement(tag, props = {}, children = []) {
       const element = document.createElement(tag);
-
+      
+      // Set properties (excluding innerHTML)
       Object.keys(props).forEach(key => {
         if (key === 'className') {
           element.className = props[key];
@@ -50,13 +52,14 @@
           element.type = props[key];
         } else if (key === 'href') {
           element.href = props[key];
-        } else if (key === 'style' && typeof props[key] === 'object') {
+        } else if (key === 'style') {
           Object.assign(element.style, props[key]);
         } else if (key === 'onclick') {
           element.addEventListener('click', props[key]);
         }
       });
-
+      
+      // Append children
       children.forEach(child => {
         if (typeof child === 'string') {
           element.appendChild(document.createTextNode(child));
@@ -64,10 +67,11 @@
           element.appendChild(child);
         }
       });
-
+      
       return element;
     }
 
+    // Initialize widget
     init() {
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => this.setup());
@@ -76,13 +80,15 @@
       }
     }
 
+    // Setup widget
     async setup() {
-      const root = document.getElementById('rewardspro-floating-widget-root');
+      const root = document.getElementById('rewardspro-widget-root');
       if (!root) {
-        console.warn('RewardsPro: Floating widget root not found');
+        console.warn('RewardsPro: Widget root element not found');
         return;
       }
 
+      // Load translations
       await this.loadTranslations();
 
       // Check stored state
@@ -91,28 +97,34 @@
         if (stored !== null) {
           this.state.isMinimized = stored;
         } else {
-          this.state.isMinimized = this.config.settings?.startMinimized ?? true;
+          this.state.isMinimized = this.config.settings?.startMinimized || false;
         }
       } else {
-        this.state.isMinimized = this.config.settings?.startMinimized ?? true;
+        this.state.isMinimized = this.config.settings?.startMinimized || false;
       }
 
+      // Create widget container
       this.container = this.createElement('div', {
         className: 'rp-widget-container',
         role: 'region',
-        'aria-label': this.t('widget.title')
+        'aria-label': this.t('widget.title') || 'Rewards Widget'
       });
 
+      // Render initial state
       if (this.state.isMinimized) {
         this.renderMinimized();
       } else {
         this.renderExpanded();
+        // Only load data if authenticated
         if (this.config.isAuthenticated) {
           this.loadData();
         }
       }
 
+      // Append to root
       root.appendChild(this.container);
+
+      // Setup event listeners
       this.attachEventListeners();
 
       // Auto-hide if configured
@@ -122,8 +134,62 @@
       }
     }
 
+    // Load translations
     async loadTranslations() {
-      this.translations = {
+      try {
+        const supportedLocales = ['en', 'fr', 'es', 'de'];
+        let localeCode = this.locale.toLowerCase().split('-')[0];
+        
+        if (!supportedLocales.includes(localeCode)) {
+          localeCode = 'en';
+        }
+
+        const translationUrl = `/apps/rewardspro/locales/${localeCode}.json`;
+        
+        const response = await fetch(translationUrl, {
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          this.translations = await response.json();
+        } else {
+          this.translations = this.getDefaultTranslations();
+        }
+      } catch (error) {
+        console.warn('RewardsPro: Failed to load translations, using defaults', error);
+        this.translations = this.getDefaultTranslations();
+      }
+    }
+
+    // Translation helper
+    t(key, replacements = {}) {
+      if (!this.translations) {
+        return key;
+      }
+
+      const keys = key.split('.');
+      let value = this.translations;
+      
+      for (const k of keys) {
+        value = value?.[k];
+        if (!value) break;
+      }
+
+      if (typeof value !== 'string') {
+        return key;
+      }
+
+      return value.replace(/\{\{(\w+)\}\}/g, (match, placeholder) => {
+        return replacements[placeholder] || match;
+      });
+    }
+
+    // Default translations
+    getDefaultTranslations() {
+      return {
         widget: {
           title: this.config.content?.title || 'Rewards Center',
           close: 'Close rewards widget',
@@ -134,7 +200,7 @@
             retry: 'Try Again'
           },
           guest: {
-            message: this.config.content?.guestMessage || 'Join our rewards program!',
+            message: this.config.content?.guestMessage || 'Join our rewards program and earn cashback on every purchase!',
             benefits: {
               cashback: 'Earn cashback on every order',
               tiers: 'Unlock exclusive member tiers',
@@ -145,39 +211,48 @@
           },
           member: {
             balance: {
-              label: 'Points Balance'
+              label: 'Store Credit Balance',
+              currency: '{{amount}}'
             },
             tier: {
               current: '{{tier}} Member',
-              cashback: 'Earning {{rate}}% cashback'
+              cashback: 'Earning {{rate}}% cashback',
+              progress: 'Progress to {{nextTier}}',
+              remaining: '{{amount}} to go'
+            },
+            stats: {
+              earned: {
+                value: '{{amount}}',
+                label: 'Lifetime Earned'
+              },
+              spent: {
+                value: '{{amount}}',
+                label: 'Total Spent'
+              },
+              rewards: {
+                value: '{{count}}',
+                label: 'Rewards Available'
+              }
             },
             actions: {
-              dashboard: 'View Full Dashboard'
+              dashboard: 'View Full Dashboard',
+              shop: 'Continue Shopping',
+              redeem: 'Redeem Rewards'
             }
+          },
+          accessibility: {
+            minimized: 'Rewards widget minimized',
+            opened: 'Rewards widget opened',
+            loading: 'Loading rewards data',
+            error: 'Error loading rewards'
           }
         }
       };
     }
 
-    t(key, replacements = {}) {
-      if (!this.translations) return key;
-
-      const keys = key.split('.');
-      let value = this.translations;
-
-      for (const k of keys) {
-        value = value?.[k];
-        if (!value) break;
-      }
-
-      if (typeof value !== 'string') return key;
-
-      return value.replace(/\{\{(\w+)\}\}/g, (match, placeholder) => {
-        return replacements[placeholder] || match;
-      });
-    }
-
+    // Render minimized state
     renderMinimized() {
+      // Clear container
       while (this.container.firstChild) {
         this.container.removeChild(this.container.firstChild);
       }
@@ -194,6 +269,7 @@
         className: 'rp-widget-icon'
       });
 
+      // Add icon based on style
       const iconStyle = this.config.settings?.iconStyle || 'emoji';
       if (iconStyle === 'svg') {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -201,13 +277,15 @@
         svg.setAttribute('viewBox', '0 0 24 24');
         svg.setAttribute('width', '24');
         svg.setAttribute('height', '24');
-
+        
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', 'M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z');
         path.setAttribute('fill', 'currentColor');
-
+        
         svg.appendChild(path);
         iconSpan.appendChild(svg);
+      } else if (iconStyle === 'text') {
+        iconSpan.textContent = 'R';
       } else {
         iconSpan.textContent = '🎁';
       }
@@ -216,7 +294,9 @@
       this.container.appendChild(button);
     }
 
+    // Render expanded state
     renderExpanded() {
+      // Clear container
       while (this.container.firstChild) {
         this.container.removeChild(this.container.firstChild);
       }
@@ -232,17 +312,20 @@
         className: 'rp-widget-header'
       });
 
-      header.appendChild(this.createElement('h3', {
+      const title = this.createElement('h3', {
         className: 'rp-widget-title',
         textContent: this.t('widget.title')
-      }));
+      });
 
-      header.appendChild(this.createElement('button', {
+      const closeButton = this.createElement('button', {
         className: 'rp-widget-close',
         'aria-label': this.t('widget.close'),
         type: 'button',
         onclick: this.handleMinimize
-      }, ['×']));
+      }, ['×']);
+
+      header.appendChild(title);
+      header.appendChild(closeButton);
 
       // Content
       const content = this.createElement('div', {
@@ -250,6 +333,7 @@
         role: 'main'
       });
 
+      // Render appropriate content
       if (!this.config.isAuthenticated) {
         content.appendChild(this.createGuestContent());
       } else if (this.state.isLoading) {
@@ -266,46 +350,59 @@
       panel.appendChild(content);
       this.container.appendChild(panel);
 
+      // Focus management
       this.manageFocus();
     }
 
+    // Create guest content
     createGuestContent() {
       const container = this.createElement('div', {
         className: 'rp-guest-prompt'
       });
 
+      // Icon
       container.appendChild(this.createElement('div', {
         className: 'rp-guest-icon',
         textContent: '🎁'
       }));
 
+      // Message
       container.appendChild(this.createElement('p', {
         className: 'rp-guest-message',
         textContent: this.t('widget.guest.message')
       }));
 
+      // Benefits
       const benefits = this.createElement('div', {
         className: 'rp-guest-benefits'
       });
 
-      [
+      const benefitItems = [
         { icon: '💰', text: 'widget.guest.benefits.cashback' },
         { icon: '⭐', text: 'widget.guest.benefits.tiers' },
         { icon: '🎯', text: 'widget.guest.benefits.rewards' }
-      ].forEach(item => {
-        const benefit = this.createElement('div', { className: 'rp-benefit' });
+      ];
+
+      benefitItems.forEach(item => {
+        const benefit = this.createElement('div', {
+          className: 'rp-benefit'
+        });
+        
         benefit.appendChild(this.createElement('span', {
           className: 'rp-benefit-icon',
           textContent: item.icon
         }));
+        
         benefit.appendChild(this.createElement('span', {
           textContent: this.t(item.text)
         }));
+        
         benefits.appendChild(benefit);
       });
 
       container.appendChild(benefits);
 
+      // Buttons
       const buttonGroup = this.createElement('div', {
         className: 'rp-button-group'
       });
@@ -323,9 +420,11 @@
       }));
 
       container.appendChild(buttonGroup);
+
       return container;
     }
 
+    // Create loading content
     createLoadingContent() {
       const container = this.createElement('div', {
         className: 'rp-loading',
@@ -345,6 +444,7 @@
       return container;
     }
 
+    // Create error content
     createErrorContent() {
       const container = this.createElement('div', {
         className: 'rp-error',
@@ -370,55 +470,76 @@
       return container;
     }
 
+    // Create member content
     createMemberContent() {
       const data = this.state.data;
       const container = this.createElement('div', {
         className: 'rp-rewards-info'
       });
 
-      // Balance section
+      // Store Credit Balance
       const balanceSection = this.createElement('div', {
         className: 'rp-balance-section'
       });
 
-      balanceSection.appendChild(this.createElement('div', {
+      const balance = this.createElement('div', {
+        className: 'rp-balance'
+      });
+
+      balance.appendChild(this.createElement('div', {
         className: 'rp-balance-label',
         textContent: this.t('widget.member.balance.label')
       }));
 
-      balanceSection.appendChild(this.createElement('div', {
+      balance.appendChild(this.createElement('div', {
         className: 'rp-balance-amount',
-        textContent: this.formatPoints(data.balance || 0)
+        textContent: data.formattedCredit || '$0.00'
       }));
 
+      balanceSection.appendChild(balance);
       container.appendChild(balanceSection);
 
-      // Tier section
-      if (data.tier) {
-        const tierSection = this.createElement('div', {
-          className: 'rp-tier-section'
-        });
+      // Tier Information
+      const tierSection = this.createElement('div', {
+        className: 'rp-tier-section'
+      });
 
-        const tierBadge = this.createElement('div', {
-          className: 'rp-tier-badge'
-        });
+      const tierBadge = this.createElement('div', {
+        className: 'rp-tier-badge'
+      });
 
-        tierBadge.appendChild(this.createElement('span', {
-          className: 'rp-tier-icon',
-          textContent: data.tier.icon || '⭐'
+      const tierName = data.tierName || 'No Tier';
+      const isNoTier = tierName === 'No Tier';
+
+      tierBadge.appendChild(this.createElement('span', {
+        className: 'rp-tier-icon',
+        textContent: this.getTierIcon(tierName)
+      }));
+
+      tierBadge.appendChild(this.createElement('span', {
+        className: 'rp-tier-name',
+        textContent: isNoTier ? tierName : this.t('widget.member.tier.current', { tier: tierName })
+      }));
+
+      tierSection.appendChild(tierBadge);
+
+      // Cashback rate
+      if (data.cashbackRate > 0) {
+        tierSection.appendChild(this.createElement('div', {
+          className: 'rp-cashback-rate',
+          textContent: this.t('widget.member.tier.cashback', { rate: data.cashbackRate })
         }));
-
-        tierBadge.appendChild(this.createElement('span', {
-          className: 'rp-tier-name',
-          textContent: data.tier.name
+      } else if (isNoTier) {
+        tierSection.appendChild(this.createElement('div', {
+          className: 'rp-no-tier-message',
+          textContent: 'Start shopping to earn rewards and unlock tiers!'
         }));
-
-        tierSection.appendChild(tierBadge);
-        container.appendChild(tierSection);
       }
 
-      // Progress section
-      if (data.progress) {
+      container.appendChild(tierSection);
+
+      // Progress to next tier
+      if (data.nextTier) {
         const progressSection = this.createElement('div', {
           className: 'rp-progress-section'
         });
@@ -428,12 +549,12 @@
         });
 
         progressHeader.appendChild(this.createElement('span', {
-          textContent: `Progress to next tier`
+          textContent: this.t('widget.member.tier.progress', { nextTier: data.nextTier })
         }));
 
         progressHeader.appendChild(this.createElement('span', {
           className: 'rp-progress-amount',
-          textContent: `${data.progress.percentage}%`
+          textContent: this.t('widget.member.tier.remaining', { amount: data.progressAmount || '' })
         }));
 
         progressSection.appendChild(progressHeader);
@@ -442,20 +563,73 @@
           className: 'rp-progress-bar'
         });
 
-        progressBar.appendChild(this.createElement('div', {
+        const progressFill = this.createElement('div', {
           className: 'rp-progress-fill',
-          style: { width: `${data.progress.percentage}%` },
+          style: { width: `${Math.min(100, data.progressPercent || 0)}%` },
           role: 'progressbar',
-          'aria-valuenow': String(data.progress.percentage),
+          'aria-valuenow': String(data.progressPercent || 0),
           'aria-valuemin': '0',
           'aria-valuemax': '100'
-        }));
+        });
 
+        progressBar.appendChild(progressFill);
         progressSection.appendChild(progressBar);
         container.appendChild(progressSection);
       }
 
-      // Action button
+      // Stats Grid
+      const stats = this.createElement('div', {
+        className: 'rp-stats'
+      });
+
+      if (data.lifetimeEarned) {
+        const stat = this.createElement('div', {
+          className: 'rp-stat'
+        });
+        stat.appendChild(this.createElement('span', {
+          className: 'rp-stat-value',
+          textContent: data.lifetimeEarned
+        }));
+        stat.appendChild(this.createElement('span', {
+          className: 'rp-stat-label',
+          textContent: this.t('widget.member.stats.earned.label')
+        }));
+        stats.appendChild(stat);
+      }
+
+      if (data.lifetimeSpent) {
+        const stat = this.createElement('div', {
+          className: 'rp-stat'
+        });
+        stat.appendChild(this.createElement('span', {
+          className: 'rp-stat-value',
+          textContent: data.lifetimeSpent
+        }));
+        stat.appendChild(this.createElement('span', {
+          className: 'rp-stat-label',
+          textContent: this.t('widget.member.stats.spent.label')
+        }));
+        stats.appendChild(stat);
+      }
+
+      if (data.availableRewards) {
+        const stat = this.createElement('div', {
+          className: 'rp-stat'
+        });
+        stat.appendChild(this.createElement('span', {
+          className: 'rp-stat-value',
+          textContent: String(data.availableRewards)
+        }));
+        stat.appendChild(this.createElement('span', {
+          className: 'rp-stat-label',
+          textContent: this.t('widget.member.stats.rewards.label')
+        }));
+        stats.appendChild(stat);
+      }
+
+      container.appendChild(stats);
+
+      // Action Buttons
       const actions = this.createElement('div', {
         className: 'rp-actions'
       });
@@ -467,46 +641,71 @@
       }));
 
       container.appendChild(actions);
+
       return container;
     }
 
+    // Load member data
     async loadData() {
       if (this.state.isLoading) return;
-
-      // Validate metafield exists
-      if (!this.config.customerId || this.config.customerId === 'null' || this.config.customerId === 'undefined') {
-        console.warn('[RewardsPro] Customer metafield not configured. Setup required.');
-        this.setState({
-          error: 'Setup required - please contact store administrator',
-          isLoading: false
-        });
-        this.updateContent();
-        return;
-      }
-
+      
       this.setState({ isLoading: true, error: null });
       this.updateContent();
 
       try {
-        const apiUrl = new URL(this.config.urls?.membershipApi);
-        apiUrl.searchParams.set('customerId', this.config.customerId);
-        apiUrl.searchParams.set('shop', this.config.shop?.domain);
-
+        // Use the secure membership API endpoint
+        const apiUrl = new URL(
+          this.config.urls?.membershipApi || '/apps/rewardspro/membership',
+          window.location.origin
+        );
+        
+        console.log('RewardsPro: Loading data from', apiUrl.toString());
+        
         const response = await fetch(apiUrl.toString(), {
           method: 'GET',
+          credentials: 'same-origin',
           headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
           }
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('RewardsPro: Invalid response type:', contentType);
+          throw new Error('Invalid response from server');
         }
 
         const data = await response.json();
 
-        this.setState({
-          data,
+        if (!response.ok) {
+          console.error('RewardsPro: API error response:', data);
+          throw new Error(data.error || `Unable to load rewards (${response.status})`);
+        }
+
+        // Check if login required
+        if (data.requiresLogin) {
+          console.log('RewardsPro: Login required');
+          this.config.isAuthenticated = false;
+          this.setState({ isLoading: false });
+          this.renderExpanded();
+          return;
+        }
+
+        // Success
+        const processedData = {
+          ...data,
+          formattedCredit: data.formattedCredit || '$0.00',
+          tierName: data.tierName || 'No Tier',
+          cashbackRate: data.cashbackRate || 0,
+          lifetimeEarned: data.lifetimeEarned || '$0.00',
+          lifetimeSpent: data.lifetimeSpent || '$0.00'
+        };
+        
+        console.log('RewardsPro: Data loaded successfully', processedData);
+        
+        this.setState({ 
+          data: processedData,
           isLoading: false,
           error: null,
           retryCount: 0
@@ -515,14 +714,15 @@
 
       } catch (error) {
         console.error('RewardsPro: Failed to load data', error);
-        this.setState({
-          error: error.message || 'Unable to connect',
-          isLoading: false
+        this.setState({ 
+          error: error.message || 'Unable to connect to rewards service',
+          isLoading: false 
         });
         this.handleLoadError();
       }
     }
 
+    // Handle load error with retry
     handleLoadError() {
       if (this.state.retryCount < this.state.maxRetries) {
         this.state.retryCount++;
@@ -533,13 +733,16 @@
       }
     }
 
+    // Update content area
     updateContent() {
       const contentArea = this.container.querySelector('.rp-widget-content');
       if (contentArea) {
+        // Clear content
         while (contentArea.firstChild) {
           contentArea.removeChild(contentArea.firstChild);
         }
 
+        // Add new content
         if (!this.config.isAuthenticated) {
           contentArea.appendChild(this.createGuestContent());
         } else if (this.state.isLoading) {
@@ -552,13 +755,14 @@
       }
     }
 
+    // Event Handlers
     handleMinimize() {
       this.setState({ isMinimized: true });
       if (this.config.settings?.rememberState) {
         this.storeState(true);
       }
       this.renderMinimized();
-      this.announceToScreenReader('Rewards widget minimized');
+      this.announceToScreenReader(this.t('widget.accessibility.minimized'));
     }
 
     handleMaximize() {
@@ -570,7 +774,7 @@
       if (this.config.isAuthenticated && !this.state.data) {
         this.loadData();
       }
-      this.announceToScreenReader('Rewards widget opened');
+      this.announceToScreenReader(this.t('widget.accessibility.opened'));
     }
 
     handleKeydown(event) {
@@ -584,27 +788,47 @@
       this.loadData();
     }
 
+    // Attach event listeners
     attachEventListeners() {
       document.addEventListener('keydown', this.handleKeydown);
+
       window.addEventListener('beforeunload', () => {
         document.removeEventListener('keydown', this.handleKeydown);
       });
     }
 
+    // Focus management for accessibility
     manageFocus() {
       const panel = this.container.querySelector('.rp-widget-panel');
       if (!panel) return;
 
       this.previousFocus = document.activeElement;
+
       const focusableElements = panel.querySelectorAll(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
 
       if (focusableElements.length > 0) {
         focusableElements[0].focus();
+
+        panel.addEventListener('keydown', (e) => {
+          if (e.key === 'Tab') {
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            if (e.shiftKey && document.activeElement === firstElement) {
+              e.preventDefault();
+              lastElement.focus();
+            } else if (!e.shiftKey && document.activeElement === lastElement) {
+              e.preventDefault();
+              firstElement.focus();
+            }
+          }
+        });
       }
     }
 
+    // Helper Methods
     setState(updates) {
       this.state = { ...this.state, ...updates };
     }
@@ -622,12 +846,18 @@
       try {
         sessionStorage.setItem('rp_widget_state', isMinimized ? 'minimized' : 'expanded');
       } catch (e) {
-        // Ignore
+        // Ignore storage errors
       }
     }
 
-    formatPoints(points) {
-      return new Intl.NumberFormat('en-US').format(points);
+    getTierIcon(tierName) {
+      const name = tierName.toLowerCase();
+      if (name === 'no tier') return '👤';
+      if (name.includes('vip') || name.includes('diamond')) return '💎';
+      if (name.includes('gold')) return '🏆';
+      if (name.includes('silver')) return '🥈';
+      if (name.includes('bronze')) return '🥉';
+      return '⭐';
     }
 
     announceToScreenReader(message) {
@@ -636,22 +866,24 @@
       announcement.setAttribute('aria-live', 'polite');
       announcement.className = 'rp-sr-only';
       announcement.textContent = message;
-
+      
       document.body.appendChild(announcement);
       setTimeout(() => announcement.remove(), 1000);
     }
   }
 
-  // Initialize
+  // Initialize widget when config is ready
   function initWidget() {
     if (window.RewardsProConfig) {
-      window.RewardsProFloatingWidget = new RewardsProFloatingWidget(window.RewardsProConfig);
+      window.RewardsProWidget = new RewardsProWidget(window.RewardsProConfig);
     }
   }
 
+  // Check if config is already available
   if (window.RewardsProConfig) {
     initWidget();
   } else {
+    // Wait for config to be set
     let checkCount = 0;
     const checkInterval = setInterval(() => {
       if (window.RewardsProConfig || checkCount++ > 20) {

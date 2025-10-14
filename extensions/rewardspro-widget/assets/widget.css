@@ -1,9 +1,10 @@
 /**
- * RewardsPro Floating Widget Styles
+ * RewardsPro Widget Styles
  * Optimized for performance and accessibility
+ * Supports light/dark mode and responsive design
  */
 
-/* CSS Variables */
+/* CSS Variables for customization */
 .rp-widget-container {
   --rp-theme-color: #5C6AC4;
   --rp-text-color: #212529;
@@ -15,7 +16,7 @@
   --rp-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* Base container */
+/* Base container styles */
 .rp-widget-container {
   position: fixed;
   z-index: 999999;
@@ -27,7 +28,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Minimized button */
+/* Minimized state */
 .rp-widget-minimized {
   width: 60px;
   height: 60px;
@@ -59,7 +60,7 @@
   transform: scale(0.98);
 }
 
-/* Pulse animation */
+/* Pulse animation for attention */
 @keyframes rp-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(92, 106, 196, 0.7);
@@ -196,7 +197,9 @@
 }
 
 @keyframes rp-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .rp-loading p {
@@ -313,8 +316,10 @@
   font-size: 18px;
 }
 
-.rp-tier-name {
+.rp-cashback-rate {
   font-size: 14px;
+  color: var(--rp-text-color);
+  opacity: 0.8;
 }
 
 /* Progress section */
@@ -361,13 +366,54 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
   animation: rp-shimmer 2s infinite;
 }
 
 @keyframes rp-shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Stats grid */
+.rp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+}
+
+.rp-stat {
+  text-align: center;
+  padding: 12px;
+  background: var(--rp-bg-color);
+  border: 1px solid var(--rp-border-color);
+  border-radius: 8px;
+}
+
+.rp-stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--rp-theme-color);
+  margin-bottom: 4px;
+}
+
+.rp-stat-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--rp-text-color);
+  opacity: 0.7;
 }
 
 /* Buttons */
@@ -388,10 +434,11 @@
   cursor: pointer;
   transition: all var(--rp-animation-speed) ease;
   border: none;
+  display: inline-block;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
 }
 
 .rp-button-primary {
@@ -444,7 +491,7 @@
   border: 0;
 }
 
-/* Dark mode */
+/* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .rp-widget-container {
     --rp-text-color: #f8f9fa;
@@ -467,6 +514,10 @@
 
   .rp-progress-section {
     background: color-mix(in srgb, var(--rp-border-color) 20%, black);
+  }
+
+  .rp-stat {
+    background: color-mix(in srgb, var(--rp-bg-color) 90%, white);
   }
 }
 
@@ -513,6 +564,17 @@
 
   .rp-button-group {
     flex-direction: column;
+  }
+
+  .rp-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 481px) and (max-width: 768px) {
+  .rp-widget-panel {
+    width: 340px;
   }
 }
 
