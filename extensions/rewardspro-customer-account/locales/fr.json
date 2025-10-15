@@ -1,10 +1,15 @@
 {
+  "membershipTitle": "Vos récompenses",
+  "storeCredit": "Crédit en magasin",
+  "membershipTier": "Niveau de membre",
+  "earnPoints": "Points gagnés",
   "balance": {
     "title": "Solde de récompenses",
     "available": "Disponible à utiliser",
     "totalEarned": "Total gagné: {amount}"
   },
   "tier": {
+    "title": "Niveau de membre",
     "earning": "Gagnez {percent}% de cashback sur vos achats"
   },
   "loading": {

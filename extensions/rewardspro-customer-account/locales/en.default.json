@@ -1,10 +1,15 @@
 {
+  "membershipTitle": "Your rewards",
+  "storeCredit": "Store credit",
+  "membershipTier": "Membership tier",
+  "earnPoints": "Points earned",
   "balance": {
     "title": "Rewards Balance",
     "available": "Available to use",
     "totalEarned": "Total earned: {amount}"
   },
   "tier": {
+    "title": "Membership tier",
     "earning": "Earning {percent}% cashback on purchases"
   },
   "loading": {
