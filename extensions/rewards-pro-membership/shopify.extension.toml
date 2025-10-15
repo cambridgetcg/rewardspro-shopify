@@ -19,10 +19,6 @@ uid = "be72a1b4-3ed3-d78d-61f7-19361e1583d89ba79ee3"
 module = "./src/HelloWorldBlock.tsx"
 target = "customer-account.profile.block.render"
 
-[[extensions.targeting]]
-module = "./src/OrderStatusBlock.tsx"
-target = "customer-account.order-status.block.render"
-
 [extensions.capabilities]
 # Gives your extension access to directly query Shopify’s storefront API.
 # https://shopify.dev/docs/api/customer-account-ui-extensions/unstable/configuration#api-access

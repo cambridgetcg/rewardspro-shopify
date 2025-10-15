@@ -14,7 +14,24 @@
 
 import { json } from '@remix-run/node';
 import type { LoaderFunctionArgs } from '@remix-run/node';
-import { cors } from 'remix-utils/cors';
+
+/**
+ * Helper to add CORS headers to a response
+ */
+function addCorsHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+
+  // Allow all origins for app proxy requests (Shopify's domain will be making the request)
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -33,7 +50,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Customer not logged in
     if (!customerId) {
       const response = json({ enrolled: false }, { status: 401 });
-      return cors(request, response);
+      return addCorsHeaders(response);
     }
 
     // TODO: Fetch loyalty data from database
@@ -52,7 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
 
     const response = json(loyaltyData);
-    return cors(request, response);
+    return addCorsHeaders(response);
 
   } catch (error) {
     console.error('[Proxy Widget] Error:', error);
@@ -60,6 +77,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       { error: 'Failed to fetch loyalty data', enrolled: false },
       { status: 500 }
     );
-    return cors(request, response);
+    return addCorsHeaders(response);
   }
 };

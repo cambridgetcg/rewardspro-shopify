@@ -1,4 +1,8 @@
 {
-  "welcomeMessage": "Hello World from RewardsPro!",
-  "earnPoints": "You've earned 1,000 points from this order. You've been upgraded to Platinum tier."
+  "banner": {
+    "title": "Hello World!",
+    "message": "This is a test block on the Profile page."
+  },
+  "extensionLocation": "This extension is rendering on the customer account profile page.",
+  "currentLocale": "Current locale: {{locale}} | Date: {{date}}"
 }
