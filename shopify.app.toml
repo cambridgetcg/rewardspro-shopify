@@ -5,6 +5,7 @@ client_id = "ed18e3236b5fb926476320f2b8a303cf"
 name = "Rewards Pro"
 application_url = "https://rewardspro-production.vercel.app"
 embedded = true
+handle = "RewardsPro_Membership"
 
 [build]
 automatically_update_urls_on_dev = true
