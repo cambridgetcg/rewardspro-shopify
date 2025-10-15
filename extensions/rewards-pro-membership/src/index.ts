@@ -1,6 +1,7 @@
 // Hooks
 export { useSessionToken } from './hooks/useSessionToken';
 export { useApiClient } from './hooks/useApiClient';
+export { useAuthenticatedCustomer } from './hooks/useAuthenticatedCustomer';
 
 // Utils
 export {
@@ -16,5 +17,10 @@ export type { ApiClientConfig } from './utils/apiClient';
 export type {
   SessionTokenClaims,
   DecodedSessionToken,
-  ApiResponse
+  ApiResponse,
+  Customer,
+  Company,
+  CompanyLocation,
+  PurchasingCompany,
+  AuthenticatedAccountInfo
 } from './types/session';

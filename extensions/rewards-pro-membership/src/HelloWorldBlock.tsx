@@ -10,9 +10,11 @@ import {
   InlineStack,
   Badge,
   Spinner,
+  Divider,
 } from '@shopify/ui-extensions-react/customer-account';
 import { useSessionToken } from './hooks/useSessionToken';
 import { useApiClient } from './hooks/useApiClient';
+import { useAuthenticatedCustomer } from './hooks/useAuthenticatedCustomer';
 
 export default reactExtension(
   'customer-account.profile.block.render',
@@ -29,11 +31,21 @@ function HelloWorldBlock() {
   const i18n = useI18n();
   const language = useLanguage();
 
-  // Session token management
+  // Authenticated customer (simpler, direct access)
+  const {
+    customer,
+    customerId: authCustomerId,
+    isAuthenticated: authIsAuthenticated,
+    purchasingCompany,
+    isB2BCustomer,
+    companyLocationId,
+  } = useAuthenticatedCustomer();
+
+  // Session token management (for API calls)
   const {
     sessionToken,
-    customerId,
-    isAuthenticated,
+    customerId: tokenCustomerId,
+    isAuthenticated: tokenIsAuthenticated,
     isLoading: tokenLoading,
     decodedToken
   } = useSessionToken();
@@ -47,6 +59,10 @@ function HelloWorldBlock() {
   const [loyaltyData, setLoyaltyData] = useState<LoyaltyData | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Use authenticated customer ID as primary source
+  const customerId = authCustomerId || tokenCustomerId;
+  const isAuthenticated = authIsAuthenticated || tokenIsAuthenticated;
 
   // Fetch loyalty data when customer is authenticated
   useEffect(() => {
@@ -109,10 +125,35 @@ function HelloWorldBlock() {
       </InlineStack>
 
       {/* Customer Information */}
-      {isAuthenticated && customerId && (
+      {isAuthenticated && (
         <BlockStack spacing="tight">
-          <Text emphasis="bold">Customer ID:</Text>
-          <Text size="small" appearance="subdued">{customerId}</Text>
+          <Text emphasis="bold">Customer Information:</Text>
+          {customerId && (
+            <Text size="small" appearance="subdued">ID: {customerId}</Text>
+          )}
+          {customer?.id && (
+            <Text size="small" appearance="subdued">GID: {customer.id}</Text>
+          )}
+        </BlockStack>
+      )}
+
+      {/* B2B Customer Information */}
+      {isB2BCustomer && (
+        <BlockStack spacing="tight">
+          <InlineStack spacing="tight" blockAlignment="center">
+            <Text emphasis="bold">B2B Customer</Text>
+            <Badge tone="info">Business</Badge>
+          </InlineStack>
+          {purchasingCompany?.company?.id && (
+            <Text size="small" appearance="subdued">
+              Company: {purchasingCompany.company.id}
+            </Text>
+          )}
+          {companyLocationId && (
+            <Text size="small" appearance="subdued">
+              Location: {companyLocationId}
+            </Text>
+          )}
         </BlockStack>
       )}
 
