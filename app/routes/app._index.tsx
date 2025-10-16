@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -256,7 +256,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // Check widget status using TWO methods:
-    // 1. REST API - checks if widget is saved in theme settings
+    // 1. GraphQL Admin API - checks app embed block in theme settings (modern approach)
     // 2. Heartbeat - checks if widget is actually rendering on storefront
     let hasWidget = false;
     let widgetDetectionMethod = "none";
@@ -264,42 +264,92 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     try {
       console.log("[Dashboard] Checking widget status in theme...");
 
-      // METHOD 1: Check REST API for saved theme settings
+      // METHOD 1: Check GraphQL for app embed block in theme settings
+      // Following Shopify best practices: https://shopify.dev/docs/apps/build/online-store/theme-app-extensions
       let savedInTheme = false;
       try {
-        const themesResponse = await admin.rest.get({
-          path: 'themes',
-          query: { role: 'main' },
-        });
-        const themesData = await themesResponse.json();
-        const mainTheme = themesData?.themes?.[0];
+        // Step 1: Get the main (published) theme
+        const themeQuery = `#graphql
+          query {
+            themes(first: 1, roles: MAIN) {
+              nodes {
+                id
+                name
+                role
+              }
+            }
+          }
+        `;
+
+        const themeResponse = await admin.graphql(themeQuery);
+        const themeData = await themeResponse.json();
+        const mainTheme = themeData?.data?.themes?.nodes?.[0];
 
         if (mainTheme?.id) {
-          const themeId = mainTheme.id;
-          console.log(`[Dashboard] Main theme ID: ${themeId} (${mainTheme.name})`);
+          console.log(`[Dashboard] Main theme: ${mainTheme.name} (${mainTheme.id})`);
 
-          const assetResponse = await admin.rest.get({
-            path: `themes/${themeId}/assets`,
-            query: { 'asset[key]': 'config/settings_data.json' },
+          // Step 2: Fetch config/settings_data.json using GraphQL
+          const settingsQuery = `#graphql
+            query getSettings($themeId: ID!) {
+              theme(id: $themeId) {
+                files(filenames: ["config/settings_data.json"], first: 1) {
+                  nodes {
+                    body {
+                      ... on OnlineStoreThemeFileBodyText {
+                        content
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const settingsResponse = await admin.graphql(settingsQuery, {
+            variables: { themeId: mainTheme.id }
           });
-          const assetData = await assetResponse.json();
-          const assetValue = assetData?.asset?.value;
+          const settingsData = await settingsResponse.json();
+          let settingsContent = settingsData?.data?.theme?.files?.nodes?.[0]?.body?.content;
 
-          if (assetValue) {
-            const settings = JSON.parse(assetValue);
-            const enabledEmbeds = settings.current?.enabled_app_embeds || [];
+          if (settingsContent) {
+            // Step 3: Parse JSON after removing Shopify's comment blocks
+            // GraphQL returns the file with /* */ comments that must be stripped
+            settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
+            settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
 
-            console.log(`[Dashboard] enabled_app_embeds:`, enabledEmbeds);
+            const themeSettings = JSON.parse(settingsContent);
+            const blocks = themeSettings.current?.blocks || {};
 
-            const possibleHandles = [
-              'rewardspro-theme-extension',
-              'theme-app-extension-rewardspro',
-              'RewardsPro Theme Extension',
-              'Membership Widget'
-            ];
+            // Step 4: Find our app embed block by checking the type field
+            // Block type format: "shopify://apps/{app_handle}/blocks/{block_handle}/{extension_uid}"
+            // Our app: handle = "RewardsproMembership", block = "membership_widget"
+            // Extension UID: a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9
 
-            savedInTheme = possibleHandles.some(handle => enabledEmbeds.includes(handle));
-            console.log(`[Dashboard] Widget saved in theme: ${savedInTheme}`);
+            const appHandle = 'RewardsproMembership';
+            const blockHandle = 'membership_widget';
+            const extensionUid = 'a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9';
+
+            // Try exact match first (most reliable)
+            const expectedType = `shopify://apps/${appHandle}/blocks/${blockHandle}/${extensionUid}`;
+
+            for (const [blockId, blockInfo] of Object.entries(blocks)) {
+              const block = blockInfo as any;
+              if (typeof block.type === 'string') {
+                // Check for exact match or partial match (for robustness)
+                if (block.type === expectedType ||
+                    block.type.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)) {
+                  // Found our block! Check if it's enabled (disabled !== true)
+                  savedInTheme = block.disabled !== true;
+                  console.log(`[Dashboard] App embed block found: ${block.type}`);
+                  console.log(`[Dashboard] Block enabled: ${savedInTheme} (disabled=${block.disabled})`);
+                  break;
+                }
+              }
+            }
+
+            if (!savedInTheme) {
+              console.log(`[Dashboard] App embed block not found or disabled in theme settings`);
+            }
           }
         }
       } catch (error) {
@@ -663,6 +713,27 @@ export default function Dashboard() {
     window.location.reload();
   }, []);
 
+  // Auto-refresh when window regains focus (user returns from theme editor)
+  // This implements the recommended UX flow from Shopify's developer guide
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      // Only reload if widget is not detected (to check if user enabled it)
+      if (!data.hasWidget) {
+        console.log('[Dashboard] Window focused - checking if widget was enabled...');
+        // Small delay to ensure theme settings are saved
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [data.hasWidget]);
+
   // Tab configuration
   const tabs = [
     { id: 'overview', content: 'Overview', panelID: 'overview-panel' },
@@ -829,11 +900,11 @@ export default function Dashboard() {
                 </Box>
 
                 <Button
-                  url={`https://${data.shop}/admin/themes/current/editor?context=apps`}
+                  url={`https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`}
                   target="_blank"
                   variant="primary"
                 >
-                  Open theme editor
+                  Enable widget in theme editor
                 </Button>
               </BlockStack>
             </Banner>
