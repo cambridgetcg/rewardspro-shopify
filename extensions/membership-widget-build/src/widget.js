@@ -26,24 +26,121 @@
 
       console.log('[MembershipWidget JS] Initial state:', this.state);
 
-      if (this.data.tier) {
-        console.log('[MembershipWidget JS] ✅ Tier exists, rendering widget');
-        this.render();
-        this.attachEventListeners();
-        console.log('[MembershipWidget JS] ✅ Widget rendered successfully');
+      if (this.data.shopifyCustomerId) {
+        console.log('[MembershipWidget JS] ✅ Shopify customer ID found, fetching data from API');
+        this.fetchAndRender();
       } else {
-        console.warn('[MembershipWidget JS] ❌ No tier data found, widget will not render');
+        console.warn('[MembershipWidget JS] ❌ No Shopify customer ID found, widget will not render');
         console.log('[MembershipWidget JS] Root element dataset:', this.root.dataset);
       }
     }
 
+    async fetchAndRender() {
+      try {
+        // Check if we're in design mode (theme editor)
+        const isDesignMode = this.root.dataset.designMode === 'true';
+
+        let apiData;
+
+        if (isDesignMode) {
+          console.log('[MembershipWidget JS] 🎨 Design mode - using mock data');
+          // Mock data for theme editor preview
+          apiData = {
+            balance: 50.00,
+            tier: {
+              id: 'mock-tier',
+              name: 'Gold',
+              icon: '⭐',
+              color: '#FFD700'
+            }
+          };
+        } else {
+          const url = `${this.data.apiUrl}?shopifyCustomerId=${encodeURIComponent(this.data.shopifyCustomerId)}`;
+          console.log('[MembershipWidget JS] Fetching data from:', url);
+
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+            credentials: 'same-origin' // App proxy is same-origin
+          });
+
+          console.log('[MembershipWidget JS] API response status:', response.status);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[MembershipWidget JS] API error:', response.status, errorText);
+            this.showError('Unable to load membership data');
+            return;
+          }
+
+          apiData = await response.json();
+        }
+
+        console.log('[MembershipWidget JS] API data received:', apiData);
+
+        // Check if customer is enrolled
+        if (apiData.success && apiData.enrolled === false) {
+          console.log('[MembershipWidget JS] ℹ️ Customer not enrolled in rewards program');
+          this.showInfo(apiData.message || 'Not enrolled in membership program');
+          return;
+        }
+
+        // Update data from API response
+        this.data.tier = apiData.tier?.name || null;
+        this.data.balance = apiData.balance || 0;
+        this.data.currency = this.data.shopCurrency;
+
+        console.log('[MembershipWidget JS] Updated data:', {
+          tier: this.data.tier,
+          balance: this.data.balance,
+          currency: this.data.currency
+        });
+
+        if (this.data.tier) {
+          console.log('[MembershipWidget JS] ✅ Rendering widget with API data');
+          this.render();
+          this.attachEventListeners();
+          console.log('[MembershipWidget JS] ✅ Widget rendered successfully');
+        } else {
+          console.warn('[MembershipWidget JS] ⚠️ No tier data in API response');
+          this.showError('Not enrolled in membership program');
+        }
+
+      } catch (error) {
+        console.error('[MembershipWidget JS] ❌ Error fetching data:', error);
+        console.error('[MembershipWidget JS] Error stack:', error.stack);
+        this.showError('Failed to load membership data');
+      }
+    }
+
+    showError(message) {
+      this.root.innerHTML = `
+        <div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">
+          <strong>⚠️ ${this.escapeHtml(message)}</strong>
+        </div>
+      `;
+    }
+
+    showInfo(message) {
+      this.root.innerHTML = `
+        <div style="padding: 20px; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px;">
+          <strong>ℹ️ ${this.escapeHtml(message)}</strong>
+        </div>
+      `;
+    }
+
     extractData() {
       const data = {
-        tier: this.root.dataset.tier || '',
-        balance: parseFloat(this.root.dataset.balance) || 0,
-        currency: this.root.dataset.currency || 'USD',
-        customerId: this.root.dataset.customerId,
-        customerEmail: this.root.dataset.customerEmail
+        apiUrl: this.root.dataset.apiUrl || '/apps/rewardspro/loyalty',
+        shopifyCustomerId: this.root.dataset.shopifyCustomerId,
+        customerEmail: this.root.dataset.customerEmail,
+        shopCurrency: this.root.dataset.shopCurrency || 'USD',
+        // Will be populated from API
+        tier: null,
+        balance: 0,
+        currency: 'USD'
       };
       console.log('[MembershipWidget JS] extractData result:', data);
       return data;

@@ -61,13 +61,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   const url = new URL(request.url);
-  const customerIdFromMetafield = url.searchParams.get("customerId");
+  const shopifyCustomerId = url.searchParams.get("shopifyCustomerId");
+  const legacyCustomerId = url.searchParams.get("customerId"); // Backward compatibility
+
+  // Support both shopifyCustomerId (new) and customerId (legacy metafield-based)
+  const customerId = shopifyCustomerId || legacyCustomerId;
 
   // Validate required parameters
-  if (!customerIdFromMetafield) {
-    console.error('[App Proxy] Missing customerId parameter');
+  if (!customerId) {
+    console.error('[App Proxy] Missing customerId or shopifyCustomerId parameter');
     return json(
-      { error: "Missing required parameter: customerId" },
+      { error: "Missing required parameter: shopifyCustomerId or customerId" },
       { status: 400 }
     );
   }
@@ -78,16 +82,28 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   console.log('[App Proxy] Request:', {
     shop,
-    customerId: customerIdFromMetafield,
-    url: request.url
+    shopDomain: shop,
+    shopifyCustomerId,
+    legacyCustomerId,
+    usedParameter: shopifyCustomerId ? 'shopifyCustomerId' : 'customerId',
+    url: request.url,
+    sessionDetails: {
+      id: session.id,
+      shop: session.shop,
+      state: session.state,
+      isOnline: session.isOnline
+    }
   });
 
   try {
-    // Find customer by internal ID (from metafield value) and shop
+    // Find customer by Shopify customer ID (preferred) or internal ID (legacy)
     // Shop-scoped query prevents cross-store access
     const customer = await db.customer.findFirst({
-      where: {
-        id: customerIdFromMetafield,
+      where: shopifyCustomerId ? {
+        shopifyCustomerId: customerId,
+        shop: shop
+      } : {
+        id: customerId,
         shop: shop
       },
       select: {
@@ -110,13 +126,62 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
 
     if (!customer) {
-      console.warn('[App Proxy] Customer not found:', {
+      console.log('[App Proxy] Customer not enrolled:', {
         shop,
-        customerId: customerIdFromMetafield
+        shopifyCustomerId,
+        legacyCustomerId,
+        usedParameter: shopifyCustomerId ? 'shopifyCustomerId' : 'customerId',
+        queryUsed: shopifyCustomerId ? {
+          shopifyCustomerId: customerId,
+          shop: shop
+        } : {
+          id: customerId,
+          shop: shop
+        }
       });
+
+      // Debug: Check if customer exists with different shop format
+      const customerAnyShop = await db.customer.findFirst({
+        where: shopifyCustomerId ? {
+          shopifyCustomerId: customerId
+        } : {
+          id: customerId
+        },
+        select: {
+          id: true,
+          shop: true,
+          shopifyCustomerId: true,
+          email: true
+        }
+      });
+
+      if (customerAnyShop) {
+        console.error('[App Proxy] ⚠️ FOUND CUSTOMER BUT WRONG SHOP FORMAT!', {
+          providedShop: shop,
+          actualShopInDB: customerAnyShop.shop,
+          customerId: customerAnyShop.id,
+          shopifyCustomerId: customerAnyShop.shopifyCustomerId,
+          email: customerAnyShop.email,
+          shopMatch: shop === customerAnyShop.shop
+        });
+      } else {
+        console.log('[App Proxy] Customer does not exist in database at all for shopifyCustomerId:', customerId);
+      }
+
+      // Return success with enrolled: false (same as customer account extension)
+      // This allows widget to show "Not enrolled" message instead of error
       return json(
-        { error: "Customer not found" },
-        { status: 404 }
+        {
+          success: true,
+          enrolled: false,
+          balance: 0,
+          tier: null,
+          progress: null,
+          expiringPoints: null,
+          message: "You're not enrolled in the rewards program yet",
+          canEnroll: true
+        },
+        { status: 200 }
       );
     }
 

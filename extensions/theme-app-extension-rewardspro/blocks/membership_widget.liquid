@@ -2,80 +2,97 @@
   App Embed Block: Membership Widget
   This block displays membership tier and store credit information for logged-in customers.
 
-  It reads from customer metafields:
-  - rewards_pro.membership_tier (string: tier name like "Gold", "Silver", etc.)
-  - rewards_pro.store_credit (number: available store credit balance)
-  - rewards_pro.store_currency (string: currency code like "USD")
+  Data Flow:
+  1. Pass Shopify customer ID directly (no metafield needed)
+  2. JavaScript fetches loyalty data from: /apps/rewardspro/loyalty?shopifyCustomerId={id}
+  3. API looks up customer by shopifyCustomerId + shop domain
+  4. API returns: balance, tier name, progress, etc.
 {% endcomment %}
 
 <!-- DEBUG: Membership Widget Start -->
 <script>
   console.log('[MembershipWidget Liquid] Template loaded');
   console.log('[MembershipWidget Liquid] Customer exists:', {{ customer | json }});
+  console.log('[MembershipWidget Liquid] Design mode:', {{ request.design_mode | json }});
 </script>
 
-{% if customer %}
+{% comment %} Check if we're in theme editor design mode {% endcomment %}
+{% if request.design_mode %}
+  <script>
+    console.log('[MembershipWidget Liquid] 🎨 Design mode detected - rendering placeholder');
+  </script>
+
+  {% comment %} Render placeholder widget for theme editor preview {% endcomment %}
+  <div
+    id="membership-widget-root"
+    class="rewards-pro-membership-widget"
+    data-api-url="/apps/rewardspro/loyalty"
+    data-shopify-customer-id="preview"
+    data-customer-email="customer@example.com"
+    data-shop-currency="{{ shop.currency }}"
+    data-design-mode="true"
+  >
+    <div style="padding: 20px; background: #f0f0f0; border: 2px dashed #ccc; text-align: center;">
+      <strong>🌟 Preview: Membership Widget</strong>
+      <br>
+      <small style="color: #666;">This is a placeholder. The actual widget will show for logged-in customers with membership data.</small>
+      <br><br>
+      <div style="background: white; padding: 10px; border-radius: 4px; display: inline-block;">
+        <strong>Gold Member</strong>
+        <br>
+        <span>Store Credit: {{ 50.00 | money_with_currency }}</span>
+      </div>
+    </div>
+  </div>
+
+{% elsif customer %}
   <script>
     console.log('[MembershipWidget Liquid] Customer is logged in');
-    console.log('[MembershipWidget Liquid] Customer ID:', {{ customer.id | json }});
-    console.log('[MembershipWidget Liquid] Customer email:', {{ customer.email | json }});
+    console.log('[MembershipWidget Liquid] Customer ID:', '{{ customer.id }}');
+    console.log('[MembershipWidget Liquid] Customer email:', '{{ customer.email }}');
   </script>
 
-  {% comment %} Get membership data from customer metafields {% endcomment %}
-  {% assign membership_tier = customer.metafields.rewards_pro.membership_tier.value %}
-  {% assign store_credit = customer.metafields.rewards_pro.store_credit.value %}
-  {% assign store_currency = customer.metafields.rewards_pro.store_currency.value | default: shop.currency %}
+  {% comment %} Extract numeric customer ID from GID {% endcomment %}
+  {% assign customer_id_parts = customer.id | split: '/' %}
+  {% assign shopify_customer_id = customer_id_parts | last %}
 
   <script>
-    console.log('[MembershipWidget Liquid] Metafields check:');
-    console.log('  - membership_tier:', {{ membership_tier | json }});
-    console.log('  - store_credit:', {{ store_credit | json }});
-    console.log('  - store_currency:', {{ store_currency | json }});
-    console.log('[MembershipWidget Liquid] All customer metafields:', {{ customer.metafields | json }});
+    console.log('[MembershipWidget Liquid] Extracted Shopify Customer ID:', '{{ shopify_customer_id }}');
   </script>
 
-  {% comment %} Only render if customer has membership tier {% endcomment %}
-  {% if membership_tier %}
+  {% comment %} Render widget for all logged-in customers {% endcomment %}
+  {% if shopify_customer_id %}
     <script>
       console.log('[MembershipWidget Liquid] ✅ Rendering widget container');
     </script>
     <div
       id="membership-widget-root"
       class="rewards-pro-membership-widget"
-      data-tier="{{ membership_tier | escape }}"
-      data-balance="{{ store_credit | default: 0 }}"
-      data-currency="{{ store_currency | escape }}"
-      data-customer-id="{{ customer.id }}"
+      data-api-url="/apps/rewardspro/loyalty"
+      data-shopify-customer-id="{{ shopify_customer_id | escape }}"
       data-customer-email="{{ customer.email | escape }}"
+      data-shop-currency="{{ shop.currency | escape }}"
       style="background: rgba(255,0,0,0.1); padding: 10px; border: 2px solid red;"
     >
       {% comment %}
         Fallback content for users with JavaScript disabled
-        This will be replaced by JavaScript widget
+        JavaScript will fetch data from API and replace this
       {% endcomment %}
       <div style="padding: 20px; background: white; border: 2px dashed blue;">
-        <strong>🌟 {{ membership_tier }} Member</strong>
-        {% if store_credit and store_credit > 0 %}
-          <br>
-          <span>Store Credit: {{ store_credit | money_with_currency }}</span>
-        {% endif %}
+        <strong>🌟 Loading your membership...</strong>
         <br>
-        <small style="color: blue;">Widget container loaded. Waiting for JavaScript...</small>
+        <small style="color: blue;">Widget container loaded. Fetching data from API...</small>
       </div>
       <noscript>
         <div class="membership-widget-fallback">
-          <strong>{{ membership_tier }} Member</strong>
-          {% if store_credit and store_credit > 0 %}
-            <br>
-            <span>Store Credit: {{ store_credit | money_with_currency }}</span>
-          {% endif %}
+          <p>Please enable JavaScript to view your membership information.</p>
         </div>
       </noscript>
     </div>
   {% else %}
     <script>
-      console.warn('[MembershipWidget Liquid] ❌ No membership tier found - widget will not render');
-      console.log('[MembershipWidget Liquid] To fix: Set customer.metafields.rewards_pro.membership_tier');
+      console.warn('[MembershipWidget Liquid] ❌ Could not extract Shopify customer ID');
+      console.log('[MembershipWidget Liquid] Customer ID format:', '{{ customer.id }}');
     </script>
   {% endif %}
 {% else %}
