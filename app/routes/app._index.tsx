@@ -255,53 +255,40 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Check if widget is enabled in theme using GraphQL
+    // Check if widget is enabled in theme using REST API
     let hasWidget = false;
     try {
       console.log("[Dashboard] Checking widget status in theme...");
 
-      // GraphQL query to get main theme and its settings
-      const themesQuery = `
-        query {
-          themes(first: 1, roles: [MAIN]) {
-            edges {
-              node {
-                id
-                name
-                role
-                files(first: 1, filenames: ["config/settings_data.json"]) {
-                  edges {
-                    node {
-                      ... on OnlineStoreThemeFileBodyText {
-                        content
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
+      // Get the main theme ID via REST API
+      const themesResponse = await admin.rest.get({
+        path: 'themes',
+        query: { role: 'main' },
+      });
+      const themesData = await themesResponse.json();
+      const mainTheme = themesData?.themes?.[0];
 
-      const response = await admin.graphql(themesQuery);
-      const data = await response.json();
+      if (mainTheme?.id) {
+        const themeId = mainTheme.id;
+        console.log(`[Dashboard] Main theme ID: ${themeId} (${mainTheme.name})`);
 
-      const themeEdge = data?.data?.themes?.edges?.[0];
-      if (themeEdge) {
-        const theme = themeEdge.node;
-        console.log(`[Dashboard] Main theme: ${theme.name} (${theme.id})`);
+        // Fetch the settings_data.json asset
+        const assetResponse = await admin.rest.get({
+          path: `themes/${themeId}/assets`,
+          query: { 'asset[key]': 'config/settings_data.json' },
+        });
+        const assetData = await assetResponse.json();
+        const assetValue = assetData?.asset?.value;
 
-        const fileEdge = theme.files?.edges?.[0];
-        if (fileEdge?.node?.content) {
-          const settings = JSON.parse(fileEdge.node.content);
+        if (assetValue) {
+          const settings = JSON.parse(assetValue);
           const enabledEmbeds = settings.current?.enabled_app_embeds || [];
           hasWidget = enabledEmbeds.includes('rewardspro-theme-extension');
 
           console.log(`[Dashboard] Widget enabled: ${hasWidget}`);
           console.log(`[Dashboard] Enabled embeds:`, enabledEmbeds);
         } else {
-          console.log("[Dashboard] No settings_data.json found in theme");
+          console.log("[Dashboard] No settings_data.json value found");
         }
       } else {
         console.log("[Dashboard] No main theme found");

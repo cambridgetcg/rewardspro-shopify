@@ -213,7 +213,7 @@ const shopify = shopifyApp({
   },
   future: {
     unstable_newEmbeddedAuthStrategy: true,
-    removeRest: true,
+    removeRest: false, // Keep REST API for theme asset queries
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
