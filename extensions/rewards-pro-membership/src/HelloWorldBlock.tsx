@@ -167,7 +167,7 @@ function HelloWorldBlock() {
   // Not enrolled state
   if (loyaltyData && !loyaltyData.enrolled) {
     return (
-      <Banner tone="info" title="Join our Rewards Program">
+      <Banner tone="info" title="Join our Membership Program">
         {loyaltyData.message || "You're not enrolled yet. Start earning rewards today!"}
       </Banner>
     );
@@ -180,8 +180,8 @@ function HelloWorldBlock() {
 
   return (
     <BlockStack spacing="base">
-      {/* Rewards Program Header */}
-      <Text size="large" emphasis="bold">Rewards Program</Text>
+      {/* Membership Header */}
+      <Text size="large" emphasis="bold">Membership</Text>
 
       {/* Membership Tier Card */}
       {loyaltyData.tier && (
