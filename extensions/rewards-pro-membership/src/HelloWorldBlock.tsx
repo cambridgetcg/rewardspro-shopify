@@ -21,9 +21,41 @@ export default reactExtension(
   () => <HelloWorldBlock />
 );
 
+interface TierInfo {
+  name: string;
+  cashbackPercent: number;
+  minSpend: number;
+}
+
+interface TransactionInfo {
+  id: number;
+  type: string;
+  amount: number;
+  date: string;
+  description: string;
+}
+
 interface LoyaltyData {
-  points: number;
-  tier: string;
+  success: boolean;
+  enrolled: boolean;
+  balance: number;
+  tier: TierInfo | null;
+  nextTier: TierInfo | null;
+  progressToNextTier: number;
+  amountToNextTier: number;
+  totalEarned: number;
+  stats: {
+    orderCount: number;
+    totalSpent: number;
+    netSpent: number;
+    averageCashbackPerOrder: number;
+    lastOrderDate: string | null;
+  };
+  allTiers: TierInfo[];
+  recentTransactions: TransactionInfo[];
+  currency: string;
+  message?: string;
+  canEnroll?: boolean;
 }
 
 function HelloWorldBlock() {
@@ -75,10 +107,10 @@ function HelloWorldBlock() {
         setDataLoading(true);
         setError(null);
 
-        // Example API call - adjust endpoint as needed
+        // Call the main loyalty endpoint (baseUrl already includes /api/customer-account/loyalty)
         const response = await apiClient.get<LoyaltyData>(
           sessionToken,
-          '/points'
+          '' // Empty string because baseUrl already has the full path
         );
 
         if (response.success && response.data) {
@@ -110,97 +142,132 @@ function HelloWorldBlock() {
     );
   }
 
-  return (
-    <BlockStack spacing="base">
-      <Banner title={translate('banner.title')}>
-        {translate('banner.message')}
-      </Banner>
-
-      {/* Authentication Status */}
-      <InlineStack spacing="tight" blockAlignment="center">
-        <Text>Status:</Text>
-        <Badge tone={isAuthenticated ? 'success' : 'critical'}>
-          {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}
-        </Badge>
-      </InlineStack>
-
-      {/* Customer Information */}
-      {isAuthenticated && (
-        <BlockStack spacing="tight">
-          <Text emphasis="bold">Customer Information:</Text>
-          {customerId && (
-            <Text size="small" appearance="subdued">ID: {customerId}</Text>
-          )}
-          {customer?.id && (
-            <Text size="small" appearance="subdued">GID: {customer.id}</Text>
-          )}
-        </BlockStack>
-      )}
-
-      {/* B2B Customer Information */}
-      {isB2BCustomer && (
-        <BlockStack spacing="tight">
-          <InlineStack spacing="tight" blockAlignment="center">
-            <Text emphasis="bold">B2B Customer</Text>
-            <Badge tone="info">Business</Badge>
-          </InlineStack>
-          {purchasingCompany?.company?.id && (
-            <Text size="small" appearance="subdued">
-              Company: {purchasingCompany.company.id}
-            </Text>
-          )}
-          {companyLocationId && (
-            <Text size="small" appearance="subdued">
-              Location: {companyLocationId}
-            </Text>
-          )}
-        </BlockStack>
-      )}
-
-      {/* Token Information (for debugging) */}
-      {decodedToken && (
-        <BlockStack spacing="tight">
-          <Text size="small" appearance="subdued">
-            Token expires in: {Math.floor((decodedToken.claims.exp * 1000 - Date.now()) / 1000)}s
-          </Text>
-        </BlockStack>
-      )}
-
-      {/* Loyalty Data */}
-      {dataLoading && (
+  // Loading state
+  if (dataLoading) {
+    return (
+      <BlockStack spacing="base">
         <InlineStack spacing="tight" blockAlignment="center">
           <Spinner size="small" />
-          <Text>Loading loyalty data...</Text>
+          <Text>Loading membership...</Text>
         </InlineStack>
-      )}
+      </BlockStack>
+    );
+  }
 
-      {error && (
-        <Banner tone="critical" title="Error">
-          {error}
-        </Banner>
-      )}
+  // Error state
+  if (error) {
+    return (
+      <Banner tone="critical" title="Error">
+        {error}
+      </Banner>
+    );
+  }
 
-      {loyaltyData && (
+  // Not enrolled state
+  if (loyaltyData && !loyaltyData.enrolled) {
+    return (
+      <Banner tone="info" title="Join our Rewards Program">
+        {loyaltyData.message || "You're not enrolled yet. Start earning rewards today!"}
+      </Banner>
+    );
+  }
+
+  // Enrolled state - show membership card
+  if (!loyaltyData) {
+    return null;
+  }
+
+  return (
+    <BlockStack spacing="base">
+      {/* Store Credit Card */}
+      <BlockStack spacing="base">
+        <Text size="large" emphasis="bold">Available Store Credit</Text>
         <BlockStack spacing="tight">
-          <Text emphasis="bold">Loyalty Points: {loyaltyData.points}</Text>
-          <Text>Tier: {loyaltyData.tier}</Text>
+          <Text size="extraLarge" emphasis="bold">
+            ${loyaltyData.balance.toFixed(2)} {loyaltyData.currency}
+          </Text>
+          <Text size="small" appearance="subdued">
+            Earned ${loyaltyData.totalEarned.toFixed(2)} total
+          </Text>
         </BlockStack>
-      )}
+      </BlockStack>
 
-      {/* Localization Info */}
-      <Text>
-        {translate('extensionLocation')}
-      </Text>
-      <Text size="small" appearance="subdued">
-        {translate('currentLocale', {
-          locale: language.isoCode,
-          date: i18n.formatDate(new Date(), {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          }),
-        })}
-      </Text>
+      <Divider />
+
+      {/* Membership Tier Card */}
+      <BlockStack spacing="base">
+        <Text size="large" emphasis="bold">Membership Tier</Text>
+        {loyaltyData.tier ? (
+          <BlockStack spacing="base">
+            {/* Current Tier */}
+            <InlineStack spacing="tight" blockAlignment="center">
+              <Badge tone="success">{loyaltyData.tier.name}</Badge>
+              <Text emphasis="bold">{loyaltyData.tier.cashbackPercent}% Cashback</Text>
+            </InlineStack>
+
+            {/* Next Tier Progress */}
+            {loyaltyData.nextTier && (
+              <BlockStack spacing="tight">
+                <Text size="small" emphasis="bold">
+                  Progress to {loyaltyData.nextTier.name}
+                </Text>
+                <Text size="small" appearance="subdued">
+                  Spend ${loyaltyData.amountToNextTier.toFixed(2)} more to unlock {loyaltyData.nextTier.cashbackPercent}% cashback
+                </Text>
+                <InlineStack spacing="tight" blockAlignment="center">
+                  <Text size="small" appearance="subdued">
+                    {loyaltyData.progressToNextTier.toFixed(0)}% complete
+                  </Text>
+                </InlineStack>
+              </BlockStack>
+            )}
+
+            {/* Stats Summary */}
+            <BlockStack spacing="tight">
+              <Divider />
+              <InlineStack spacing="base">
+                <BlockStack spacing="extraTight">
+                  <Text size="small" appearance="subdued">Total Spent</Text>
+                  <Text emphasis="bold">${loyaltyData.stats.totalSpent.toFixed(2)}</Text>
+                </BlockStack>
+                <BlockStack spacing="extraTight">
+                  <Text size="small" appearance="subdued">Orders</Text>
+                  <Text emphasis="bold">{loyaltyData.stats.orderCount}</Text>
+                </BlockStack>
+              </InlineStack>
+            </BlockStack>
+          </BlockStack>
+        ) : (
+          <Text size="small" appearance="subdued">
+            No tier assigned yet. Start shopping to earn your first tier!
+          </Text>
+        )}
+      </BlockStack>
+
+      {/* Recent Transactions */}
+      {loyaltyData.recentTransactions.length > 0 && (
+        <>
+          <Divider />
+          <BlockStack spacing="base">
+            <Text size="large" emphasis="bold">Recent Activity</Text>
+            <BlockStack spacing="base">
+              {loyaltyData.recentTransactions.slice(0, 5).map((tx) => (
+                <InlineStack key={tx.id} spacing="base" blockAlignment="start">
+                  <Badge tone={tx.amount > 0 ? 'success' : 'attention'}>
+                    {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)}
+                  </Badge>
+                  <BlockStack spacing="extraTight">
+                    <Text size="small">{tx.description}</Text>
+                    <Text size="small" appearance="subdued">
+                      {new Date(tx.date).toLocaleDateString()}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
+              ))}
+            </BlockStack>
+          </BlockStack>
+        </>
+      )}
     </BlockStack>
   );
 }

@@ -13,6 +13,7 @@
       "routes/webhooks.tier-subscription.cancelled": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.tier-subscription.billing": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.tier-subscription.created": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.customer-account.order-points": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.app-subscriptions-update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.cron.webhook-reconciliation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.customer-account.loyalty": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -35,8 +36,10 @@
       "routes/webhooks.orders.paid": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.shop.update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.compliance": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/apps.proxy.loyalty": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.billing.usage": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.cron.metrics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.proxy.widget": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.order-count": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.health": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.login": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -89,6 +92,15 @@
         "parentId": "root",
         "file": "app/routes/webhooks.tier-subscription.created.tsx",
         "path": "webhooks/tier-subscription/created",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.customer-account.order-points": {
+        "id": "routes/api.customer-account.order-points",
+        "parentId": "root",
+        "file": "app/routes/api.customer-account.order-points.tsx",
+        "path": "api/customer-account/order-points",
         "config": {
           "runtime": "nodejs"
         }
@@ -291,6 +303,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/apps.proxy.loyalty": {
+        "id": "routes/apps.proxy.loyalty",
+        "parentId": "root",
+        "file": "app/routes/apps.proxy.loyalty.tsx",
+        "path": "apps/proxy/loyalty",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/api.billing.usage": {
         "id": "routes/api.billing.usage",
         "parentId": "root",
@@ -305,6 +326,15 @@
         "parentId": "root",
         "file": "app/routes/api.cron.metrics.tsx",
         "path": "api/cron/metrics",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.proxy.widget": {
+        "id": "routes/api.proxy.widget",
+        "parentId": "root",
+        "file": "app/routes/api.proxy.widget.tsx",
+        "path": "api/proxy/widget",
         "config": {
           "runtime": "nodejs"
         }
@@ -538,6 +568,12 @@
         "file": "routes/webhooks.tier-subscription.created.tsx",
         "path": "webhooks/tier-subscription/created"
       },
+      "routes/api.customer-account.order-points": {
+        "id": "routes/api.customer-account.order-points",
+        "parentId": "root",
+        "file": "routes/api.customer-account.order-points.tsx",
+        "path": "api/customer-account/order-points"
+      },
       "routes/webhooks.app-subscriptions-update": {
         "id": "routes/webhooks.app-subscriptions-update",
         "parentId": "root",
@@ -670,6 +706,12 @@
         "file": "routes/webhooks.compliance.tsx",
         "path": "webhooks/compliance"
       },
+      "routes/apps.proxy.loyalty": {
+        "id": "routes/apps.proxy.loyalty",
+        "parentId": "root",
+        "file": "routes/apps.proxy.loyalty.tsx",
+        "path": "apps/proxy/loyalty"
+      },
       "routes/api.billing.usage": {
         "id": "routes/api.billing.usage",
         "parentId": "root",
@@ -681,6 +723,12 @@
         "parentId": "root",
         "file": "routes/api.cron.metrics.tsx",
         "path": "api/cron/metrics"
+      },
+      "routes/api.proxy.widget": {
+        "id": "routes/api.proxy.widget",
+        "parentId": "root",
+        "file": "routes/api.proxy.widget.tsx",
+        "path": "api/proxy/widget"
       },
       "routes/api.order-count": {
         "id": "routes/api.order-count",

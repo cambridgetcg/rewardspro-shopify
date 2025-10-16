@@ -668,6 +668,33 @@ export class OrderSyncService {
 
     console.log(`[PROCESS] ✅ Order record created successfully in database`);
 
+    // Create historical ledger entry for cashback tracking (NOT added to customer balance)
+    // This allows totalEarned calculation to work for historical orders
+    if (cashbackAmount > 0) {
+      console.log(`[PROCESS] Creating historical ledger entry for cashback tracking...`);
+      await db.storeCreditLedger.create({
+        data: {
+          id: uuidv4(),
+          shop: this.options.shop,
+          customerId: customer.id,
+          orderId: orderId,
+          type: 'CASHBACK_EARNED',
+          amount: cashbackAmount,
+          balance: 0, // Historical - not added to balance
+          description: `Historical cashback from order ${order.name} (synced from past orders)`,
+          metadata: {
+            orderName: order.name,
+            orderDate: order.createdAt,
+            historical: true, // Mark as historical sync
+            tierName: tierNameAtOrder,
+            cashbackPercent
+          },
+          createdAt: new Date(order.createdAt), // Use order date for proper chronological sorting
+        }
+      });
+      console.log(`[PROCESS] Historical ledger entry created`);
+    }
+
     // Process line items
     if (order.lineItems?.edges) {
       console.log(`[PROCESS] Processing ${order.lineItems.edges.length} line items...`);

@@ -25,6 +25,153 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
+// Import standardized spending calculation used by tier recalculation
+interface CustomerSpending {
+  customerId: string;
+  shopifyCustomerId: string;
+  totalSpending: number;
+  orderCount: number;
+  lastOrderDate: Date | null;
+}
+
+/**
+ * Get customer spending from LOCAL DATABASE
+ * This is the SAME calculation used by tier recalculation for consistency
+ */
+async function getCustomerSpendingFromDB(
+  shop: string,
+  customerId: string,
+  evaluationPeriod: 'ANNUAL' | 'LIFETIME'
+): Promise<CustomerSpending> {
+  try {
+    console.log(`[CustomerAccount] Getting spending from local DB for customer ${customerId}, period: ${evaluationPeriod}`);
+
+    // Get customer to ensure we have the right one
+    const customer = await db.customer.findFirst({
+      where: {
+        id: customerId,
+        shop
+      }
+    });
+
+    if (!customer) {
+      console.log(`[CustomerAccount] Customer ${customerId} not found in local DB`);
+      return {
+        customerId,
+        shopifyCustomerId: '',
+        totalSpending: 0,
+        orderCount: 0,
+        lastOrderDate: null
+      };
+    }
+
+    let whereClause: any = {
+      shop,
+      customerId,
+      financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] },
+      cashbackEligible: true // Exclude tier product orders
+    };
+
+    // Add date filter for annual evaluation
+    if (evaluationPeriod === 'ANNUAL') {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      whereClause.shopifyCreatedAt = { gte: oneYearAgo };
+      console.log(`[CustomerAccount] ANNUAL filter: orders after ${oneYearAgo.toISOString()}`);
+    }
+
+    // Fetch all orders for manual calculation (Aurora Data API aggregates are unreliable)
+    const allOrders = await db.order.findMany({
+      where: { shop, customerId },
+      select: {
+        id: true,
+        shopifyOrderName: true,
+        totalPrice: true,
+        totalRefunded: true,
+        financialStatus: true,
+        cashbackEligible: true,
+        shopifyCreatedAt: true,
+        createdAt: true
+      }
+    });
+
+    console.log(`[CustomerAccount] Found ${allOrders.length} total orders for customer`);
+
+    // Manual calculation of spending (more reliable than Aurora aggregates)
+    let totalSpent = 0;
+    let totalRefunded = 0;
+    let eligibleOrderCount = 0;
+    let lastOrderDate: Date | null = null;
+
+    // Filter based on evaluation period
+    const oneYearAgo = evaluationPeriod === 'ANNUAL' ? new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) : null;
+
+    for (const order of allOrders) {
+      // Skip if not eligible
+      if (!order.cashbackEligible) {
+        continue;
+      }
+
+      // Skip if wrong financial status
+      if (order.financialStatus !== 'PAID' && order.financialStatus !== 'PARTIALLY_REFUNDED') {
+        continue;
+      }
+
+      // Skip if outside evaluation period
+      if (evaluationPeriod === 'ANNUAL' && oneYearAgo && order.shopifyCreatedAt) {
+        const orderDate = new Date(order.shopifyCreatedAt);
+        if (orderDate < oneYearAgo) {
+          continue;
+        }
+      }
+
+      // Add to totals
+      const price = order.totalPrice ? parseFloat(order.totalPrice.toString()) : 0;
+      const refunded = order.totalRefunded ? parseFloat(order.totalRefunded.toString()) : 0;
+
+      totalSpent += price;
+      totalRefunded += refunded;
+      eligibleOrderCount++;
+
+      // Track last order date
+      if (order.shopifyCreatedAt) {
+        const orderDate = new Date(order.shopifyCreatedAt);
+        if (!lastOrderDate || orderDate > lastOrderDate) {
+          lastOrderDate = orderDate;
+        }
+      }
+    }
+
+    const netSpending = totalSpent - totalRefunded;
+
+    console.log(`[CustomerAccount] Manual calculation results:`);
+    console.log(`[CustomerAccount]   - Total orders: ${allOrders.length}`);
+    console.log(`[CustomerAccount]   - Eligible orders: ${eligibleOrderCount}`);
+    console.log(`[CustomerAccount]   - Total spent: $${totalSpent.toFixed(2)}`);
+    console.log(`[CustomerAccount]   - Total refunded: $${totalRefunded.toFixed(2)}`);
+    console.log(`[CustomerAccount]   - Net spending: $${netSpending.toFixed(2)}`);
+
+    return {
+      customerId,
+      shopifyCustomerId: customer.shopifyCustomerId,
+      totalSpending: Math.max(0, netSpending),
+      orderCount: eligibleOrderCount,
+      lastOrderDate: lastOrderDate
+    };
+  } catch (error) {
+    console.error(`[CustomerAccount] Error fetching spending from DB for customer ${customerId}:`, error);
+
+    // Return zero spending on error
+    return {
+      customerId,
+      shopifyCustomerId: '',
+      totalSpending: 0,
+      orderCount: 0,
+      lastOrderDate: null
+    };
+  }
+}
+
 // Rate limiting (simple in-memory, consider Redis for production)
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
@@ -71,17 +218,19 @@ function getTransactionDescription(transaction: any): string {
 export async function loader({ request }: LoaderFunctionArgs) {
   const startTime = Date.now();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const origin = request.headers.get('origin');
 
   console.log(`\n[${requestId}] ========== NEW REQUEST ==========`);
   console.log(`[${requestId}] URL: ${request.url}`);
   console.log(`[${requestId}] Method: ${request.method}`);
+  console.log(`[${requestId}] Origin: ${origin}`);
 
   // Handle OPTIONS preflight immediately
   if (request.method === 'OPTIONS') {
     console.log(`[${requestId}] OPTIONS preflight request - returning 204 with CORS headers`);
     return new Response(null, {
       status: 204,
-      headers: getCorsHeaders()
+      headers: getCorsHeaders(origin)
     });
   }
 
@@ -100,12 +249,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     if (!authenticate) {
       console.error(`[${requestId}] FATAL: authenticate is not defined`);
-      return json({ error: "Server configuration error", message: "Authentication module not loaded" }, { status: 500, headers: getCorsHeaders() });
+      return json({ error: "Server configuration error", message: "Authentication module not loaded" }, { status: 500, headers: getCorsHeaders(origin) });
     }
 
     if (!db) {
       console.error(`[${requestId}] FATAL: db is not defined`);
-      return json({ error: "Server configuration error", message: "Database module not loaded" }, { status: 500, headers: getCorsHeaders() });
+      return json({ error: "Server configuration error", message: "Database module not loaded" }, { status: 500, headers: getCorsHeaders(origin) });
     }
 
     console.log(`[${requestId}] - authenticate type:`, typeof authenticate);
@@ -123,14 +272,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       if (!authenticate.public) {
         console.error(`[${requestId}] FATAL: authenticate.public is undefined`);
         console.error(`[${requestId}] authenticate object keys:`, Object.keys(authenticate || {}));
-        return json({ error: "Configuration error", message: "Public authentication not available" }, { status: 500, headers: getCorsHeaders() });
+        return json({ error: "Configuration error", message: "Public authentication not available" }, { status: 500, headers: getCorsHeaders(origin) });
       }
 
       // Check if authenticate.public.customerAccount exists
       if (!authenticate.public.customerAccount) {
         console.error(`[${requestId}] FATAL: authenticate.public.customerAccount is undefined`);
         console.error(`[${requestId}] authenticate.public keys:`, Object.keys(authenticate.public || {}));
-        return json({ error: "Configuration error", message: "Customer account authentication not available" }, { status: 500, headers: getCorsHeaders() });
+        return json({ error: "Configuration error", message: "Customer account authentication not available" }, { status: 500, headers: getCorsHeaders(origin) });
       }
 
       console.log(`[${requestId}] Calling authenticate.public.customerAccount...`);
@@ -154,7 +303,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         details: process.env.NODE_ENV === 'development' ? authError.stack : undefined
       }, {
         status: 401,
-        headers: getCorsHeaders()
+        headers: getCorsHeaders(origin)
       });
     }
 
@@ -168,7 +317,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         { error: "Unauthorized", message: "Invalid session token" },
         {
           status: 401,
-          headers: getCorsHeaders()
+          headers: getCorsHeaders(origin)
         }
       );
     }
@@ -190,7 +339,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         {
           status: 429,
           headers: {
-            ...getCorsHeaders(),
+            ...getCorsHeaders(origin),
             "Retry-After": "60"
           }
         }
@@ -205,7 +354,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.error(`[Customer Account API] Invalid customer GID: ${customerGid}`);
       return json(
         { error: "Invalid customer ID" },
-        { status: 400, headers: getCorsHeaders() }
+        { status: 400, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -252,7 +401,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         },
         {
           headers: {
-            ...getCorsHeaders(),
+            ...getCorsHeaders(origin),
             "Cache-Control": "private, max-age=300",
             "X-Response-Time": `${Date.now() - startTime}ms`
           }
@@ -318,7 +467,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       take: 50
     });
 
-    // Step 9: Calculate lifetime earned (cashback + refunds)
+    // Step 9: Calculate lifetime earned (cashback + refunds) from ledger entries
     const totalEarned = transactions
       .filter(t => ['CASHBACK_EARNED', 'REFUND_CREDIT'].includes(t.type))
       .reduce((sum, t) => {
@@ -327,6 +476,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
           : Number(t.amount);
         return sum + (amount > 0 ? amount : 0);
       }, 0);
+
+    // Step 9.5: Get customer spending stats using standardized calculation
+    // This uses the SAME method as tier recalculation for consistency
+    // We use the current tier's evaluation period, or LIFETIME if no tier
+    const evaluationPeriod = tier?.evaluationPeriod || 'LIFETIME';
+    console.log(`[${requestId}] Calculating stats with evaluation period: ${evaluationPeriod}`);
+
+    const spendingStats = await getCustomerSpendingFromDB(
+      shop,
+      customer.id,
+      evaluationPeriod
+    );
+
+    console.log(`[${requestId}] Spending stats:`, {
+      totalSpending: spendingStats.totalSpending,
+      orderCount: spendingStats.orderCount,
+      lastOrderDate: spendingStats.lastOrderDate
+    });
 
     // Step 10: Get shop settings for currency
     const shopSettings = await db.shopSettings.findUnique({
@@ -384,13 +551,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       amountToNextTier,
       totalEarned,
       stats: {
-        orderCount: customer.orderCount,
-        totalSpent: currentSpending,
-        netSpent: typeof customer.netSpent === 'object' && 'toNumber' in customer.netSpent
-          ? (customer.netSpent as any).toNumber()
-          : Number(customer.netSpent),
-        averageCashbackPerOrder: customer.orderCount > 0 ? totalEarned / customer.orderCount : 0,
-        lastOrderDate: customer.lastOrderDate?.toISOString() || null
+        orderCount: spendingStats.orderCount, // From standardized calculation
+        totalSpent: spendingStats.totalSpending, // From standardized calculation
+        netSpent: spendingStats.totalSpending, // Same as totalSpent (already net of refunds)
+        averageCashbackPerOrder: spendingStats.orderCount > 0 ? totalEarned / spendingStats.orderCount : 0,
+        lastOrderDate: spendingStats.lastOrderDate?.toISOString() || null
       },
       allTiers: allTiers.map(t => ({
         name: t.name,
@@ -420,7 +585,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     return json(responseData, {
       headers: {
-        ...getCorsHeaders(),
+        ...getCorsHeaders(origin),
         "Cache-Control": "private, max-age=60",  // Cache for 1 minute
         "X-Response-Time": `${Date.now() - startTime}ms`
       }
@@ -443,7 +608,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (error?.message?.includes('Unauthorized') || error?.status === 401) {
       return json(
         { error: "Authentication failed", message: "Invalid or expired session token" },
-        { status: 401, headers: getCorsHeaders() }
+        { status: 401, headers: getCorsHeaders(origin) }
       );
     }
 
@@ -460,29 +625,44 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
       {
         status: 500,
-        headers: getCorsHeaders()
+        headers: getCorsHeaders(origin)
       }
     );
   }
   } catch (outerError: any) {
     // Absolute failsafe - if even error handling fails
     console.error(`[FATAL] Complete failure in loader:`, outerError);
+    const origin = request.headers.get('origin');
     return json(
       { error: "Critical server error", message: "Request handler failed completely" },
-      { status: 500, headers: getCorsHeaders() }
+      { status: 500, headers: getCorsHeaders(origin) }
     );
   }
 }
 
 // CORS headers for customer account extensions
-function getCorsHeaders() {
+function getCorsHeaders(origin?: string | null) {
+  // Customer account extensions are served from extensions.shopifycdn.com
+  // We need to allow credentials (for session tokens in Authorization header)
+  const allowedOrigins = [
+    'https://extensions.shopifycdn.com',
+    'https://shopify.com',
+    'https://admin.shopify.com'
+  ];
+
+  // Check if the request origin is allowed
+  const isAllowed = origin && allowedOrigins.some(allowed =>
+    origin === allowed || origin.endsWith('.shopifycdn.com') || origin.endsWith('.shopify.com')
+  );
+
   return {
-    // Allow both shopify.com and extensions.shopifycdn.com for customer account extensions
-    "Access-Control-Allow-Origin": "*", // Permissive for development; tighten in production if needed
+    // Must specify exact origin (not *) when using credentials
+    "Access-Control-Allow-Origin": isAllowed ? origin! : allowedOrigins[0],
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true", // Required for session tokens
     "Access-Control-Max-Age": "86400",
-    "Vary": "Origin" // Important for caching
+    "Vary": "Origin"
   };
 }
 
