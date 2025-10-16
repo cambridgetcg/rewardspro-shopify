@@ -18,6 +18,7 @@
       "routes/api.cron.webhook-reconciliation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.customer-account.loyalty": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.setup-customer-metafield": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/apps.proxy.widget-heartbeat": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.customer-subscriptions": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.app.scopes_update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.cron.tier-maintenance": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -137,6 +138,15 @@
         "parentId": "root",
         "file": "app/routes/api.setup-customer-metafield.tsx",
         "path": "api/setup-customer-metafield",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/apps.proxy.widget-heartbeat": {
+        "id": "routes/apps.proxy.widget-heartbeat",
+        "parentId": "root",
+        "file": "app/routes/apps.proxy.widget-heartbeat.tsx",
+        "path": "apps/proxy/widget-heartbeat",
         "config": {
           "runtime": "nodejs"
         }
@@ -597,6 +607,12 @@
         "parentId": "root",
         "file": "routes/api.setup-customer-metafield.tsx",
         "path": "api/setup-customer-metafield"
+      },
+      "routes/apps.proxy.widget-heartbeat": {
+        "id": "routes/apps.proxy.widget-heartbeat",
+        "parentId": "root",
+        "file": "routes/apps.proxy.widget-heartbeat.tsx",
+        "path": "apps/proxy/widget-heartbeat"
       },
       "routes/api.customer-subscriptions": {
         "id": "routes/api.customer-subscriptions",

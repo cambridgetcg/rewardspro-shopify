@@ -86,11 +86,16 @@ model ShopSettings {
   customersInitialSynced  Boolean             @default(false)  // Has initial customer sync completed
   customersSyncInProgress Boolean             @default(false)  // Is customer sync currently running
 
+  // Widget Heartbeat Tracking
+  widgetLastHeartbeat     DateTime?           // Last time widget sent heartbeat signal
+  widgetIsActive          Boolean             @default(false)  // Is widget currently active (heartbeat within last 2 min)
+
   // Metadata
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
 
   @@index([shop])
+  @@index([widgetLastHeartbeat])  // For efficient heartbeat cleanup queries
 }
 
 model Tier {

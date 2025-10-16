@@ -25,6 +25,9 @@
 
       console.log('[MembershipWidget JS] Initial state:', this.state);
 
+      // Initialize heartbeat tracking
+      this.heartbeatInterval = null;
+
       if (this.data.shopifyCustomerId) {
         console.log('[MembershipWidget JS] ✅ Shopify customer ID found, fetching data from API');
         this.fetchAndRender();
@@ -102,6 +105,9 @@
           this.render();
           this.attachEventListeners();
           console.log('[MembershipWidget JS] ✅ Widget rendered successfully');
+
+          // Start heartbeat after successful render
+          this.startHeartbeat();
         } else {
           console.warn('[MembershipWidget JS] ⚠️ No tier data in API response');
           this.showError('Not enrolled in membership program');
@@ -111,6 +117,70 @@
         console.error('[MembershipWidget JS] ❌ Error fetching data:', error);
         console.error('[MembershipWidget JS] Error stack:', error.stack);
         this.showError('Failed to load membership data');
+      }
+    }
+
+    /**
+     * Start sending heartbeat signals to the backend
+     * This helps detect if the widget is actually enabled and rendering
+     */
+    startHeartbeat() {
+      // Don't send heartbeats in design mode
+      if (this.root.dataset.designMode === 'true') {
+        console.log('[MembershipWidget Heartbeat] Skipping heartbeat in design mode');
+        return;
+      }
+
+      console.log('[MembershipWidget Heartbeat] Starting heartbeat system');
+
+      // Send initial heartbeat immediately
+      this.sendHeartbeat();
+
+      // Then send every 60 seconds
+      this.heartbeatInterval = setInterval(() => {
+        this.sendHeartbeat();
+      }, 60000); // 60 seconds
+
+      // Cleanup on page unload
+      window.addEventListener('beforeunload', () => {
+        if (this.heartbeatInterval) {
+          clearInterval(this.heartbeatInterval);
+        }
+      });
+    }
+
+    /**
+     * Send a heartbeat ping to the backend
+     */
+    async sendHeartbeat() {
+      try {
+        const heartbeatUrl = '/apps/rewardspro/widget-heartbeat';
+
+        console.log('[MembershipWidget Heartbeat] Sending heartbeat to:', heartbeatUrl);
+
+        const response = await fetch(heartbeatUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            timestamp: new Date().toISOString(),
+            shopifyCustomerId: this.data.shopifyCustomerId,
+            tier: this.data.tier
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('[MembershipWidget Heartbeat] ✅ Heartbeat sent successfully:', result);
+        } else {
+          console.warn('[MembershipWidget Heartbeat] ⚠️ Heartbeat failed with status:', response.status);
+        }
+      } catch (error) {
+        // Fail silently - heartbeat is not critical to widget functionality
+        console.warn('[MembershipWidget Heartbeat] ⚠️ Heartbeat error (non-critical):', error.message);
       }
     }
 

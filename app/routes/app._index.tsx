@@ -255,61 +255,100 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Check if widget is enabled in theme using REST API
+    // Check widget status using TWO methods:
+    // 1. REST API - checks if widget is saved in theme settings
+    // 2. Heartbeat - checks if widget is actually rendering on storefront
     let hasWidget = false;
+    let widgetDetectionMethod = "none";
+
     try {
       console.log("[Dashboard] Checking widget status in theme...");
 
-      // Get the main theme ID via REST API
-      const themesResponse = await admin.rest.get({
-        path: 'themes',
-        query: { role: 'main' },
-      });
-      const themesData = await themesResponse.json();
-      const mainTheme = themesData?.themes?.[0];
-
-      if (mainTheme?.id) {
-        const themeId = mainTheme.id;
-        console.log(`[Dashboard] Main theme ID: ${themeId} (${mainTheme.name})`);
-
-        // Fetch the settings_data.json asset
-        const assetResponse = await admin.rest.get({
-          path: `themes/${themeId}/assets`,
-          query: { 'asset[key]': 'config/settings_data.json' },
+      // METHOD 1: Check REST API for saved theme settings
+      let savedInTheme = false;
+      try {
+        const themesResponse = await admin.rest.get({
+          path: 'themes',
+          query: { role: 'main' },
         });
-        const assetData = await assetResponse.json();
-        const assetValue = assetData?.asset?.value;
+        const themesData = await themesResponse.json();
+        const mainTheme = themesData?.themes?.[0];
 
-        if (assetValue) {
-          const settings = JSON.parse(assetValue);
-          const enabledEmbeds = settings.current?.enabled_app_embeds || [];
+        if (mainTheme?.id) {
+          const themeId = mainTheme.id;
+          console.log(`[Dashboard] Main theme ID: ${themeId} (${mainTheme.name})`);
 
-          // Log full settings structure for debugging
-          console.log(`[Dashboard] Full settings.current keys:`, Object.keys(settings.current || {}));
-          console.log(`[Dashboard] enabled_app_embeds:`, enabledEmbeds);
+          const assetResponse = await admin.rest.get({
+            path: `themes/${themeId}/assets`,
+            query: { 'asset[key]': 'config/settings_data.json' },
+          });
+          const assetData = await assetResponse.json();
+          const assetValue = assetData?.asset?.value;
 
-          // Check both the handle and any variations
-          const possibleHandles = [
-            'rewardspro-theme-extension',
-            'theme-app-extension-rewardspro',
-            'RewardsPro Theme Extension',
-            'Membership Widget'
-          ];
+          if (assetValue) {
+            const settings = JSON.parse(assetValue);
+            const enabledEmbeds = settings.current?.enabled_app_embeds || [];
 
-          hasWidget = possibleHandles.some(handle => enabledEmbeds.includes(handle));
+            console.log(`[Dashboard] enabled_app_embeds:`, enabledEmbeds);
 
-          if (!hasWidget && enabledEmbeds.length > 0) {
-            console.log(`[Dashboard] ⚠️ Widget handle mismatch! Expected one of:`, possibleHandles);
-            console.log(`[Dashboard] ⚠️ But found:`, enabledEmbeds);
+            const possibleHandles = [
+              'rewardspro-theme-extension',
+              'theme-app-extension-rewardspro',
+              'RewardsPro Theme Extension',
+              'Membership Widget'
+            ];
+
+            savedInTheme = possibleHandles.some(handle => enabledEmbeds.includes(handle));
+            console.log(`[Dashboard] Widget saved in theme: ${savedInTheme}`);
           }
-
-          console.log(`[Dashboard] Widget enabled: ${hasWidget}`);
-        } else {
-          console.log("[Dashboard] No settings_data.json value found");
         }
-      } else {
-        console.log("[Dashboard] No main theme found");
+      } catch (error) {
+        console.error("[Dashboard] Error checking theme settings:", error);
       }
+
+      // METHOD 2: Check heartbeat from storefront widget
+      let activeOnStorefront = false;
+      try {
+        const shopSettings = await db.shopSettings.findUnique({
+          where: { shop },
+          select: {
+            widgetLastHeartbeat: true,
+            widgetIsActive: true,
+          }
+        });
+
+        if (shopSettings?.widgetLastHeartbeat) {
+          const lastHeartbeat = new Date(shopSettings.widgetLastHeartbeat);
+          const now = new Date();
+          const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
+
+          // Consider active if heartbeat within last 5 minutes
+          activeOnStorefront = minutesSinceHeartbeat < 5;
+
+          console.log(`[Dashboard] Widget heartbeat: ${lastHeartbeat.toISOString()}`);
+          console.log(`[Dashboard] Minutes since heartbeat: ${minutesSinceHeartbeat.toFixed(2)}`);
+          console.log(`[Dashboard] Widget active on storefront: ${activeOnStorefront}`);
+        } else {
+          console.log(`[Dashboard] No widget heartbeat recorded yet`);
+        }
+      } catch (error) {
+        console.error("[Dashboard] Error checking widget heartbeat:", error);
+      }
+
+      // Widget is considered "enabled" if EITHER method detects it
+      // This handles both preview state and actual live rendering
+      hasWidget = savedInTheme || activeOnStorefront;
+
+      if (activeOnStorefront && savedInTheme) {
+        widgetDetectionMethod = "both";
+      } else if (activeOnStorefront) {
+        widgetDetectionMethod = "heartbeat";
+      } else if (savedInTheme) {
+        widgetDetectionMethod = "theme-settings";
+      }
+
+      console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
+
     } catch (error) {
       console.error("[Dashboard] Error checking widget status:", error);
       // Don't throw - just log and continue with hasWidget = false
