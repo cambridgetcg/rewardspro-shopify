@@ -804,9 +804,12 @@ export default function Dashboard() {
                         <Text variant="bodySm" as="p" fontWeight="semibold">
                           Visual Guide:
                         </Text>
-                        <img
-                          src="/widget-toggle-guide.png"
-                          alt="How to toggle the Membership Widget in Shopify theme editor"
+                        <video
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          src="/widget-toggle-guide.mp4"
                           style={{
                             width: '100%',
                             maxWidth: '400px',
@@ -814,7 +817,9 @@ export default function Dashboard() {
                             borderRadius: '8px',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                           }}
-                        />
+                        >
+                          Your browser does not support the video tag.
+                        </video>
                         <Text variant="bodySm" tone="subdued" as="p">
                           Toggle the "Membership Widget" switch to ON to enable it on your storefront.
                         </Text>
