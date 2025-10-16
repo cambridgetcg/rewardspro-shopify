@@ -614,7 +614,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         headers: getCorsHeaders(origin)
       }
     );
-  }
   } catch (outerError: any) {
     // Absolute failsafe - if even error handling fails
     console.error(`[FATAL] Complete failure in loader:`, outerError);
