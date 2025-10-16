@@ -423,26 +423,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     try {
       console.log(`[Dashboard] Attempting to count orders for ${shop} - ${currentMonth} ${year}`);
 
-      // Strategy 1: Try date extraction method (most reliable for month-based)
-      try {
-        orderCount = await countOrdersDateExtraction(shop, year, month);
-        orderCountStrategy = "DateExtraction";
-        console.log(`[Dashboard] Date extraction strategy succeeded: ${orderCount} orders`);
-      } catch (error) {
-        console.log("[Dashboard] Date extraction failed, trying fallback strategies");
+      // Use optimized fallback chain (DirectDataAPI first)
+      const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+      const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-        // Strategy 2: Try multiple strategies with fallback
-        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-        const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+      const result = await countOrdersWithFallback(shop, startOfMonth, endOfMonth);
+      orderCount = result.count;
+      orderCountStrategy = result.strategy;
 
-        const result = await countOrdersWithFallback(shop, startOfMonth, endOfMonth);
-        orderCount = result.count;
-        orderCountStrategy = result.strategy;
-      }
-
-      // Strategy 3: If still 0, try pre-aggregated count
+      // Fallback: If count is 0, try pre-aggregated count
       if (orderCount === 0) {
-        console.log("[Dashboard] Trying pre-aggregated count");
+        console.log("[Dashboard] Count is 0, trying pre-aggregated count");
         orderCount = await getOrCreateMonthlyCount(shop, year, month);
         orderCountStrategy = "PreAggregated";
       }

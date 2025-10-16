@@ -268,7 +268,7 @@ export default function BillingPage() {
                     <Badge tone="success">Active</Badge>
                   </InlineStack>
                   <Text as="p" variant="bodyLg">
-                    {currentPlan}
+                    {currentPlan.replace('RewardsPro', 'Rewards')}
                   </Text>
                 </BlockStack>
               </Card>

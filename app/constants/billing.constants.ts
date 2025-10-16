@@ -15,7 +15,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   // Free plan - Hidden from billing pages but still functional for existing users
   "RewardsPro Free": {
     name: "RewardsPro Free",
-    displayName: "Free",
+    displayName: "Rewards Free",
     price: 0,
     interval: "month",
     ordersIncluded: 100,
@@ -32,7 +32,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   },
   "RewardsPro Pro": {
     name: "RewardsPro Pro",
-    displayName: "Pro",
+    displayName: "Rewards Pro",
     price: 39,
     interval: "month",
     ordersIncluded: 500,
@@ -49,7 +49,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   },
   "RewardsPro Pro Annual": {
     name: "RewardsPro Pro Annual",
-    displayName: "Pro Annual",
+    displayName: "Rewards Pro Annual",
     price: 336,
     interval: "year",
     ordersIncluded: 500,
@@ -68,7 +68,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   },
   "RewardsPro Max": {
     name: "RewardsPro Max",
-    displayName: "Max",
+    displayName: "Rewards Max",
     price: 149,
     interval: "month",
     ordersIncluded: 2000,
@@ -86,7 +86,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   },
   "RewardsPro Max Annual": {
     name: "RewardsPro Max Annual",
-    displayName: "Max Annual",
+    displayName: "Rewards Max Annual",
     price: 1296,
     interval: "year",
     ordersIncluded: 2000,
@@ -106,7 +106,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   },
   "RewardsPro Ultra": {
     name: "RewardsPro Ultra",
-    displayName: "Ultra",
+    displayName: "Rewards Ultra",
     price: 499,
     interval: "month",
     ordersIncluded: 999999, // Effectively unlimited
@@ -124,7 +124,7 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   },
   "RewardsPro Ultra Annual": {
     name: "RewardsPro Ultra Annual",
-    displayName: "Ultra Annual",
+    displayName: "Rewards Ultra Annual",
     price: 4296,
     interval: "year",
     ordersIncluded: 999999,

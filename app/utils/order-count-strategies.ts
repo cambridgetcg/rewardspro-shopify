@@ -312,6 +312,16 @@ export async function countOrdersBetween(
 /**
  * Master function that tries multiple strategies
  * Returns the first successful result
+ *
+ * Strategy order optimized for Aurora Serverless Data API:
+ * 1. DirectDataAPI - Most reliable, bypasses Prisma
+ * 2. EpochComparison - Numeric comparison works well
+ * 3. StringComparison - String comparison fallback
+ * 4. Between - Alternative SQL operator
+ * 5. WithTimezone - Explicit timezone handling
+ * 6. InMemory - Last resort, fetches all and filters in JS
+ *
+ * Note: DateExtraction removed - causes SerializationException with Data API
  */
 export async function countOrdersWithFallback(
   shop: string,
@@ -320,7 +330,6 @@ export async function countOrdersWithFallback(
 ): Promise<{ count: number; strategy: string }> {
   const strategies = [
     { name: "DirectDataAPI", fn: () => countOrdersDirectDataAPI(shop, startDate, endDate) },
-    { name: "DateExtraction", fn: () => countOrdersDateExtraction(shop, startDate.getUTCFullYear(), startDate.getUTCMonth() + 1) },
     { name: "EpochComparison", fn: () => countOrdersEpochComparison(shop, startDate, endDate) },
     { name: "StringComparison", fn: () => countOrdersStringComparison(shop, startDate, endDate) },
     { name: "Between", fn: () => countOrdersBetween(shop, startDate, endDate) },
