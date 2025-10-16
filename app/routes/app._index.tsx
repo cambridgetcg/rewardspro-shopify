@@ -213,6 +213,8 @@ interface DashboardData {
   } | null;
   currentMonth: string;
   daysRemaining: number;
+  // Widget detection
+  hasWidget: boolean;
 }
 
 // ============================================
@@ -221,7 +223,7 @@ interface DashboardData {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    const { session, billing } = await authenticate.admin(request);
+    const { session, billing, admin } = await authenticate.admin(request);
 
     if (!session?.shop) {
       throw new Response("Unauthorized", { status: 401 });
@@ -251,6 +253,43 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       } catch (error) {
         console.error("[Dashboard] Error checking subscription:", error);
       }
+    }
+
+    // Check if widget is enabled in theme
+    let hasWidget = false;
+    try {
+      console.log("[Dashboard] Checking widget status in theme...");
+
+      // Get the main theme
+      const themeResp = await admin.rest.get({
+        path: 'themes.json',
+        query: { role: 'main' },
+      });
+      const themes = (await themeResp.json()).themes;
+      const mainThemeId = themes?.[0]?.id;
+
+      if (mainThemeId) {
+        console.log(`[Dashboard] Main theme ID: ${mainThemeId}`);
+
+        // Fetch the settings_data.json asset
+        const settingsResp = await admin.rest.get({
+          path: `themes/${mainThemeId}/assets.json`,
+          query: { 'asset[key]': 'config/settings_data.json' },
+        });
+        const asset = (await settingsResp.json()).asset;
+
+        if (asset?.value) {
+          const settings = JSON.parse(asset.value);
+          const enabledEmbeds = settings.current?.enabled_app_embeds || [];
+          hasWidget = enabledEmbeds.includes('rewardspro-theme-extension');
+
+          console.log(`[Dashboard] Widget enabled: ${hasWidget}`);
+          console.log(`[Dashboard] Enabled embeds:`, enabledEmbeds);
+        }
+      }
+    } catch (error) {
+      console.error("[Dashboard] Error checking widget status:", error);
+      // Don't throw - just log and continue with hasWidget = false
     }
 
     // Fetch all data in parallel for performance
@@ -515,6 +554,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       monthlyOrderUsage,
       currentMonth,
       daysRemaining,
+      // Widget detection
+      hasWidget,
     };
 
     console.log(`[Dashboard] Returning data for ${shop}`);
@@ -643,83 +684,83 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* Widget Setup Nudge */}
-        <Layout.Section>
-          <Banner
-            title="Important: Add RewardsPro widget to your store theme"
-            tone="warning"
-          >
-            <BlockStack gap="300">
-              <Text variant="bodyMd" as="p">
-                To make sure RewardsPro works properly, you'll need to add it as an app embed in your Shopify theme.
-                Without this step, customers may not see the rewards widget on your storefront.
-              </Text>
-
-              <Box paddingBlock="200">
-                <Banner tone="info">
-                  <BlockStack gap="200">
-                    <Text variant="bodySm" as="p" fontWeight="semibold">
-                      We couldn't detect the RewardsPro widget on your store. Follow the steps below:
-                    </Text>
-                  </BlockStack>
-                </Banner>
-              </Box>
-
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p" fontWeight="semibold">
-                  Quick setup (takes 30 seconds):
+        {/* Widget Setup Nudge - Only show if widget is not enabled */}
+        {!data.hasWidget && (
+          <Layout.Section>
+            <Banner
+              title="Important: Add RewardsPro widget to your store theme"
+              tone="warning"
+            >
+              <BlockStack gap="300">
+                <Text variant="bodyMd" as="p">
+                  To make sure RewardsPro works properly, you'll need to add it as an app embed in your Shopify theme.
+                  Without this step, customers may not see the rewards widget on your storefront.
                 </Text>
-                <ol style={{ paddingLeft: '20px', margin: '8px 0' }}>
-                  <li style={{ marginBottom: '8px' }}>
-                    <Text variant="bodySm" as="span">
-                      Go to <strong>Online Store → Themes → Customize</strong>
-                    </Text>
-                  </li>
-                  <li style={{ marginBottom: '8px' }}>
-                    <Text variant="bodySm" as="span">
-                      Click the <strong>App embeds</strong> icon in the left sidebar (puzzle piece icon)
-                    </Text>
-                  </li>
-                  <li style={{ marginBottom: '8px' }}>
-                    <Text variant="bodySm" as="span">
-                      Find <strong>"Membership Widget"</strong> and toggle it <strong>ON</strong>
-                    </Text>
-                  </li>
-                  <li style={{ marginBottom: '8px' }}>
-                    <Text variant="bodySm" as="span">
-                      Click <strong>Save</strong> in the top-right corner
-                    </Text>
-                  </li>
-                </ol>
-              </BlockStack>
 
-              <Box paddingBlock="300">
-                <Card>
-                  <Box padding="400">
-                    <BlockStack gap="300">
+                <Box paddingBlock="200">
+                  <Banner tone="info">
+                    <BlockStack gap="200">
                       <Text variant="bodySm" as="p" fontWeight="semibold">
-                        Visual Guide:
-                      </Text>
-                      <img
-                        src="/widget-toggle-guide.png"
-                        alt="How to toggle the Membership Widget in Shopify theme editor"
-                        style={{
-                          width: '100%',
-                          maxWidth: '400px',
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '8px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                      />
-                      <Text variant="bodySm" tone="subdued" as="p">
-                        Toggle the "Membership Widget" switch to ON to enable it on your storefront.
+                        We couldn't detect the RewardsPro widget on your store. Follow the steps below:
                       </Text>
                     </BlockStack>
-                  </Box>
-                </Card>
-              </Box>
+                  </Banner>
+                </Box>
 
-              <InlineStack gap="200">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" as="p" fontWeight="semibold">
+                    Quick setup (takes 30 seconds):
+                  </Text>
+                  <ol style={{ paddingLeft: '20px', margin: '8px 0' }}>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Go to <strong>Online Store → Themes → Customize</strong>
+                      </Text>
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Click the <strong>App embeds</strong> icon in the left sidebar (puzzle piece icon)
+                      </Text>
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Find <strong>"Membership Widget"</strong> and toggle it <strong>ON</strong>
+                      </Text>
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Click <strong>Save</strong> in the top-right corner
+                      </Text>
+                    </li>
+                  </ol>
+                </BlockStack>
+
+                <Box paddingBlock="300">
+                  <Card>
+                    <Box padding="400">
+                      <BlockStack gap="300">
+                        <Text variant="bodySm" as="p" fontWeight="semibold">
+                          Visual Guide:
+                        </Text>
+                        <img
+                          src="/widget-toggle-guide.png"
+                          alt="How to toggle the Membership Widget in Shopify theme editor"
+                          style={{
+                            width: '100%',
+                            maxWidth: '400px',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          Toggle the "Membership Widget" switch to ON to enable it on your storefront.
+                        </Text>
+                      </BlockStack>
+                    </Box>
+                  </Card>
+                </Box>
+
                 <Button
                   url={`https://${data.shop}/admin/themes/current/editor?context=apps`}
                   target="_blank"
@@ -727,17 +768,10 @@ export default function Dashboard() {
                 >
                   Open theme editor
                 </Button>
-                <Button
-                  url="https://help.shopify.com/en/manual/online-store/themes/theme-structure/extend/apps#enable-app-embeds"
-                  target="_blank"
-                  variant="plain"
-                >
-                  View Shopify's guide
-                </Button>
-              </InlineStack>
-            </BlockStack>
-          </Banner>
-        </Layout.Section>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
 
         {/* Key Metrics Overview */}
         <Layout.Section>
