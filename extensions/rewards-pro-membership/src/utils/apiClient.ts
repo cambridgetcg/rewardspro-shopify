@@ -32,19 +32,43 @@ export class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const fullUrl = `${this.baseUrl}${endpoint}`;
+
     try {
+      if (this.enableDebugLogs) {
+        console.log(`[ApiClient:${requestId}] Starting request`);
+        console.log(`[ApiClient:${requestId}] URL: ${fullUrl}`);
+        console.log(`[ApiClient:${requestId}] Method: ${options.method || 'GET'}`);
+        console.log(`[ApiClient:${requestId}] Timeout: ${this.timeout}ms`);
+      }
+
       // Get a fresh session token
+      if (this.enableDebugLogs) {
+        console.log(`[ApiClient:${requestId}] Getting session token...`);
+      }
       const token = await sessionToken.get();
 
       if (this.enableDebugLogs) {
-        console.log('[ApiClient] Making request to:', `${this.baseUrl}${endpoint}`);
+        console.log(`[ApiClient:${requestId}] Session token obtained, length: ${token.length}`);
+        console.log(`[ApiClient:${requestId}] Token preview: ${token.substring(0, 50)}...`);
       }
 
       // Create abort controller for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+      const timeoutId = setTimeout(() => {
+        if (this.enableDebugLogs) {
+          console.warn(`[ApiClient:${requestId}] Request timeout after ${this.timeout}ms`);
+        }
+        controller.abort();
+      }, this.timeout);
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      if (this.enableDebugLogs) {
+        console.log(`[ApiClient:${requestId}] Sending fetch request...`);
+      }
+
+      const startTime = Date.now();
+      const response = await fetch(fullUrl, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -55,14 +79,22 @@ export class ApiClient {
       });
 
       clearTimeout(timeoutId);
+      const requestDuration = Date.now() - startTime;
+
+      if (this.enableDebugLogs) {
+        console.log(`[ApiClient:${requestId}] Response received in ${requestDuration}ms`);
+        console.log(`[ApiClient:${requestId}] Status: ${response.status} ${response.statusText}`);
+        console.log(`[ApiClient:${requestId}] Headers:`, Object.fromEntries(response.headers.entries()));
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
         if (this.enableDebugLogs) {
-          console.error('[ApiClient] Request failed:', {
+          console.error(`[ApiClient:${requestId}] Request failed:`, {
             status: response.status,
             statusText: response.statusText,
             error: errorText,
+            duration: requestDuration,
           });
         }
 
@@ -73,10 +105,20 @@ export class ApiClient {
         };
       }
 
+      if (this.enableDebugLogs) {
+        console.log(`[ApiClient:${requestId}] Parsing JSON response...`);
+      }
       const data = await response.json();
 
       if (this.enableDebugLogs) {
-        console.log('[ApiClient] Request successful:', data);
+        console.log(`[ApiClient:${requestId}] Request successful:`, {
+          success: data.success,
+          enrolled: data.enrolled,
+          balance: data.balance,
+          tierName: data.tier?.name,
+          dataKeys: Object.keys(data),
+          duration: requestDuration,
+        });
       }
 
       return {
@@ -84,16 +126,22 @@ export class ApiClient {
         data: data as T,
       };
     } catch (error) {
-      if (this.enableDebugLogs) {
-        console.error('[ApiClient] Request error:', error);
-      }
-
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isTimeout = errorMessage.includes('aborted');
+
+      if (this.enableDebugLogs) {
+        console.error(`[ApiClient:${requestId}] Request error:`, {
+          type: error instanceof Error ? error.constructor.name : 'Unknown',
+          message: errorMessage,
+          isTimeout,
+          error,
+        });
+      }
 
       return {
         success: false,
         error: errorMessage,
-        message: errorMessage.includes('aborted') ? 'Request timeout' : errorMessage,
+        message: isTimeout ? 'Request timeout' : errorMessage,
       };
     }
   }

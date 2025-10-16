@@ -614,14 +614,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
         headers: getCorsHeaders(origin)
       }
     );
-  } catch (outerError: any) {
-    // Absolute failsafe - if even error handling fails
-    console.error(`[FATAL] Complete failure in loader:`, outerError);
-    const origin = request.headers.get('origin');
-    return json(
-      { error: "Critical server error", message: "Request handler failed completely" },
-      { status: 500, headers: getCorsHeaders(origin) }
-    );
   }
 }
 

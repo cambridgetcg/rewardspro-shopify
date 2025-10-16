@@ -97,33 +97,66 @@ function HelloWorldBlock() {
   const customerId = authCustomerId || tokenCustomerId;
   const isAuthenticated = authIsAuthenticated || tokenIsAuthenticated;
 
+  console.log('[HelloWorldBlock] Component state:', {
+    authCustomerId,
+    tokenCustomerId,
+    customerId,
+    isAuthenticated,
+    authIsAuthenticated,
+    tokenIsAuthenticated,
+    hasSessionToken: !!sessionToken,
+  });
+
   // Fetch loyalty data when customer is authenticated
   useEffect(() => {
     async function fetchLoyaltyData() {
+      console.log('[HelloWorldBlock] fetchLoyaltyData called', {
+        isAuthenticated,
+        hasSessionToken: !!sessionToken,
+        willFetch: isAuthenticated && !!sessionToken
+      });
+
       if (!isAuthenticated || !sessionToken) {
+        console.log('[HelloWorldBlock] Skipping fetch - not authenticated or no session token');
         return;
       }
 
       try {
+        console.log('[HelloWorldBlock] Starting loyalty data fetch...');
         setDataLoading(true);
         setError(null);
 
         // Call the main loyalty endpoint (baseUrl already includes /api/customer-account/loyalty)
+        console.log('[HelloWorldBlock] Calling API client...');
         const response = await apiClient.get<LoyaltyData>(
           sessionToken,
           '' // Empty string because baseUrl already has the full path
         );
 
+        console.log('[HelloWorldBlock] API response received:', {
+          success: response.success,
+          hasData: !!response.data,
+          error: response.error,
+        });
+
         if (response.success && response.data) {
+          console.log('[HelloWorldBlock] Setting loyalty data:', {
+            enrolled: response.data.enrolled,
+            balance: response.data.balance,
+            tierName: response.data.tier?.name,
+          });
           setLoyaltyData(response.data);
         } else {
-          setError(response.error || 'Failed to fetch loyalty data');
+          const errorMsg = response.error || 'Failed to fetch loyalty data';
+          console.error('[HelloWorldBlock] API error:', errorMsg);
+          setError(errorMsg);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[HelloWorldBlock] Exception during fetch:', errorMessage, err);
         setError(errorMessage);
-        console.error('[HelloWorldBlock] Error fetching loyalty data:', err);
       } finally {
+        console.log('[HelloWorldBlock] Fetch complete, setting loading to false');
         setDataLoading(false);
       }
     }

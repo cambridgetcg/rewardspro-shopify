@@ -13,6 +13,19 @@ export function useAuthenticatedCustomer() {
   const customer = useAuthenticatedAccountCustomer();
   const purchasingCompany = useAuthenticatedAccountPurchasingCompany();
 
+  console.log('[useAuthenticatedCustomer] Customer data:', {
+    customerId: customer?.id,
+    email: customer?.email,
+    firstName: customer?.firstName,
+    lastName: customer?.lastName,
+  });
+
+  console.log('[useAuthenticatedCustomer] Purchasing company data:', {
+    companyId: purchasingCompany?.company?.id,
+    locationId: purchasingCompany?.location?.id,
+    isB2B: !!purchasingCompany?.company?.id,
+  });
+
   // Extract customer ID from GID format
   // Format: gid://shopify/Customer/123 -> 123
   const extractCustomerId = (gid: string | undefined): string | null => {
@@ -23,6 +36,9 @@ export function useAuthenticatedCustomer() {
 
   const customerId = extractCustomerId(customer?.id);
   const isAuthenticated = !!customer?.id;
+
+  console.log('[useAuthenticatedCustomer] Extracted customer ID:', customerId);
+  console.log('[useAuthenticatedCustomer] Is authenticated:', isAuthenticated);
 
   return {
     /** Full customer object with GID */

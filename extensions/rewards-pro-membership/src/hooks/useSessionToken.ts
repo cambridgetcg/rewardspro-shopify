@@ -15,15 +15,27 @@ export function useSessionToken() {
     let isMounted = true;
 
     async function fetchAndDecodeToken() {
+      console.log('[useSessionToken] Fetching session token...');
       try {
         setIsLoading(true);
         setError(null);
 
         const token = await sessionToken.get();
+        console.log('[useSessionToken] Session token received, length:', token.length);
+
         const decoded = decodeSessionToken(token);
+        console.log('[useSessionToken] Token decoded:', {
+          customerId: decoded.customerId,
+          dest: decoded.claims.dest,
+          aud: decoded.claims.aud,
+          sub: decoded.claims.sub,
+          exp: decoded.claims.exp ? new Date(decoded.claims.exp * 1000).toISOString() : null,
+          isExpired: decoded.isExpired,
+        });
 
         if (isMounted) {
           setDecodedToken(decoded);
+          console.log('[useSessionToken] Token state updated');
         }
       } catch (err) {
         if (isMounted) {
@@ -38,12 +50,18 @@ export function useSessionToken() {
       }
     }
 
+    console.log('[useSessionToken] Hook mounted, starting token fetch');
     fetchAndDecodeToken();
 
     // Refresh token periodically (every 4 minutes, tokens expire in 5 minutes)
-    const refreshInterval = setInterval(fetchAndDecodeToken, 4 * 60 * 1000);
+    console.log('[useSessionToken] Setting up token refresh interval (4 minutes)');
+    const refreshInterval = setInterval(() => {
+      console.log('[useSessionToken] Refreshing token...');
+      fetchAndDecodeToken();
+    }, 4 * 60 * 1000);
 
     return () => {
+      console.log('[useSessionToken] Hook unmounting, cleaning up');
       isMounted = false;
       clearInterval(refreshInterval);
     };
