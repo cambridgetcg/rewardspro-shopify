@@ -682,7 +682,7 @@ export default function Dashboard() {
                   </li>
                   <li style={{ marginBottom: '8px' }}>
                     <Text variant="bodySm" as="span">
-                      Find <strong>"RewardsPro Widget"</strong> and toggle it <strong>ON</strong>
+                      Find <strong>"Membership Widget"</strong> and toggle it <strong>ON</strong>
                     </Text>
                   </li>
                   <li style={{ marginBottom: '8px' }}>
@@ -692,6 +692,32 @@ export default function Dashboard() {
                   </li>
                 </ol>
               </BlockStack>
+
+              <Box paddingBlock="300">
+                <Card>
+                  <Box padding="400">
+                    <BlockStack gap="300">
+                      <Text variant="bodySm" as="p" fontWeight="semibold">
+                        Visual Guide:
+                      </Text>
+                      <img
+                        src="/widget-toggle-guide.png"
+                        alt="How to toggle the Membership Widget in Shopify theme editor"
+                        style={{
+                          width: '100%',
+                          maxWidth: '400px',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '8px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      />
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        Toggle the "Membership Widget" switch to ON to enable it on your storefront.
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </Card>
+              </Box>
 
               <InlineStack gap="200">
                 <Button
