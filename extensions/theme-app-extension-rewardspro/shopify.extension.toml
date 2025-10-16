@@ -10,3 +10,7 @@ handle = "rewardspro-theme-extension"
 [[extensions.targeting]]
 target = "section"
 module = "./blocks/star_rating.liquid"
+
+[[extensions.targeting]]
+target = "body"
+module = "./blocks/membership_widget.liquid"

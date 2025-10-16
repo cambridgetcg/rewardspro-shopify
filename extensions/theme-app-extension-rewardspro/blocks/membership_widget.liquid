@@ -1,0 +1,122 @@
+{% comment %}
+  App Embed Block: Membership Widget
+  This block displays membership tier and store credit information for logged-in customers.
+
+  It reads from customer metafields:
+  - rewards_pro.membership_tier (string: tier name like "Gold", "Silver", etc.)
+  - rewards_pro.store_credit (number: available store credit balance)
+  - rewards_pro.store_currency (string: currency code like "USD")
+{% endcomment %}
+
+<!-- DEBUG: Membership Widget Start -->
+<script>
+  console.log('[MembershipWidget Liquid] Template loaded');
+  console.log('[MembershipWidget Liquid] Customer exists:', {{ customer | json }});
+</script>
+
+{% if customer %}
+  <script>
+    console.log('[MembershipWidget Liquid] Customer is logged in');
+    console.log('[MembershipWidget Liquid] Customer ID:', {{ customer.id | json }});
+    console.log('[MembershipWidget Liquid] Customer email:', {{ customer.email | json }});
+  </script>
+
+  {% comment %} Get membership data from customer metafields {% endcomment %}
+  {% assign membership_tier = customer.metafields.rewards_pro.membership_tier.value %}
+  {% assign store_credit = customer.metafields.rewards_pro.store_credit.value %}
+  {% assign store_currency = customer.metafields.rewards_pro.store_currency.value | default: shop.currency %}
+
+  <script>
+    console.log('[MembershipWidget Liquid] Metafields check:');
+    console.log('  - membership_tier:', {{ membership_tier | json }});
+    console.log('  - store_credit:', {{ store_credit | json }});
+    console.log('  - store_currency:', {{ store_currency | json }});
+    console.log('[MembershipWidget Liquid] All customer metafields:', {{ customer.metafields | json }});
+  </script>
+
+  {% comment %} Only render if customer has membership tier {% endcomment %}
+  {% if membership_tier %}
+    <script>
+      console.log('[MembershipWidget Liquid] ✅ Rendering widget container');
+    </script>
+    <div
+      id="membership-widget-root"
+      class="rewards-pro-membership-widget"
+      data-tier="{{ membership_tier | escape }}"
+      data-balance="{{ store_credit | default: 0 }}"
+      data-currency="{{ store_currency | escape }}"
+      data-customer-id="{{ customer.id }}"
+      data-customer-email="{{ customer.email | escape }}"
+      style="background: rgba(255,0,0,0.1); padding: 10px; border: 2px solid red;"
+    >
+      {% comment %}
+        Fallback content for users with JavaScript disabled
+        This will be replaced by JavaScript widget
+      {% endcomment %}
+      <div style="padding: 20px; background: white; border: 2px dashed blue;">
+        <strong>🌟 {{ membership_tier }} Member</strong>
+        {% if store_credit and store_credit > 0 %}
+          <br>
+          <span>Store Credit: {{ store_credit | money_with_currency }}</span>
+        {% endif %}
+        <br>
+        <small style="color: blue;">Widget container loaded. Waiting for JavaScript...</small>
+      </div>
+      <noscript>
+        <div class="membership-widget-fallback">
+          <strong>{{ membership_tier }} Member</strong>
+          {% if store_credit and store_credit > 0 %}
+            <br>
+            <span>Store Credit: {{ store_credit | money_with_currency }}</span>
+          {% endif %}
+        </div>
+      </noscript>
+    </div>
+  {% else %}
+    <script>
+      console.warn('[MembershipWidget Liquid] ❌ No membership tier found - widget will not render');
+      console.log('[MembershipWidget Liquid] To fix: Set customer.metafields.rewards_pro.membership_tier');
+    </script>
+  {% endif %}
+{% else %}
+  <script>
+    console.warn('[MembershipWidget Liquid] ❌ No customer logged in - widget will not render');
+  </script>
+{% endif %}
+<!-- DEBUG: Membership Widget End -->
+
+{% schema %}
+{
+  "name": "Membership Widget",
+  "target": "body",
+  "javascript": "membership-widget.js",
+  "stylesheet": "membership-widget.css",
+  "settings": [
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Widget Position",
+      "options": [
+        { "value": "bottom-right", "label": "Bottom Right" },
+        { "value": "bottom-left", "label": "Bottom Left" },
+        { "value": "top-right", "label": "Top Right" },
+        { "value": "top-left", "label": "Top Left" }
+      ],
+      "default": "bottom-right"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_on_mobile",
+      "label": "Show on Mobile",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "collapsible",
+      "label": "Make Collapsible",
+      "default": true,
+      "info": "Allow users to minimize the widget"
+    }
+  ]
+}
+{% endschema %}

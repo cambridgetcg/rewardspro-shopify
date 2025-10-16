@@ -286,35 +286,6 @@ function HelloWorldBlock() {
           )}
         </BlockStack>
       </View>
-
-      {/* Recent Activity Card */}
-      {loyaltyData.recentTransactions.length > 0 && (
-        <View
-          border="base"
-          cornerRadius="base"
-          padding="base"
-          background="base"
-        >
-          <BlockStack spacing="base">
-            <Text size="medium" emphasis="bold">Recent activity</Text>
-            <BlockStack spacing="base">
-              {loyaltyData.recentTransactions.slice(0, 3).map((tx) => (
-                <InlineStack key={tx.id} spacing="base" blockAlignment="start" inlineAlignment="space-between">
-                  <BlockStack spacing="extraTight">
-                    <Text size="small">{tx.description}</Text>
-                    <Text size="small" appearance="subdued">
-                      {new Date(tx.date).toLocaleDateString()}
-                    </Text>
-                  </BlockStack>
-                  <Text size="small" emphasis="bold">
-                    {tx.amount > 0 ? '+' : ''}{loyaltyData.currency} {tx.amount.toFixed(2)}
-                  </Text>
-                </InlineStack>
-              ))}
-            </BlockStack>
-          </BlockStack>
-        </View>
-      )}
     </BlockStack>
   );
 }
