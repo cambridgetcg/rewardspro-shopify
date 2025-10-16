@@ -283,10 +283,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         if (assetValue) {
           const settings = JSON.parse(assetValue);
           const enabledEmbeds = settings.current?.enabled_app_embeds || [];
-          hasWidget = enabledEmbeds.includes('rewardspro-theme-extension');
+
+          // Log full settings structure for debugging
+          console.log(`[Dashboard] Full settings.current keys:`, Object.keys(settings.current || {}));
+          console.log(`[Dashboard] enabled_app_embeds:`, enabledEmbeds);
+
+          // Check both the handle and any variations
+          const possibleHandles = [
+            'rewardspro-theme-extension',
+            'theme-app-extension-rewardspro',
+            'RewardsPro Theme Extension',
+            'Membership Widget'
+          ];
+
+          hasWidget = possibleHandles.some(handle => enabledEmbeds.includes(handle));
+
+          if (!hasWidget && enabledEmbeds.length > 0) {
+            console.log(`[Dashboard] ⚠️ Widget handle mismatch! Expected one of:`, possibleHandles);
+            console.log(`[Dashboard] ⚠️ But found:`, enabledEmbeds);
+          }
 
           console.log(`[Dashboard] Widget enabled: ${hasWidget}`);
-          console.log(`[Dashboard] Enabled embeds:`, enabledEmbeds);
         } else {
           console.log("[Dashboard] No settings_data.json value found");
         }
