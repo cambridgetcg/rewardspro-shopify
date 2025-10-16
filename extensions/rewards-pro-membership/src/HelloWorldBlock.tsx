@@ -11,6 +11,7 @@ import {
   Badge,
   Spinner,
   Divider,
+  View,
 } from '@shopify/ui-extensions-react/customer-account';
 import { useSessionToken } from './hooks/useSessionToken';
 import { useApiClient } from './hooks/useApiClient';
@@ -179,56 +180,49 @@ function HelloWorldBlock() {
 
   return (
     <BlockStack spacing="base">
-      {/* Store Credit Card */}
-      <BlockStack spacing="base">
-        <Text size="large" emphasis="bold">Available Store Credit</Text>
-        <BlockStack spacing="tight">
-          <Text size="extraLarge" emphasis="bold">
-            ${loyaltyData.balance.toFixed(2)} {loyaltyData.currency}
-          </Text>
-          <Text size="small" appearance="subdued">
-            Earned ${loyaltyData.totalEarned.toFixed(2)} total
-          </Text>
-        </BlockStack>
-      </BlockStack>
-
-      <Divider />
+      {/* Rewards Program Header */}
+      <Text size="large" emphasis="bold">Rewards Program</Text>
 
       {/* Membership Tier Card */}
-      <BlockStack spacing="base">
-        <Text size="large" emphasis="bold">Membership Tier</Text>
-        {loyaltyData.tier ? (
+      {loyaltyData.tier && (
+        <View
+          border="base"
+          cornerRadius="base"
+          padding="base"
+          background="base"
+        >
           <BlockStack spacing="base">
-            {/* Current Tier */}
-            <InlineStack spacing="tight" blockAlignment="center">
-              <Badge tone="success">{loyaltyData.tier.name}</Badge>
-              <Text emphasis="bold">{loyaltyData.tier.cashbackPercent}% Cashback</Text>
-            </InlineStack>
+            <BlockStack spacing="tight">
+              <Text appearance="subdued">Current tier</Text>
+              <InlineStack spacing="tight" blockAlignment="center">
+                <Text size="large" emphasis="bold">{loyaltyData.tier.name}</Text>
+                <Badge tone="success">{loyaltyData.tier.cashbackPercent}% cashback</Badge>
+              </InlineStack>
+            </BlockStack>
 
             {/* Next Tier Progress */}
             {loyaltyData.nextTier && (
               <BlockStack spacing="tight">
-                <Text size="small" emphasis="bold">
-                  Progress to {loyaltyData.nextTier.name}
+                <Divider />
+                <Text size="medium" emphasis="bold">
+                  Next: {loyaltyData.nextTier.name}
                 </Text>
                 <Text size="small" appearance="subdued">
-                  Spend ${loyaltyData.amountToNextTier.toFixed(2)} more to unlock {loyaltyData.nextTier.cashbackPercent}% cashback
+                  Spend {loyaltyData.currency} {loyaltyData.amountToNextTier.toFixed(2)} more to unlock {loyaltyData.nextTier.cashbackPercent}% cashback
                 </Text>
-                <InlineStack spacing="tight" blockAlignment="center">
-                  <Text size="small" appearance="subdued">
-                    {loyaltyData.progressToNextTier.toFixed(0)}% complete
-                  </Text>
-                </InlineStack>
+                <Text size="small" appearance="subdued">
+                  {loyaltyData.progressToNextTier.toFixed(0)}% complete
+                </Text>
               </BlockStack>
             )}
 
-            {/* Stats Summary */}
+            {/* Stats */}
             <BlockStack spacing="tight">
               <Divider />
               <InlineStack spacing="base">
                 <BlockStack spacing="extraTight">
-                  <Text size="small" appearance="subdued">Total Spent</Text>
-                  <Text emphasis="bold">${loyaltyData.stats.totalSpent.toFixed(2)}</Text>
+                  <Text size="small" appearance="subdued">Total spent</Text>
+                  <Text emphasis="bold">{loyaltyData.currency} {loyaltyData.stats.totalSpent.toFixed(2)}</Text>
                 </BlockStack>
                 <BlockStack spacing="extraTight">
                   <Text size="small" appearance="subdued">Orders</Text>
@@ -237,36 +231,56 @@ function HelloWorldBlock() {
               </InlineStack>
             </BlockStack>
           </BlockStack>
-        ) : (
-          <Text size="small" appearance="subdued">
-            No tier assigned yet. Start shopping to earn your first tier!
-          </Text>
-        )}
-      </BlockStack>
+        </View>
+      )}
 
-      {/* Recent Transactions */}
+      {/* Store Credit Balance Card */}
+      <View
+        border="base"
+        cornerRadius="base"
+        padding="base"
+        background="base"
+      >
+        <BlockStack spacing="tight">
+          <Text appearance="subdued">Available store credit</Text>
+          <Text size="extraLarge" emphasis="bold">
+            {loyaltyData.currency} {loyaltyData.balance.toFixed(2)}
+          </Text>
+          {loyaltyData.totalEarned > 0 && (
+            <Text size="small" appearance="subdued">
+              Total earned: {loyaltyData.currency} {loyaltyData.totalEarned.toFixed(2)}
+            </Text>
+          )}
+        </BlockStack>
+      </View>
+
+      {/* Recent Activity Card */}
       {loyaltyData.recentTransactions.length > 0 && (
-        <>
-          <Divider />
+        <View
+          border="base"
+          cornerRadius="base"
+          padding="base"
+          background="base"
+        >
           <BlockStack spacing="base">
-            <Text size="large" emphasis="bold">Recent Activity</Text>
+            <Text size="medium" emphasis="bold">Recent activity</Text>
             <BlockStack spacing="base">
-              {loyaltyData.recentTransactions.slice(0, 5).map((tx) => (
-                <InlineStack key={tx.id} spacing="base" blockAlignment="start">
-                  <Badge tone={tx.amount > 0 ? 'success' : 'attention'}>
-                    {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)}
-                  </Badge>
+              {loyaltyData.recentTransactions.slice(0, 3).map((tx) => (
+                <InlineStack key={tx.id} spacing="base" blockAlignment="start" inlineAlignment="space-between">
                   <BlockStack spacing="extraTight">
                     <Text size="small">{tx.description}</Text>
                     <Text size="small" appearance="subdued">
                       {new Date(tx.date).toLocaleDateString()}
                     </Text>
                   </BlockStack>
+                  <Text size="small" emphasis="bold">
+                    {tx.amount > 0 ? '+' : ''}{loyaltyData.currency} {tx.amount.toFixed(2)}
+                  </Text>
                 </InlineStack>
               ))}
             </BlockStack>
           </BlockStack>
-        </>
+        </View>
       )}
     </BlockStack>
   );
