@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && npm run copy-css",
+    "copy-css": "cp styles.css ../theme-app-extension-rewardspro/assets/membership-widget.css",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

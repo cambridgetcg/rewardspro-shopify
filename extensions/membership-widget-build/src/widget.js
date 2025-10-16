@@ -20,8 +20,7 @@
       console.log('[MembershipWidget JS] Extracted data:', this.data);
 
       this.state = {
-        isExpanded: this.getStoredState(),
-        isVisible: true
+        isExpanded: this.getStoredState()
       };
 
       console.log('[MembershipWidget JS] Initial state:', this.state);
@@ -183,11 +182,13 @@
               <span class="membership-widget__icon">🌟</span>
               <span class="membership-widget__tier-name">${this.escapeHtml(this.data.tier)}</span>
             </div>
-            <button class="membership-widget__toggle" aria-label="${this.state.isExpanded ? 'Collapse widget' : 'Expand widget'}">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="membership-widget__toggle-icon ${this.state.isExpanded ? 'membership-widget__toggle-icon--expanded' : ''}">
-                <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
+            ${this.state.isExpanded ? `
+              <button class="membership-widget__toggle" aria-label="Collapse widget">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="membership-widget__toggle-icon membership-widget__toggle-icon--expanded">
+                  <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            ` : ''}
           </div>
           ${this.state.isExpanded ? `
             <div class="membership-widget__content">
@@ -200,11 +201,6 @@
               ` : ''}
             </div>
           ` : ''}
-          <button class="membership-widget__close" aria-label="Close membership widget" title="Close">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
         </div>
       `;
     }
@@ -243,12 +239,6 @@
           this.toggle();
         });
       }
-
-      // Close button
-      const closeBtn = widget.querySelector('.membership-widget__close');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => this.close());
-      }
     }
 
     toggle() {
@@ -256,11 +246,6 @@
       this.saveState();
       this.render();
       this.attachEventListeners();
-    }
-
-    close() {
-      this.state.isVisible = false;
-      this.root.innerHTML = '';
     }
   }
 
