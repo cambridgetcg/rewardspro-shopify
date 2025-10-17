@@ -293,19 +293,45 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Check widget status using TWO methods:
-    // 1. GraphQL Admin API - checks app embed block in theme settings (modern approach)
-    // 2. Heartbeat - checks if widget is actually rendering on storefront
+    // Check widget status - SEPARATED LOGIC:
+    // 1. Check if merchant manually dismissed the banner
+    // 2. If not dismissed, run detection: GraphQL theme check + heartbeat
+    // 3. Only hide banner if EITHER dismissed OR actually detected
     let hasWidget = false;
+    let widgetDismissed = false;
     let widgetDetectionMethod = "none";
 
     try {
-      console.log("[Dashboard] Checking widget status in theme...");
+      console.log("[Dashboard] Checking widget status...");
 
-      // METHOD 1: Check GraphQL for app embed block in theme settings
-      // Following Shopify best practices: https://shopify.dev/docs/apps/build/online-store/theme-app-extensions
-      let savedInTheme = false;
-      try {
+      // FIRST: Check if merchant dismissed the banner manually
+      const widgetSettings = await db.shopSettings.findUnique({
+        where: { shop },
+        select: {
+          widgetSetupDismissed: true,
+          widgetLastHeartbeat: true,
+          widgetIsActive: true,
+        }
+      });
+
+      widgetDismissed = widgetSettings?.widgetSetupDismissed || false;
+
+      if (widgetDismissed) {
+        // Merchant clicked "Enable widget" - respect their choice and hide banner
+        hasWidget = true;
+        widgetDetectionMethod = "dismissed";
+        console.log(`[Dashboard] Widget banner dismissed by merchant - skipping detection`);
+      } else {
+        // Merchant hasn't dismissed - run actual detection
+        console.log("[Dashboard] Running widget detection (not dismissed yet)...");
+
+        // METHOD 1: Check GraphQL for app embed block in theme settings
+        // Following Shopify best practices: https://shopify.dev/docs/apps/build/online-store/theme-app-extensions
+        // NOTE: GraphQL Admin API is the recommended approach for querying theme data
+        // REST Admin API with themes/${themeId}/assets.json is deprecated for this use case
+        // GraphQL provides better structured access to theme files and settings
+        let savedInTheme = false;
+        try {
         // Step 1: Get the main (published) theme
         const themeQuery = `#graphql
           query {
@@ -394,48 +420,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         console.error("[Dashboard] Error checking theme settings:", error);
       }
 
-      // METHOD 2: Check heartbeat from storefront widget
-      let activeOnStorefront = false;
-      try {
-        const shopSettings = await db.shopSettings.findUnique({
-          where: { shop },
-          select: {
-            widgetLastHeartbeat: true,
-            widgetIsActive: true,
-            widgetSetupDismissed: true,
-            customerAccountBlockDismissed: true,
-          }
-        });
+        // METHOD 2: Check heartbeat from storefront widget
+        let activeOnStorefront = false;
+        if (widgetSettings?.widgetLastHeartbeat) {
+          const lastHeartbeat = new Date(widgetSettings.widgetLastHeartbeat);
+          const now = new Date();
+          const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
 
-        // If merchant clicked "Enable widget" button, hide the banner
-        if (shopSettings?.widgetSetupDismissed) {
-          hasWidget = true; // Treat as if widget is enabled (hide banner)
-          widgetDetectionMethod = "dismissed";
-          console.log(`[Dashboard] Widget setup banner dismissed by merchant`);
+          // Consider active if heartbeat within last 5 minutes
+          activeOnStorefront = minutesSinceHeartbeat < 5;
+
+          console.log(`[Dashboard] Widget heartbeat: ${lastHeartbeat.toISOString()}`);
+          console.log(`[Dashboard] Minutes since heartbeat: ${minutesSinceHeartbeat.toFixed(2)}`);
+          console.log(`[Dashboard] Widget active on storefront: ${activeOnStorefront}`);
         } else {
-          // Check heartbeat
-          if (shopSettings?.widgetLastHeartbeat) {
-            const lastHeartbeat = new Date(shopSettings.widgetLastHeartbeat);
-            const now = new Date();
-            const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
-
-            // Consider active if heartbeat within last 5 minutes
-            activeOnStorefront = minutesSinceHeartbeat < 5;
-
-            console.log(`[Dashboard] Widget heartbeat: ${lastHeartbeat.toISOString()}`);
-            console.log(`[Dashboard] Minutes since heartbeat: ${minutesSinceHeartbeat.toFixed(2)}`);
-            console.log(`[Dashboard] Widget active on storefront: ${activeOnStorefront}`);
-          } else {
-            console.log(`[Dashboard] No widget heartbeat recorded yet`);
-          }
+          console.log(`[Dashboard] No widget heartbeat recorded yet`);
         }
-      } catch (error) {
-        console.error("[Dashboard] Error checking widget heartbeat:", error);
-      }
 
-      // Widget is considered "enabled" if EITHER method detects it OR if dismissed
-      // This handles both preview state and actual live rendering
-      if (widgetDetectionMethod !== "dismissed") {
+        // Widget is considered "enabled" if EITHER method detects it
+        // This handles both preview state and actual live rendering
         hasWidget = savedInTheme || activeOnStorefront;
 
         if (activeOnStorefront && savedInTheme) {
@@ -445,9 +448,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         } else if (savedInTheme) {
           widgetDetectionMethod = "theme-settings";
         }
-      }
 
-      console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
+        console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
+      }
 
     } catch (error) {
       console.error("[Dashboard] Error checking widget status:", error);
@@ -820,15 +823,26 @@ export default function Dashboard() {
 
   // Auto-refresh when window regains focus (user returns from theme editor)
   // This implements the recommended UX flow from Shopify's developer guide
+  // Guard: Only reload if page has been open for at least 5 seconds to avoid annoyance
   useEffect(() => {
+    const pageOpenTime = Date.now();
+    const MIN_TIME_BEFORE_RELOAD = 5000; // 5 seconds
+
     const handleWindowFocus = () => {
       // Only reload if widget is not detected (to check if user enabled it)
       if (!data.hasWidget) {
-        console.log('[Dashboard] Window focused - checking if widget was enabled...');
-        // Small delay to ensure theme settings are saved
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        const timeElapsed = Date.now() - pageOpenTime;
+
+        // Guard: Only reload if page has been open long enough
+        if (timeElapsed >= MIN_TIME_BEFORE_RELOAD) {
+          console.log('[Dashboard] Window focused - checking if widget was enabled...');
+          // Small delay to ensure theme settings are saved
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          console.log('[Dashboard] Window focused but page recently opened - skipping reload');
+        }
       }
     };
 
@@ -1004,10 +1018,19 @@ export default function Dashboard() {
                   </Card>
                 </Box>
 
+                <Box paddingBlock="200">
+                  <Banner tone="info">
+                    <Text variant="bodySm" as="p">
+                      Note: Clicking "Enable widget in theme editor" will open the theme editor and hide this reminder permanently.
+                      The banner will disappear once you click the button.
+                    </Text>
+                  </Banner>
+                </Box>
+
                 <Button
                   onClick={async () => {
                     try {
-                      // Dismiss the banner
+                      // Dismiss the banner permanently
                       await fetch('/api/dismiss-widget-banner', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1032,7 +1055,7 @@ export default function Dashboard() {
 
         {/* Customer Account Block Setup - Only show if not enabled */}
         {!data.hasCustomerAccountBlock && (
-          <Layout.Section>
+          <Layout.Section data-banner="customer-account-block">
             <Banner
               title="Enable customer account membership block"
               tone="info"
@@ -1071,28 +1094,51 @@ export default function Dashboard() {
                   </ol>
                 </BlockStack>
 
-                <Button
-                  onClick={async () => {
-                    try {
-                      // Dismiss the banner
-                      await fetch('/api/dismiss-customer-account-block', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                      });
-                    } catch (error) {
-                      console.error('Failed to dismiss banner:', error);
-                    }
-                    // Open customer account editor
-                    // Using the customer account settings URL as the deep link
-                    window.open(
-                      `https://${data.shop}/admin/settings/customer_accounts`,
-                      '_blank'
-                    );
-                  }}
-                  variant="primary"
-                >
-                  Enable customer account block
-                </Button>
+                <Box paddingBlock="200">
+                  <Banner tone="info">
+                    <Text variant="bodySm" as="p">
+                      Note: Clicking "Enable customer account block" will open the editor and hide this reminder permanently.
+                      If you're not ready yet, use "Remind me later" instead.
+                    </Text>
+                  </Banner>
+                </Box>
+
+                <InlineStack gap="200">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        // Dismiss the banner permanently
+                        await fetch('/api/dismiss-customer-account-block', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                        });
+                      } catch (error) {
+                        console.error('Failed to dismiss banner:', error);
+                      }
+                      // Open customer account editor
+                      // Using the customer account settings URL as the deep link
+                      window.open(
+                        `https://${data.shop}/admin/settings/customer_accounts`,
+                        '_blank'
+                      );
+                    }}
+                    variant="primary"
+                  >
+                    Enable customer account block
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      // Simply hide banner for this session without persisting
+                      // Banner will show again on next page load
+                      const banner = document.querySelector('[data-banner="customer-account-block"]');
+                      if (banner?.parentElement) {
+                        banner.parentElement.style.display = 'none';
+                      }
+                    }}
+                  >
+                    Remind me later
+                  </Button>
+                </InlineStack>
               </BlockStack>
             </Banner>
           </Layout.Section>
