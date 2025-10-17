@@ -1308,7 +1308,7 @@ export default function OrdersPage() {
     message: string;
     orderIds: string[];
     orders?: any[]; // Full order data
-    action: "process-qualifying" | "process-selected";
+    action: "process-all" | "process-selected";
   } | null>(null);
 
   const isLoading = navigation.state === "loading" || navigation.state === "submitting";
@@ -1601,8 +1601,8 @@ export default function OrdersPage() {
     );
   }, [submit]);
 
-  // Process qualifying orders (replaces Process All Pending)
-  const handleProcessQualifying = useCallback(() => {
+  // Process all orders (replaces Process All Pending)
+  const handleProcessAll = useCallback(() => {
     // Get all qualifying cashback orders using the same logic as qualifyingOrdersCount
     const qualifyingOrders = orders.filter(order => {
       const cashbackAmountNum = order.cashbackAmount ? Number(order.cashbackAmount) : 0;
@@ -1639,11 +1639,11 @@ export default function OrdersPage() {
 
     // Show confirmation modal with full order data
     setConfirmModalData({
-      title: "Process Qualifying Orders",
+      title: "Process All Orders",
       message: `Are you sure you want to process cashback for ${qualifyingOrders.length} qualifying order${qualifyingOrders.length > 1 ? 's' : ''}?`,
       orderIds: qualifyingOrders.map(o => o.id),
       orders: qualifyingOrders, // Pass full order data
-      action: "process-qualifying"
+      action: "process-all"
     });
     setShowConfirmModal(true);
   }, [orders]);
@@ -1928,10 +1928,10 @@ export default function OrdersPage() {
         secondaryActions={[
           {
             content: qualifyingOrdersCount > 0
-              ? `Process Qualifying (${qualifyingOrdersCount})`
-              : "Process Qualifying",
+              ? `Process All (${qualifyingOrdersCount})`
+              : "Process All",
             icon: CashDollarIcon,
-            onAction: handleProcessQualifying,
+            onAction: handleProcessAll,
             loading: isProcessingAll,
             disabled: qualifyingOrdersCount === 0,
           },
