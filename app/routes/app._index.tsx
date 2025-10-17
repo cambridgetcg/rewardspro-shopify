@@ -1182,10 +1182,11 @@ export default function Dashboard() {
                       } catch (error) {
                         console.error('Failed to dismiss banner:', error);
                       }
-                      // Open customer account editor
-                      // Using the customer account settings URL as the deep link
+                      // Open customer account profile editor with app blocks context
+                      // Extract shop name from shop domain (e.g., "store.myshopify.com" -> "store")
+                      const shopName = data.shop.split('.')[0];
                       window.open(
-                        `https://${data.shop}/admin/settings/customer_accounts`,
+                        `https://admin.shopify.com/store/${shopName}/settings/checkout/editor/profiles/6001787264?page=profile&context=apps`,
                         '_blank'
                       );
                     }}
