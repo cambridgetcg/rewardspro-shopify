@@ -7,6 +7,7 @@ import { decodeSessionToken, type DecodedSessionToken } from '../utils/sessionTo
  */
 export function useSessionToken() {
   const { sessionToken } = useApi();
+  const [tokenString, setTokenString] = useState<string | null>(null);
   const [decodedToken, setDecodedToken] = useState<DecodedSessionToken | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export function useSessionToken() {
         });
 
         if (isMounted) {
+          setTokenString(token); // Store the actual token string
           setDecodedToken(decoded);
           console.log('[useSessionToken] Token state updated');
         }
@@ -68,7 +70,7 @@ export function useSessionToken() {
   }, [sessionToken]);
 
   return {
-    sessionToken,
+    sessionToken: tokenString, // Return the actual token string, not the API object
     decodedToken,
     customerId: decodedToken?.customerId,
     isAuthenticated: !!decodedToken?.customerId,

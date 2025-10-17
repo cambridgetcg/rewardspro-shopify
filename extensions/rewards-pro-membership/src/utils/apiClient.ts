@@ -1,4 +1,3 @@
-import type { SessionToken } from '@shopify/ui-extensions/customer-account';
 import type { ApiResponse } from '../types/session';
 
 /**
@@ -28,7 +27,7 @@ export class ApiClient {
    * Makes an authenticated API request with session token
    */
   async request<T = unknown>(
-    sessionToken: SessionToken,
+    sessionToken: string,
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
@@ -43,16 +42,13 @@ export class ApiClient {
         console.log(`[ApiClient:${requestId}] Timeout: ${this.timeout}ms`);
       }
 
-      // Get a fresh session token
+      // Use the provided session token string
       if (this.enableDebugLogs) {
-        console.log(`[ApiClient:${requestId}] Getting session token...`);
+        console.log(`[ApiClient:${requestId}] Using session token, length: ${sessionToken.length}`);
+        console.log(`[ApiClient:${requestId}] Token preview: ${sessionToken.substring(0, 50)}...`);
       }
-      const token = await sessionToken.get();
 
-      if (this.enableDebugLogs) {
-        console.log(`[ApiClient:${requestId}] Session token obtained, length: ${token.length}`);
-        console.log(`[ApiClient:${requestId}] Token preview: ${token.substring(0, 50)}...`);
-      }
+      const token = sessionToken;
 
       // Create abort controller for timeout
       const controller = new AbortController();
@@ -150,7 +146,7 @@ export class ApiClient {
    * GET request
    */
   async get<T = unknown>(
-    sessionToken: SessionToken,
+    sessionToken: string,
     endpoint: string
   ): Promise<ApiResponse<T>> {
     return this.request<T>(sessionToken, endpoint, {
@@ -162,7 +158,7 @@ export class ApiClient {
    * POST request
    */
   async post<T = unknown>(
-    sessionToken: SessionToken,
+    sessionToken: string,
     endpoint: string,
     body?: unknown
   ): Promise<ApiResponse<T>> {
@@ -176,7 +172,7 @@ export class ApiClient {
    * PUT request
    */
   async put<T = unknown>(
-    sessionToken: SessionToken,
+    sessionToken: string,
     endpoint: string,
     body?: unknown
   ): Promise<ApiResponse<T>> {
@@ -190,7 +186,7 @@ export class ApiClient {
    * DELETE request
    */
   async delete<T = unknown>(
-    sessionToken: SessionToken,
+    sessionToken: string,
     endpoint: string
   ): Promise<ApiResponse<T>> {
     return this.request<T>(sessionToken, endpoint, {
@@ -203,9 +199,9 @@ export class ApiClient {
  * Creates a configured API client instance
  */
 export function createApiClient(config?: Partial<ApiClientConfig>): ApiClient {
-  // Default configuration - can be overridden
+  // Default configuration - uses relative URL to work in all environments
   const defaultConfig: ApiClientConfig = {
-    baseUrl: 'https://rewardspro-production.vercel.app/api/customer-account/loyalty',
+    baseUrl: '/api/customer-account/loyalty',
     timeout: 10000,
     enableDebugLogs: false,
   };

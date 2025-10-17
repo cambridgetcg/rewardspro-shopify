@@ -45,6 +45,27 @@ function checkHeartbeatRateLimit(key: string, limit = 30): boolean {
   return true;
 }
 
+// Export loader to handle OPTIONS preflight requests
+// Remix routes need both loader and action for proper CORS handling
+export async function loader({ request }: ActionFunctionArgs) {
+  const origin = request.headers.get('origin');
+
+  // Only handle OPTIONS preflight in loader
+  if (request.method === 'OPTIONS') {
+    console.log('[Heartbeat] OPTIONS preflight in loader - returning 204');
+    return new Response(null, {
+      status: 204,
+      headers: getCorsHeaders(origin)
+    });
+  }
+
+  // GET requests not allowed - redirect to action
+  return json(
+    { error: "Method not allowed", message: "Use POST for heartbeat" },
+    { status: 405, headers: getCorsHeaders(origin) }
+  );
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   const startTime = Date.now();
   const requestId = `heartbeat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -53,24 +74,6 @@ export async function action({ request }: ActionFunctionArgs) {
   console.log(`\n[${requestId}] ========== HEARTBEAT REQUEST ==========`);
   console.log(`[${requestId}] Method: ${request.method}`);
   console.log(`[${requestId}] Origin: ${origin}`);
-
-  // Handle OPTIONS preflight
-  if (request.method === 'OPTIONS') {
-    console.log(`[${requestId}] OPTIONS preflight - returning 204`);
-    return new Response(null, {
-      status: 204,
-      headers: getCorsHeaders(origin)
-    });
-  }
-
-  // Only allow POST
-  if (request.method !== 'POST') {
-    console.warn(`[${requestId}] Method not allowed: ${request.method}`);
-    return json(
-      { error: "Method not allowed", message: "Only POST requests are supported" },
-      { status: 405, headers: getCorsHeaders(origin) }
-    );
-  }
 
   try {
     // Step 1: Authenticate request

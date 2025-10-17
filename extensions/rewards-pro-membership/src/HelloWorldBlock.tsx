@@ -177,9 +177,10 @@ function HelloWorldBlock() {
       try {
         console.log('[HelloWorldBlock] Sending heartbeat signal...');
 
-        // Create a heartbeat-specific API client with the heartbeat endpoint
+        // Use relative URL to work in all environments (dev, staging, prod)
+        // The extension will make the request from the shop's domain context
         const heartbeatApiClient = createApiClient({
-          baseUrl: 'https://rewardspro-production.vercel.app/api/customer-account/heartbeat',
+          baseUrl: '/api/customer-account/heartbeat',
           timeout: 5000,
           enableDebugLogs: false,
         });
@@ -193,7 +194,7 @@ function HelloWorldBlock() {
         }
       } catch (err) {
         // Don't show error to user, just log it
-        console.error('[HelloWorldBlock] Heartbeat error:', err);
+        console.error('[HelloWorldBlock] Heartbeat failed:', err);
       }
     }
 
