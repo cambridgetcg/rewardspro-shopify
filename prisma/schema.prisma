@@ -86,12 +86,16 @@ model ShopSettings {
   customersInitialSynced  Boolean             @default(false)  // Has initial customer sync completed
   customersSyncInProgress Boolean             @default(false)  // Is customer sync currently running
 
-  // Widget Heartbeat Tracking
-  widgetLastHeartbeat     DateTime?           // Last time widget sent heartbeat signal
-  widgetIsActive          Boolean             @default(false)  // Is widget currently active (heartbeat within last 2 min)
+  // Widget Detection (Theme-based)
+  widgetLastHeartbeat     DateTime?           // LEGACY: No longer used (heartbeat retired in favor of theme detection)
+  widgetIsActive          Boolean             @default(false)  // Cache of last known widget status from theme detection
   widgetSetupDismissed    Boolean             @default(false)  // Has merchant clicked "Enable widget" button
+
+  // Customer Account Block Detection (GraphQL-based with heartbeat fallback)
   customerAccountBlockDismissed Boolean       @default(false)  // Has merchant clicked "Enable customer account block" button
-  customerAccountBlockLastHeartbeat DateTime?  // Last time customer account block sent heartbeat signal
+  customerAccountBlockIsActive  Boolean       @default(false)  // Cache of last known block status from GraphQL detection
+  customerAccountBlockLastHeartbeat DateTime?  // Fallback: Last time customer account block sent heartbeat signal
+
   currencySelected        Boolean             @default(false)  // Has merchant selected cashback currency
 
   // Metadata
@@ -99,7 +103,7 @@ model ShopSettings {
   updatedAt               DateTime            @updatedAt
 
   @@index([shop])
-  @@index([widgetLastHeartbeat])  // For efficient heartbeat cleanup queries
+  @@index([widgetLastHeartbeat])  // LEGACY: Can be removed in future migration
   @@index([customerAccountBlockLastHeartbeat])  // For efficient customer account block heartbeat queries
 }
 

@@ -311,6 +311,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         widgetSetupDismissed: true,
         customerAccountBlockDismissed: true,
         customerAccountBlockLastHeartbeat: true,
+        customerAccountBlockIsActive: true,
       }
     });
 
@@ -333,7 +334,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Run GraphQL theme detection
       // Check both current.blocks AND current.enabled_app_embeds
       let detectedInTheme = false;
-      let detectedViaHeartbeat = false;
       const cachedStatus = shopSettings?.widgetIsActive || false;
 
       try {
@@ -437,33 +437,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           console.warn("[Dashboard] Missing read_themes scope - merchant needs to re-authorize");
         }
 
-        // Continue to check heartbeat and cache
-      }
-
-      // Check heartbeat as secondary confirmation
-      if (shopSettings?.widgetLastHeartbeat) {
-        const lastHeartbeat = new Date(shopSettings.widgetLastHeartbeat);
-        const now = new Date();
-        const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
-
-        // Widget is active if heartbeat within last 5 minutes
-        detectedViaHeartbeat = minutesSinceHeartbeat < 5;
-        console.log(`[Dashboard] Heartbeat check: ${detectedViaHeartbeat} (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
+        // Continue to check cache for fallback
       }
 
       // Determine final status with fallback logic
       let newCacheValue: boolean | null = null; // Track if cache needs update
 
-      if (detectedInTheme || detectedViaHeartbeat) {
+      if (detectedInTheme) {
         hasWidget = true;
-
-        if (detectedInTheme && detectedViaHeartbeat) {
-          widgetDetectionMethod = "theme+heartbeat";
-        } else if (detectedInTheme) {
-          widgetDetectionMethod = "theme";
-        } else {
-          widgetDetectionMethod = "heartbeat";
-        }
+        widgetDetectionMethod = "theme";
 
         // Mark cache for update only if it changed
         if (!cachedStatus) {
@@ -505,25 +487,131 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Leave hasWidget = false, widgetDetectionMethod = "none"
     }
 
-    // Check customer account block status with heartbeat detection
+    // Check customer account block status with GraphQL detection
     // IMPORTANT: Dismissal is SEPARATE from detection
     // We track if banner was dismissed, but still need to detect if block is actually installed
-    // Similar to widget detection, we use heartbeat to verify actual installation
+    // Detection strategy: GraphQL (primary) → Cache (secondary) → Heartbeat (tertiary fallback)
+    const CUSTOMER_ACCOUNT_APP_KEY = "RewardsproMembership"; // your app's key
+    const CUSTOMER_ACCOUNT_TARGET = "customer-account.profile.block.render";
+
     let hasCustomerAccountBlock = false;
+    let customerAccountDetectionReason: "graphql" | "cached" | "heartbeat" | "none" = "none";
 
-    if (shopSettings?.customerAccountBlockLastHeartbeat) {
-      const lastHeartbeat = new Date(shopSettings.customerAccountBlockLastHeartbeat);
-      const now = new Date();
-      const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
+    try {
+      console.log("[Dashboard] Starting customer account block detection...");
 
-      // Block is active if heartbeat within last 5 minutes
-      hasCustomerAccountBlock = minutesSinceHeartbeat < 5;
-      console.log(`[Dashboard] Customer account block heartbeat: ${hasCustomerAccountBlock} (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
-    } else {
-      console.log(`[Dashboard] Customer account block: No heartbeat detected`);
+      // PRIMARY: Try GraphQL detection first
+      try {
+        const query = `#graphql
+          query CustomerAccountBlocks($appKey: String!, $target: CustomerAccountAppExtensionTarget!) {
+            customerAccountAppExtensionRegistrations(appKeys: [$appKey]) {
+              nodes {
+                appKey
+                registration {
+                  ... on CustomerAccountProfileComponentRegistration {
+                    id
+                    target
+                    handle
+                    active
+                  }
+                  ... on CustomerAccountProfileBlockRegistration {
+                    id
+                    target
+                    handle
+                    active
+                  }
+                  ... on CustomerAccountOrderStatusRegistration {
+                    id
+                    target
+                    handle
+                    active
+                  }
+                }
+              }
+            }
+          }
+        `;
+
+        const result = await admin.graphql(query, {
+          variables: {
+            appKey: CUSTOMER_ACCOUNT_APP_KEY,
+            target: CUSTOMER_ACCOUNT_TARGET,
+          },
+        });
+
+        const jsonResult = await result.json();
+        const nodes = jsonResult?.data?.customerAccountAppExtensionRegistrations?.nodes ?? [];
+
+        const match = nodes
+          .flatMap((node: any) => node.registration ? [node.registration] : [])
+          .find((registration: any) => {
+            return (
+              registration?.target === CUSTOMER_ACCOUNT_TARGET &&
+              registration?.active === true
+            );
+          });
+
+        if (match) {
+          hasCustomerAccountBlock = true;
+          customerAccountDetectionReason = "graphql";
+          console.log(`[Dashboard] ✓ Customer account block detected via GraphQL: ${match.handle}`);
+
+          // Update cache with positive detection (only if changed)
+          if (!shopSettings?.customerAccountBlockIsActive) {
+            try {
+              await db.shopSettings.update({
+                where: { shop },
+                data: {
+                  customerAccountBlockIsActive: true,
+                  updatedAt: new Date(),
+                },
+              });
+              console.log("[Dashboard] Updated customer account block cache: true");
+            } catch (e) {
+              console.error("[Dashboard] Failed to update customer account block cache:", e);
+            }
+          }
+        } else {
+          console.log("[Dashboard] Customer account block not found via GraphQL");
+        }
+      } catch (error: any) {
+        console.error("[Dashboard] GraphQL customer account block detection failed:", error);
+
+        // Check if it's a scope/authorization issue
+        if (error?.message?.includes('403') ||
+            error?.message?.includes('Unauthorized') ||
+            error?.message?.includes('read_customer_accounts')) {
+          console.warn("[Dashboard] Missing read_customer_accounts scope - merchant needs to re-authorize");
+        }
+      }
+
+      // SECONDARY: Fall back to cached status if GraphQL detection failed
+      if (!hasCustomerAccountBlock && shopSettings?.customerAccountBlockIsActive) {
+        hasCustomerAccountBlock = true;
+        customerAccountDetectionReason = "cached";
+        console.log(`[Dashboard] Using cached customer account block status (GraphQL unavailable)`);
+      }
+
+      // TERTIARY: Fall back to heartbeat as last resort
+      if (!hasCustomerAccountBlock && shopSettings?.customerAccountBlockLastHeartbeat) {
+        const lastHeartbeat = new Date(shopSettings.customerAccountBlockLastHeartbeat);
+        const now = new Date();
+        const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
+
+        // Block is active if heartbeat within last 5 minutes
+        if (minutesSinceHeartbeat < 5) {
+          hasCustomerAccountBlock = true;
+          customerAccountDetectionReason = "heartbeat";
+          console.log(`[Dashboard] Customer account block detected via heartbeat fallback (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
+        }
+      }
+
+      console.log(`[Dashboard] Final customer account block status: ${hasCustomerAccountBlock} (method: ${customerAccountDetectionReason}, dismissed: ${customerAccountBlockDismissed})`);
+
+    } catch (error) {
+      console.error("[Dashboard] Critical error in customer account block detection:", error);
+      // Leave hasCustomerAccountBlock = false, customerAccountDetectionReason = "none"
     }
-
-    console.log(`[Dashboard] Customer account block: ${hasCustomerAccountBlock} (dismissed: ${customerAccountBlockDismissed})`);
 
     // Fetch all data in parallel for performance
     // Note: shopSettings already fetched above, so we fetch only remaining data here
@@ -1065,7 +1153,7 @@ export default function Dashboard() {
                   <Banner tone="info">
                     <Text variant="bodySm" as="p">
                       Note: Clicking "Enable widget in theme editor" will open the theme editor and hide this full reminder.
-                      The widget will only show as enabled once we detect it's actually installed (via theme detection or heartbeat signal).
+                      The widget will only show as enabled once we detect it's actually installed (via theme detection).
                     </Text>
                   </Banner>
                 </Box>
@@ -1120,8 +1208,8 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* Customer Account Block Setup - Full warning if not dismissed */}
-        {!data.hasCustomerAccountBlock && !data.customerAccountBlockDismissed && (
+        {/* Customer Account Block Setup - Always show until detected */}
+        {!data.hasCustomerAccountBlock && (
           <Layout.Section data-banner="customer-account-block">
             <Banner
               title="Enable customer account membership block"
@@ -1164,73 +1252,25 @@ export default function Dashboard() {
                 <Box paddingBlock="200">
                   <Banner tone="info">
                     <Text variant="bodySm" as="p">
-                      Note: Clicking "Enable customer account block" will open the editor and hide this full reminder.
-                      The block will only show as enabled once we detect it's actually installed (via heartbeat signal).
+                      Note: The block will only show as enabled once we detect it's actually installed (via GraphQL detection).
+                      This onboarding guide will persist until the block is detected as active.
                     </Text>
                   </Banner>
                 </Box>
 
-                <InlineStack gap="200">
-                  <Button
-                    onClick={async () => {
-                      try {
-                        // Dismiss the banner permanently (but detection still runs)
-                        await fetch('/api/dismiss-customer-account-block', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                        });
-                      } catch (error) {
-                        console.error('Failed to dismiss banner:', error);
-                      }
-                      // Open customer account profile editor with app blocks context
-                      // Extract shop name from shop domain (e.g., "store.myshopify.com" -> "store")
-                      const shopName = data.shop.split('.')[0];
-                      window.open(
-                        `https://admin.shopify.com/store/${shopName}/settings/checkout/editor/profiles/6001787264?page=profile&context=apps`,
-                        '_blank'
-                      );
-                    }}
-                    variant="primary"
-                  >
-                    Enable customer account block
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      // Simply hide banner for this session without persisting
-                      // Banner will show again on next page load
-                      const banner = document.querySelector('[data-banner="customer-account-block"]');
-                      if (banner?.parentElement) {
-                        banner.parentElement.style.display = 'none';
-                      }
-                    }}
-                  >
-                    Remind me later
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Banner>
-          </Layout.Section>
-        )}
-
-        {/* Softer Customer Account Block Reminder - Show if dismissed but not detected */}
-        {!data.hasCustomerAccountBlock && data.customerAccountBlockDismissed && (
-          <Layout.Section>
-            <Banner tone="info">
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  You dismissed the customer account block setup earlier. Remember to add the membership block to your customer account profile when you're ready — it enhances the customer experience by showing loyalty info directly on their account page.
-                </Text>
                 <Button
                   onClick={() => {
+                    // Open customer account profile editor with app blocks context
+                    // Extract shop name from shop domain (e.g., "store.myshopify.com" -> "store")
                     const shopName = data.shop.split('.')[0];
                     window.open(
                       `https://admin.shopify.com/store/${shopName}/settings/checkout/editor/profiles/6001787264?page=profile&context=apps`,
                       '_blank'
                     );
                   }}
-                  variant="plain"
+                  variant="primary"
                 >
-                  Enable block now
+                  Enable customer account block
                 </Button>
               </BlockStack>
             </Banner>
