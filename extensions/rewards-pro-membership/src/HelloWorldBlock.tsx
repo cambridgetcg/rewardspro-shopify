@@ -215,6 +215,30 @@ function HelloWorldBlock() {
     };
   }, [isAuthenticated, sessionToken, shopDomain]);
 
+  // Placeholder for unauthenticated state (useful in theme editor / testing)
+  if (!isAuthenticated) {
+    return (
+      <View
+        border="base"
+        cornerRadius="base"
+        padding="base"
+        background="subdued"
+      >
+        <BlockStack spacing="base">
+          <Text size="medium" emphasis="bold">Membership Preview</Text>
+          <Text appearance="subdued">
+            Sign in to view your membership tier and store credit balance.
+          </Text>
+          <Divider />
+          <BlockStack spacing="tight">
+            <Text size="small" appearance="subdued">Example tier: Gold Member</Text>
+            <Text size="small" appearance="subdued">Example balance: $50.00</Text>
+          </BlockStack>
+        </BlockStack>
+      </View>
+    );
+  }
+
   // Loading state
   if (tokenLoading) {
     return (
