@@ -84,8 +84,12 @@ function HelloWorldBlock() {
     decodedToken
   } = useSessionToken();
 
-  // API client
+  // Extract shop domain from decoded token for absolute URL construction
+  const shopDomain = decodedToken?.claims?.dest; // e.g., "store.myshopify.com"
+
+  // API client - needs shop domain for absolute URLs
   const apiClient = useApiClient({
+    shopDomain: shopDomain,
     enableDebugLogs: true,
   });
 
@@ -169,17 +173,17 @@ function HelloWorldBlock() {
   // This allows dashboard to detect actual installation vs just dismissal
   useEffect(() => {
     async function sendHeartbeat() {
-      if (!isAuthenticated || !sessionToken) {
-        console.log('[HelloWorldBlock] Skipping heartbeat - not authenticated');
+      if (!isAuthenticated || !sessionToken || !shopDomain) {
+        console.log('[HelloWorldBlock] Skipping heartbeat - not authenticated or no shop domain');
         return;
       }
 
       try {
         console.log('[HelloWorldBlock] Sending heartbeat signal...');
 
-        // Use relative URL to work in all environments (dev, staging, prod)
-        // The extension will make the request from the shop's domain context
+        // Create heartbeat client with shop domain for absolute URL
         const heartbeatApiClient = createApiClient({
+          shopDomain: shopDomain,
           baseUrl: '/api/customer-account/heartbeat',
           timeout: 5000,
           enableDebugLogs: false,
@@ -209,7 +213,7 @@ function HelloWorldBlock() {
       console.log('[HelloWorldBlock] Cleaning up heartbeat interval');
       clearInterval(heartbeatInterval);
     };
-  }, [isAuthenticated, sessionToken]);
+  }, [isAuthenticated, sessionToken, shopDomain]);
 
   // Loading state
   if (tokenLoading) {
