@@ -16,6 +16,7 @@ import {
 import { useSessionToken } from './hooks/useSessionToken';
 import { useApiClient } from './hooks/useApiClient';
 import { useAuthenticatedCustomer } from './hooks/useAuthenticatedCustomer';
+import { createApiClient } from './utils/apiClient';
 
 export default reactExtension(
   'customer-account.profile.block.render',
@@ -163,6 +164,51 @@ function HelloWorldBlock() {
 
     fetchLoyaltyData();
   }, [isAuthenticated, sessionToken, apiClient]);
+
+  // Send heartbeat signals to confirm block is installed and rendering
+  // This allows dashboard to detect actual installation vs just dismissal
+  useEffect(() => {
+    async function sendHeartbeat() {
+      if (!isAuthenticated || !sessionToken) {
+        console.log('[HelloWorldBlock] Skipping heartbeat - not authenticated');
+        return;
+      }
+
+      try {
+        console.log('[HelloWorldBlock] Sending heartbeat signal...');
+
+        // Create a heartbeat-specific API client with the heartbeat endpoint
+        const heartbeatApiClient = createApiClient({
+          baseUrl: 'https://rewardspro-production.vercel.app/api/customer-account/heartbeat',
+          timeout: 5000,
+          enableDebugLogs: false,
+        });
+
+        const response = await heartbeatApiClient.post(sessionToken, '');
+
+        if (response.success) {
+          console.log('[HelloWorldBlock] Heartbeat sent successfully');
+        } else {
+          console.warn('[HelloWorldBlock] Heartbeat failed:', response.error);
+        }
+      } catch (err) {
+        // Don't show error to user, just log it
+        console.error('[HelloWorldBlock] Heartbeat error:', err);
+      }
+    }
+
+    // Send immediate heartbeat on mount
+    sendHeartbeat();
+
+    // Send heartbeat every 2 minutes while component is mounted
+    const heartbeatInterval = setInterval(sendHeartbeat, 2 * 60 * 1000);
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log('[HelloWorldBlock] Cleaning up heartbeat interval');
+      clearInterval(heartbeatInterval);
+    };
+  }, [isAuthenticated, sessionToken]);
 
   // Loading state
   if (tokenLoading) {

@@ -1064,8 +1064,8 @@ export default function Dashboard() {
                 <Box paddingBlock="200">
                   <Banner tone="info">
                     <Text variant="bodySm" as="p">
-                      Note: Clicking "Enable widget in theme editor" will open the theme editor and hide this reminder permanently.
-                      The banner will disappear once you click the button.
+                      Note: Clicking "Enable widget in theme editor" will open the theme editor and hide this full reminder.
+                      The widget will only show as enabled once we detect it's actually installed (via theme detection or heartbeat signal).
                     </Text>
                   </Banner>
                 </Box>
@@ -1120,8 +1120,8 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* Customer Account Block Setup - Only show if not enabled */}
-        {!data.hasCustomerAccountBlock && (
+        {/* Customer Account Block Setup - Full warning if not dismissed */}
+        {!data.hasCustomerAccountBlock && !data.customerAccountBlockDismissed && (
           <Layout.Section data-banner="customer-account-block">
             <Banner
               title="Enable customer account membership block"
@@ -1164,8 +1164,8 @@ export default function Dashboard() {
                 <Box paddingBlock="200">
                   <Banner tone="info">
                     <Text variant="bodySm" as="p">
-                      Note: Clicking "Enable customer account block" will open the editor and hide this reminder permanently.
-                      If you're not ready yet, use "Remind me later" instead.
+                      Note: Clicking "Enable customer account block" will open the editor and hide this full reminder.
+                      The block will only show as enabled once we detect it's actually installed (via heartbeat signal).
                     </Text>
                   </Banner>
                 </Box>
@@ -1174,7 +1174,7 @@ export default function Dashboard() {
                   <Button
                     onClick={async () => {
                       try {
-                        // Dismiss the banner permanently
+                        // Dismiss the banner permanently (but detection still runs)
                         await fetch('/api/dismiss-customer-account-block', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
@@ -1207,6 +1207,31 @@ export default function Dashboard() {
                     Remind me later
                   </Button>
                 </InlineStack>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Softer Customer Account Block Reminder - Show if dismissed but not detected */}
+        {!data.hasCustomerAccountBlock && data.customerAccountBlockDismissed && (
+          <Layout.Section>
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text variant="bodyMd" as="p">
+                  You dismissed the customer account block setup earlier. Remember to add the membership block to your customer account profile when you're ready — it enhances the customer experience by showing loyalty info directly on their account page.
+                </Text>
+                <Button
+                  onClick={() => {
+                    const shopName = data.shop.split('.')[0];
+                    window.open(
+                      `https://admin.shopify.com/store/${shopName}/settings/checkout/editor/profiles/6001787264?page=profile&context=apps`,
+                      '_blank'
+                    );
+                  }}
+                  variant="plain"
+                >
+                  Enable block now
+                </Button>
               </BlockStack>
             </Banner>
           </Layout.Section>
