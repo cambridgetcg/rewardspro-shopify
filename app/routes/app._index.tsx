@@ -20,6 +20,7 @@ import {
   ProgressBar,
   Tabs,
   Banner,
+  Select,
 } from "@shopify/polaris";
 import {
   PlusIcon,
@@ -118,6 +119,41 @@ const OLD_MANAGED_PLANS = {
   },
 };
 
+const CURRENCY_OPTIONS = [
+  { label: "🇺🇸 US Dollar (USD)", value: "USD" },
+  { label: "🇪🇺 Euro (EUR)", value: "EUR" },
+  { label: "🇬🇧 British Pound (GBP)", value: "GBP" },
+  { label: "🇨🇦 Canadian Dollar (CAD)", value: "CAD" },
+  { label: "🇦🇺 Australian Dollar (AUD)", value: "AUD" },
+  { label: "🇯🇵 Japanese Yen (JPY)", value: "JPY" },
+  { label: "🇨🇭 Swiss Franc (CHF)", value: "CHF" },
+  { label: "🇨🇳 Chinese Yuan (CNY)", value: "CNY" },
+  { label: "🇸🇪 Swedish Krona (SEK)", value: "SEK" },
+  { label: "🇳🇿 New Zealand Dollar (NZD)", value: "NZD" },
+  { label: "🇳🇴 Norwegian Krone (NOK)", value: "NOK" },
+  { label: "🇲🇽 Mexican Peso (MXN)", value: "MXN" },
+  { label: "🇸🇬 Singapore Dollar (SGD)", value: "SGD" },
+  { label: "🇭🇰 Hong Kong Dollar (HKD)", value: "HKD" },
+  { label: "🇰🇷 South Korean Won (KRW)", value: "KRW" },
+  { label: "🇹🇷 Turkish Lira (TRY)", value: "TRY" },
+  { label: "🇮🇳 Indian Rupee (INR)", value: "INR" },
+  { label: "🇷🇺 Russian Ruble (RUB)", value: "RUB" },
+  { label: "🇧🇷 Brazilian Real (BRL)", value: "BRL" },
+  { label: "🇿🇦 South African Rand (ZAR)", value: "ZAR" },
+  { label: "🇦🇪 UAE Dirham (AED)", value: "AED" },
+  { label: "🇵🇱 Polish Zloty (PLN)", value: "PLN" },
+  { label: "🇩🇰 Danish Krone (DKK)", value: "DKK" },
+  { label: "🇹🇭 Thai Baht (THB)", value: "THB" },
+  { label: "🇮🇩 Indonesian Rupiah (IDR)", value: "IDR" },
+  { label: "🇭🇺 Hungarian Forint (HUF)", value: "HUF" },
+  { label: "🇨🇿 Czech Koruna (CZK)", value: "CZK" },
+  { label: "🇮🇱 Israeli Shekel (ILS)", value: "ILS" },
+  { label: "🇨🇱 Chilean Peso (CLP)", value: "CLP" },
+  { label: "🇵🇭 Philippine Peso (PHP)", value: "PHP" },
+  { label: "🇷🇴 Romanian Leu (RON)", value: "RON" },
+  { label: "🇲🇾 Malaysian Ringgit (MYR)", value: "MYR" },
+];
+
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
@@ -201,6 +237,7 @@ interface DashboardData {
     currencyDisplayType: string;
     customersInitialSynced?: boolean;
     customersSyncInProgress?: boolean;
+    currencySelected?: boolean;
   } | null;
   // Billing data
   currentPlan: any | null;
@@ -695,6 +732,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         currencyDisplayType: shopSettings.currencyDisplayType,
         customersInitialSynced: shopSettings.customersInitialSynced,
         customersSyncInProgress: shopSettings.customersSyncInProgress,
+        currencySelected: shopSettings.currencySelected,
       } : null,
       // Billing data
       currentPlan: serializedPlan,
@@ -726,6 +764,10 @@ export default function Dashboard() {
   const [selectedTab, setSelectedTab] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Currency selection state
+  const [selectedCurrency, setSelectedCurrency] = useState(data.shopSettings?.storeCurrency || "USD");
+  const [isSavingCurrency, setIsSavingCurrency] = useState(false);
+
   // Plan details calculations are now handled by CurrentPlanCard component
   // These variables are kept for reference but no longer needed
   // const activePlanName = data.activeSubscription?.name || data.currentPlan?.planName || "RewardsPro Free";
@@ -749,6 +791,32 @@ export default function Dashboard() {
     setIsRefreshing(true);
     window.location.reload();
   }, []);
+
+  // Handle currency selection and save
+  const handleSaveCurrency = useCallback(async () => {
+    setIsSavingCurrency(true);
+    try {
+      const response = await fetch('/api/set-currency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currency: selectedCurrency,
+          displayType: 'SYMBOL', // Default to symbol
+        }),
+      });
+
+      if (response.ok) {
+        // Reload to update dashboard with new currency
+        window.location.reload();
+      } else {
+        console.error('Failed to save currency');
+        setIsSavingCurrency(false);
+      }
+    } catch (error) {
+      console.error('Error saving currency:', error);
+      setIsSavingCurrency(false);
+    }
+  }, [selectedCurrency]);
 
   // Auto-refresh when window regains focus (user returns from theme editor)
   // This implements the recommended UX flow from Shopify's developer guide
@@ -1024,6 +1092,39 @@ export default function Dashboard() {
                   variant="primary"
                 >
                   Enable customer account block
+                </Button>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Currency Selection Banner - Only show if not selected */}
+        {!data.shopSettings?.currencySelected && (
+          <Layout.Section>
+            <Banner
+              title="Select your cashback currency"
+              tone="info"
+            >
+              <BlockStack gap="300">
+                <Text variant="bodyMd" as="p">
+                  Choose the currency you want to use for cashback rewards. This will affect how rewards are displayed throughout your loyalty program.
+                </Text>
+
+                <Box maxWidth="300px">
+                  <Select
+                    label="Store Currency"
+                    options={CURRENCY_OPTIONS}
+                    value={selectedCurrency}
+                    onChange={setSelectedCurrency}
+                  />
+                </Box>
+
+                <Button
+                  onClick={handleSaveCurrency}
+                  loading={isSavingCurrency}
+                  variant="primary"
+                >
+                  Save Currency
                 </Button>
               </BlockStack>
             </Banner>

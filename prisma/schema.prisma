@@ -91,6 +91,7 @@ model ShopSettings {
   widgetIsActive          Boolean             @default(false)  // Is widget currently active (heartbeat within last 2 min)
   widgetSetupDismissed    Boolean             @default(false)  // Has merchant clicked "Enable widget" button
   customerAccountBlockDismissed Boolean       @default(false)  // Has merchant clicked "Enable customer account block" button
+  currencySelected        Boolean             @default(false)  // Has merchant selected cashback currency
 
   // Metadata
   createdAt               DateTime            @default(now())
