@@ -215,6 +215,7 @@ interface DashboardData {
   daysRemaining: number;
   // Widget detection
   hasWidget: boolean;
+  hasCustomerAccountBlock: boolean;
 }
 
 // ============================================
@@ -365,6 +366,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             widgetLastHeartbeat: true,
             widgetIsActive: true,
             widgetSetupDismissed: true,
+            customerAccountBlockDismissed: true,
           }
         });
 
@@ -413,6 +415,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     } catch (error) {
       console.error("[Dashboard] Error checking widget status:", error);
       // Don't throw - just log and continue with hasWidget = false
+    }
+
+    // Check customer account block status
+    // This follows the same pattern as widget detection - check if dismissed
+    let hasCustomerAccountBlock = false;
+    try {
+      const shopSettings = await db.shopSettings.findUnique({
+        where: { shop },
+        select: {
+          customerAccountBlockDismissed: true,
+        }
+      });
+
+      // If merchant clicked "Enable customer account block" button, hide the banner
+      if (shopSettings?.customerAccountBlockDismissed) {
+        hasCustomerAccountBlock = true; // Treat as if block is enabled (hide banner)
+        console.log(`[Dashboard] Customer account block banner dismissed by merchant`);
+      } else {
+        console.log(`[Dashboard] Customer account block banner not dismissed yet`);
+      }
+    } catch (error) {
+      console.error("[Dashboard] Error checking customer account block status:", error);
+      // Don't throw - just log and continue with hasCustomerAccountBlock = false
     }
 
     // Fetch all data in parallel for performance
@@ -679,6 +704,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       daysRemaining,
       // Widget detection
       hasWidget,
+      hasCustomerAccountBlock,
     };
 
     console.log(`[Dashboard] Returning data for ${shop}`);
@@ -930,6 +956,74 @@ export default function Dashboard() {
                   variant="primary"
                 >
                   Enable widget in theme editor
+                </Button>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Customer Account Block Setup - Only show if not enabled */}
+        {!data.hasCustomerAccountBlock && (
+          <Layout.Section>
+            <Banner
+              title="Enable customer account membership block"
+              tone="info"
+            >
+              <BlockStack gap="300">
+                <Text variant="bodyMd" as="p">
+                  Show your customers their loyalty tier and rewards directly on their account page.
+                  This creates a personalized experience and encourages engagement with your rewards program.
+                </Text>
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" as="p" fontWeight="semibold">
+                    Quick setup (takes 30 seconds):
+                  </Text>
+                  <ol style={{ paddingLeft: '20px', margin: '8px 0' }}>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Click the button below to open the customer account editor
+                      </Text>
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Find <strong>"RewardsPro Membership"</strong> in the app blocks list
+                      </Text>
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Drag it to your desired location on the profile page
+                      </Text>
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <Text variant="bodySm" as="span">
+                        Click <strong>Save</strong> in the top-right corner
+                      </Text>
+                    </li>
+                  </ol>
+                </BlockStack>
+
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Dismiss the banner
+                      await fetch('/api/dismiss-customer-account-block', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                    } catch (error) {
+                      console.error('Failed to dismiss banner:', error);
+                    }
+                    // Open customer account editor
+                    // Using the customer account settings URL as the deep link
+                    window.open(
+                      `https://${data.shop}/admin/settings/customer_accounts`,
+                      '_blank'
+                    );
+                  }}
+                  variant="primary"
+                >
+                  Enable customer account block
                 </Button>
               </BlockStack>
             </Banner>
