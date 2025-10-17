@@ -310,6 +310,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         widgetIsActive: true,
         widgetSetupDismissed: true,
         customerAccountBlockDismissed: true,
+        customerAccountBlockLastHeartbeat: true,
       }
     });
 
@@ -451,6 +452,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
 
       // Determine final status with fallback logic
+      let newCacheValue: boolean | null = null; // Track if cache needs update
+
       if (detectedInTheme || detectedViaHeartbeat) {
         hasWidget = true;
 
@@ -462,30 +465,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           widgetDetectionMethod = "heartbeat";
         }
 
-        // Update cache when we have positive detection
-        try {
-          await db.shopSettings.update({
-            where: { shop },
-            data: { widgetIsActive: true, updatedAt: new Date() }
-          });
-        } catch (e) {
-          console.error("[Dashboard] Failed to update widget cache:", e);
+        // Mark cache for update only if it changed
+        if (!cachedStatus) {
+          newCacheValue = true;
         }
       } else if (cachedStatus) {
         // Fall back to cached status if detection fails but cache says it was active
         hasWidget = true;
         widgetDetectionMethod = "cached";
         console.log(`[Dashboard] Using cached status (detection unavailable)`);
+        // No cache update needed (already correct)
       } else {
         hasWidget = false;
         widgetDetectionMethod = "not-detected";
 
-        // Update cache to reflect not detected
+        // Mark cache for update only if it was previously true
+        if (cachedStatus) {
+          newCacheValue = false;
+        }
+      }
+
+      // Batch cache write at the end (only if changed)
+      if (newCacheValue !== null) {
         try {
           await db.shopSettings.update({
             where: { shop },
-            data: { widgetIsActive: false, updatedAt: new Date() }
+            data: { widgetIsActive: newCacheValue, updatedAt: new Date() }
           });
+          console.log(`[Dashboard] Updated widget cache: ${newCacheValue}`);
         } catch (e) {
           console.error("[Dashboard] Failed to update widget cache:", e);
         }
@@ -498,12 +505,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Leave hasWidget = false, widgetDetectionMethod = "none"
     }
 
-    // Check customer account block status
+    // Check customer account block status with heartbeat detection
     // IMPORTANT: Dismissal is SEPARATE from detection
     // We track if banner was dismissed, but still need to detect if block is actually installed
-    // For now, we only have dismissal tracking (already fetched in shopSettings above)
-    // TODO: Add actual detection (heartbeat or GraphQL query for customer account extensions)
-    const hasCustomerAccountBlock = customerAccountBlockDismissed; // Hide banner if dismissed
+    // Similar to widget detection, we use heartbeat to verify actual installation
+    let hasCustomerAccountBlock = false;
+
+    if (shopSettings?.customerAccountBlockLastHeartbeat) {
+      const lastHeartbeat = new Date(shopSettings.customerAccountBlockLastHeartbeat);
+      const now = new Date();
+      const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
+
+      // Block is active if heartbeat within last 5 minutes
+      hasCustomerAccountBlock = minutesSinceHeartbeat < 5;
+      console.log(`[Dashboard] Customer account block heartbeat: ${hasCustomerAccountBlock} (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
+    } else {
+      console.log(`[Dashboard] Customer account block: No heartbeat detected`);
+    }
 
     console.log(`[Dashboard] Customer account block: ${hasCustomerAccountBlock} (dismissed: ${customerAccountBlockDismissed})`);
 
@@ -962,7 +980,7 @@ export default function Dashboard() {
         )}
 
         {/* Widget Setup Nudge - Only show if widget is not enabled */}
-        {!data.hasWidget && (
+        {!data.hasWidget && !data.widgetDismissed && (
           <Layout.Section>
             <Banner
               title="Important: Add RewardsPro widget to your store theme"
@@ -1072,6 +1090,30 @@ export default function Dashboard() {
                   variant="primary"
                 >
                   Enable widget in theme editor
+                </Button>
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Softer Widget Reminder - Show if widget dismissed but not detected */}
+        {!data.hasWidget && data.widgetDismissed && (
+          <Layout.Section>
+            <Banner tone="info">
+              <BlockStack gap="200">
+                <Text variant="bodyMd" as="p">
+                  You dismissed the widget setup earlier. Remember to enable the RewardsPro widget when you're ready — it's required for customers to see their rewards on your storefront.
+                </Text>
+                <Button
+                  onClick={() => {
+                    window.open(
+                      `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
+                      '_blank'
+                    );
+                  }}
+                  variant="plain"
+                >
+                  Enable widget now
                 </Button>
               </BlockStack>
             </Banner>

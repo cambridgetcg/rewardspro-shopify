@@ -91,6 +91,7 @@ model ShopSettings {
   widgetIsActive          Boolean             @default(false)  // Is widget currently active (heartbeat within last 2 min)
   widgetSetupDismissed    Boolean             @default(false)  // Has merchant clicked "Enable widget" button
   customerAccountBlockDismissed Boolean       @default(false)  // Has merchant clicked "Enable customer account block" button
+  customerAccountBlockLastHeartbeat DateTime?  // Last time customer account block sent heartbeat signal
   currencySelected        Boolean             @default(false)  // Has merchant selected cashback currency
 
   // Metadata
@@ -99,6 +100,7 @@ model ShopSettings {
 
   @@index([shop])
   @@index([widgetLastHeartbeat])  // For efficient heartbeat cleanup queries
+  @@index([customerAccountBlockLastHeartbeat])  // For efficient customer account block heartbeat queries
 }
 
 model Tier {
