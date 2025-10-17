@@ -293,12 +293,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Check widget status - SEPARATED LOGIC:
+    // Check widget status using GraphQL Admin API
     // 1. Check if merchant manually dismissed the banner
-    // 2. If not dismissed, run detection: GraphQL theme check + heartbeat
-    // 3. Only hide banner if EITHER dismissed OR actually detected
+    // 2. If not dismissed, run GraphQL theme detection
+    // 3. Only hide banner if EITHER dismissed OR actually detected in theme
     let hasWidget = false;
-    let widgetDismissed = false;
     let widgetDetectionMethod = "none";
 
     try {
@@ -309,12 +308,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: { shop },
         select: {
           widgetSetupDismissed: true,
-          widgetLastHeartbeat: true,
-          widgetIsActive: true,
         }
       });
 
-      widgetDismissed = widgetSettings?.widgetSetupDismissed || false;
+      const widgetDismissed = widgetSettings?.widgetSetupDismissed || false;
 
       if (widgetDismissed) {
         // Merchant clicked "Enable widget" - respect their choice and hide banner
@@ -322,15 +319,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         widgetDetectionMethod = "dismissed";
         console.log(`[Dashboard] Widget banner dismissed by merchant - skipping detection`);
       } else {
-        // Merchant hasn't dismissed - run actual detection
-        console.log("[Dashboard] Running widget detection (not dismissed yet)...");
+        // Merchant hasn't dismissed - run GraphQL theme detection
+        console.log("[Dashboard] Running GraphQL theme detection (not dismissed yet)...");
 
-        // METHOD 1: Check GraphQL for app embed block in theme settings
+        // Check GraphQL Admin API for app embed block in theme settings
         // Following Shopify best practices: https://shopify.dev/docs/apps/build/online-store/theme-app-extensions
-        // NOTE: GraphQL Admin API is the recommended approach for querying theme data
-        // REST Admin API with themes/${themeId}/assets.json is deprecated for this use case
-        // GraphQL provides better structured access to theme files and settings
-        let savedInTheme = false;
+        // Requires read_themes scope (configured in shopify.app.toml)
         try {
         // Step 1: Get the main (published) theme
         const themeQuery = `#graphql
@@ -416,40 +410,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
           }
         }
+
+        // Set result
+        hasWidget = savedInTheme;
+        widgetDetectionMethod = savedInTheme ? "graphql-theme" : "none";
+
+        console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
+
       } catch (error) {
         console.error("[Dashboard] Error checking theme settings:", error);
       }
-
-        // METHOD 2: Check heartbeat from storefront widget
-        let activeOnStorefront = false;
-        if (widgetSettings?.widgetLastHeartbeat) {
-          const lastHeartbeat = new Date(widgetSettings.widgetLastHeartbeat);
-          const now = new Date();
-          const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
-
-          // Consider active if heartbeat within last 5 minutes
-          activeOnStorefront = minutesSinceHeartbeat < 5;
-
-          console.log(`[Dashboard] Widget heartbeat: ${lastHeartbeat.toISOString()}`);
-          console.log(`[Dashboard] Minutes since heartbeat: ${minutesSinceHeartbeat.toFixed(2)}`);
-          console.log(`[Dashboard] Widget active on storefront: ${activeOnStorefront}`);
-        } else {
-          console.log(`[Dashboard] No widget heartbeat recorded yet`);
-        }
-
-        // Widget is considered "enabled" if EITHER method detects it
-        // This handles both preview state and actual live rendering
-        hasWidget = savedInTheme || activeOnStorefront;
-
-        if (activeOnStorefront && savedInTheme) {
-          widgetDetectionMethod = "both";
-        } else if (activeOnStorefront) {
-          widgetDetectionMethod = "heartbeat";
-        } else if (savedInTheme) {
-          widgetDetectionMethod = "theme-settings";
-        }
-
-        console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
       }
 
     } catch (error) {
