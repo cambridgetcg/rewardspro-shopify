@@ -252,7 +252,10 @@ interface DashboardData {
   daysRemaining: number;
   // Widget detection
   hasWidget: boolean;
+  widgetDetectionMethod: string;
+  widgetDismissed: boolean;
   hasCustomerAccountBlock: boolean;
+  customerAccountBlockDismissed: boolean;
 }
 
 // ============================================
@@ -293,39 +296,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Check widget status using GraphQL Admin API
-    // 1. Check if merchant manually dismissed the banner
-    // 2. If not dismissed, run GraphQL theme detection
-    // 3. Only hide banner if EITHER dismissed OR actually detected in theme
+    // Widget detection - PROPER SEPARATION OF CONCERNS:
+    // 1. Dismissal flag is separate from detection
+    // 2. Run detection regardless of dismissal state
+    // 3. Cache last known status for fallback
+    // 4. Check both theme settings AND heartbeat
+    // 5. Only hide banner if ACTUALLY detected (not just dismissed)
     let hasWidget = false;
     let widgetDetectionMethod = "none";
+    let widgetDismissed = false;
 
     try {
-      console.log("[Dashboard] Checking widget status...");
+      console.log("[Dashboard] Starting widget detection...");
 
-      // FIRST: Check if merchant dismissed the banner manually
-      const widgetSettings = await db.shopSettings.findUnique({
-        where: { shop },
-        select: {
-          widgetSetupDismissed: true,
-        }
-      });
+      // Run GraphQL theme detection
+      // Check both current.blocks AND current.enabled_app_embeds
+      let detectedInTheme = false;
+      let detectedViaHeartbeat = false;
+      let cachedStatus = false;
 
-      const widgetDismissed = widgetSettings?.widgetSetupDismissed || false;
-
-      if (widgetDismissed) {
-        // Merchant clicked "Enable widget" - respect their choice and hide banner
-        hasWidget = true;
-        widgetDetectionMethod = "dismissed";
-        console.log(`[Dashboard] Widget banner dismissed by merchant - skipping detection`);
-      } else {
-        // Merchant hasn't dismissed - run GraphQL theme detection
-        console.log("[Dashboard] Running GraphQL theme detection (not dismissed yet)...");
-
-        // Check GraphQL Admin API for app embed block in theme settings
-        // Following Shopify best practices: https://shopify.dev/docs/apps/build/online-store/theme-app-extensions
-        // Requires read_themes scope (configured in shopify.app.toml)
-        try {
+      try {
         // Step 1: Get the main (published) theme
         const themeQuery = `#graphql
           query {
@@ -371,83 +361,151 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
           if (settingsContent) {
             // Step 3: Parse JSON after removing Shopify's comment blocks
-            // GraphQL returns the file with /* */ comments that must be stripped
             settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
             settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
 
             const themeSettings = JSON.parse(settingsContent);
-            const blocks = themeSettings.current?.blocks || {};
 
-            // Step 4: Find our app embed block by checking the type field
-            // Block type format: "shopify://apps/{app_handle}/blocks/{block_handle}/{extension_uid}"
-            // Our app: handle = "RewardsproMembership", block = "membership_widget"
-            // Extension UID: a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9
-
+            // CANONICAL CHECK: current.enabled_app_embeds (Shopify's official flag)
+            const enabledAppEmbeds = themeSettings.current?.enabled_app_embeds || [];
             const appHandle = 'RewardsproMembership';
             const blockHandle = 'membership_widget';
             const extensionUid = 'a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9';
-
-            // Try exact match first (most reliable)
             const expectedType = `shopify://apps/${appHandle}/blocks/${blockHandle}/${extensionUid}`;
 
-            for (const [blockId, blockInfo] of Object.entries(blocks)) {
-              const block = blockInfo as any;
-              if (typeof block.type === 'string') {
-                // Check for exact match or partial match (for robustness)
-                if (block.type === expectedType ||
-                    block.type.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)) {
-                  // Found our block! Check if it's enabled (disabled !== true)
-                  savedInTheme = block.disabled !== true;
-                  console.log(`[Dashboard] App embed block found: ${block.type}`);
-                  console.log(`[Dashboard] Block enabled: ${savedInTheme} (disabled=${block.disabled})`);
-                  break;
+            // Check if our app embed is in the enabled list
+            const isInEnabledList = enabledAppEmbeds.some((embed: string) =>
+              embed === expectedType || embed.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)
+            );
+
+            if (isInEnabledList) {
+              detectedInTheme = true;
+              console.log(`[Dashboard] ✓ App embed found in enabled_app_embeds`);
+            }
+
+            // FALLBACK CHECK: current.blocks (legacy detection)
+            if (!detectedInTheme) {
+              const blocks = themeSettings.current?.blocks || {};
+              for (const [blockId, blockInfo] of Object.entries(blocks)) {
+                const block = blockInfo as any;
+                if (typeof block.type === 'string') {
+                  if (block.type === expectedType ||
+                      block.type.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)) {
+                    detectedInTheme = block.disabled !== true;
+                    console.log(`[Dashboard] App embed block found in blocks: ${block.type} (enabled: ${detectedInTheme})`);
+                    break;
+                  }
                 }
               }
             }
-
-            if (!savedInTheme) {
-              console.log(`[Dashboard] App embed block not found or disabled in theme settings`);
-            }
           }
         }
-
-        // Set result
-        hasWidget = savedInTheme;
-        widgetDetectionMethod = savedInTheme ? "graphql-theme" : "none";
-
-        console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
-
       } catch (error) {
-        console.error("[Dashboard] Error checking theme settings:", error);
+        console.error("[Dashboard] GraphQL theme detection failed:", error);
+        // Continue to check heartbeat and cache
       }
+
+      // Check heartbeat as secondary confirmation (useful for live stores)
+      // Also get cached status and dismissal flag
+      try {
+        const widgetSettings = await db.shopSettings.findUnique({
+          where: { shop },
+          select: {
+            widgetLastHeartbeat: true,
+            widgetIsActive: true,
+            widgetSetupDismissed: true,
+          }
+        });
+
+        widgetDismissed = widgetSettings?.widgetSetupDismissed || false;
+        cachedStatus = widgetSettings?.widgetIsActive || false;
+
+        if (widgetSettings?.widgetLastHeartbeat) {
+          const lastHeartbeat = new Date(widgetSettings.widgetLastHeartbeat);
+          const now = new Date();
+          const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
+
+          // Widget is active if heartbeat within last 5 minutes
+          detectedViaHeartbeat = minutesSinceHeartbeat < 5;
+          console.log(`[Dashboard] Heartbeat check: ${detectedViaHeartbeat} (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
+        }
+      } catch (error) {
+        console.error("[Dashboard] Failed to check heartbeat/cache:", error);
       }
+
+      // Determine final status with fallback logic
+      if (detectedInTheme || detectedViaHeartbeat) {
+        hasWidget = true;
+
+        if (detectedInTheme && detectedViaHeartbeat) {
+          widgetDetectionMethod = "theme+heartbeat";
+        } else if (detectedInTheme) {
+          widgetDetectionMethod = "theme";
+        } else {
+          widgetDetectionMethod = "heartbeat";
+        }
+
+        // Update cache when we have positive detection
+        try {
+          await db.shopSettings.update({
+            where: { shop },
+            data: { widgetIsActive: true, updatedAt: new Date() }
+          });
+        } catch (e) {
+          console.error("[Dashboard] Failed to update widget cache:", e);
+        }
+      } else if (cachedStatus) {
+        // Fall back to cached status if detection fails but cache says it was active
+        hasWidget = true;
+        widgetDetectionMethod = "cached";
+        console.log(`[Dashboard] Using cached status (detection unavailable)`);
+      } else {
+        hasWidget = false;
+        widgetDetectionMethod = "not-detected";
+
+        // Update cache to reflect not detected
+        try {
+          await db.shopSettings.update({
+            where: { shop },
+            data: { widgetIsActive: false, updatedAt: new Date() }
+          });
+        } catch (e) {
+          console.error("[Dashboard] Failed to update widget cache:", e);
+        }
+      }
+
+      console.log(`[Dashboard] Final widget status: ${hasWidget} (method: ${widgetDetectionMethod}, dismissed: ${widgetDismissed})`);
 
     } catch (error) {
-      console.error("[Dashboard] Error checking widget status:", error);
-      // Don't throw - just log and continue with hasWidget = false
+      console.error("[Dashboard] Critical error in widget detection:", error);
+      // Leave hasWidget = false, widgetDetectionMethod = "none"
     }
 
     // Check customer account block status
-    // This follows the same pattern as widget detection - check if dismissed
+    // IMPORTANT: Dismissal is SEPARATE from detection
+    // We track if banner was dismissed, but still need to detect if block is actually installed
     let hasCustomerAccountBlock = false;
+    let customerAccountBlockDismissed = false;
+
     try {
-      const shopSettings = await db.shopSettings.findUnique({
+      // For now, we only have dismissal tracking for customer account block
+      // TODO: Add actual detection (heartbeat or GraphQL query for customer account extensions)
+      const blockSettings = await db.shopSettings.findUnique({
         where: { shop },
         select: {
           customerAccountBlockDismissed: true,
         }
       });
 
-      // If merchant clicked "Enable customer account block" button, hide the banner
-      if (shopSettings?.customerAccountBlockDismissed) {
-        hasCustomerAccountBlock = true; // Treat as if block is enabled (hide banner)
-        console.log(`[Dashboard] Customer account block banner dismissed by merchant`);
-      } else {
-        console.log(`[Dashboard] Customer account block banner not dismissed yet`);
-      }
+      customerAccountBlockDismissed = blockSettings?.customerAccountBlockDismissed || false;
+
+      // For customer account block, we currently only have dismissal
+      // Hide banner if dismissed (will add proper detection in future)
+      hasCustomerAccountBlock = customerAccountBlockDismissed;
+
+      console.log(`[Dashboard] Customer account block: ${hasCustomerAccountBlock} (dismissed: ${customerAccountBlockDismissed})`);
     } catch (error) {
       console.error("[Dashboard] Error checking customer account block status:", error);
-      // Don't throw - just log and continue with hasCustomerAccountBlock = false
     }
 
     // Fetch all data in parallel for performance
@@ -715,7 +773,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       daysRemaining,
       // Widget detection
       hasWidget,
+      widgetDetectionMethod,
+      widgetDismissed,
       hasCustomerAccountBlock,
+      customerAccountBlockDismissed,
     };
 
     console.log(`[Dashboard] Returning data for ${shop}`);
