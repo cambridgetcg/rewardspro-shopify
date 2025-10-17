@@ -49,6 +49,7 @@ import {
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount } from "~/utils/order-count-strategies";
+import { parse as parseJsonC } from "jsonc-parser";
 
 // ============================================
 // CONSTANTS
@@ -381,18 +382,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           let settingsContent = settingsData?.data?.theme?.files?.nodes?.[0]?.body?.content;
 
           if (settingsContent) {
-            // Step 3: Parse JSON after removing Shopify's comment blocks
-            // Wrap in try/catch to handle malformed JSON gracefully
+            // Step 3: Parse JSON using tolerant parser
+            // Real Shopify themes often have Liquid tags, trailing commas, or non-JSON content
+            // Use jsonc-parser for tolerant parsing and add sanitation
             try {
+              // Sanitize Liquid tags before parsing
+              // Remove Liquid output tags {{ ... }}
+              settingsContent = settingsContent.replace(/\{\{[^}]*\}\}/g, '');
+              // Remove Liquid logic tags {% ... %}
+              settingsContent = settingsContent.replace(/\{%[^%]*%\}/g, '');
+
               // Remove comment blocks
               settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
               settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
 
-              // Additional cleanup for common JSON issues
-              // Remove trailing commas before closing braces/brackets
-              settingsContent = settingsContent.replace(/,(\s*[}\]])/g, '$1');
-
-              const themeSettings = JSON.parse(settingsContent);
+              // Parse with jsonc-parser (handles trailing commas, comments)
+              const themeSettings = parseJsonC(settingsContent);
 
               // CANONICAL CHECK: current.enabled_app_embeds (Shopify's official flag)
               const enabledAppEmbeds = themeSettings.current?.enabled_app_embeds || [];
@@ -428,8 +433,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               }
             } catch (parseError) {
               console.error("[Dashboard] Failed to parse theme settings JSON:", parseError);
-              console.error("[Dashboard] JSON parse failed - falling back to cached/heartbeat detection");
-              // Continue to fallback detection methods
+              console.warn("[Dashboard] JSON parse failed - treating as 'unknown', using cached status as fallback");
+              // Don't set detectedInTheme to false - let it remain undefined
+              // This will trigger fallback to cached status below rather than forcing false
             }
           }
         }
@@ -494,111 +500,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Leave hasWidget = false, widgetDetectionMethod = "none"
     }
 
-    // Check customer account block status with GraphQL detection
+    // Check customer account block status
     // IMPORTANT: Dismissal is SEPARATE from detection
     // We track if banner was dismissed, but still need to detect if block is actually installed
-    // Detection strategy: GraphQL (primary) → Cache (secondary) → Heartbeat (tertiary fallback)
-    const CUSTOMER_ACCOUNT_APP_KEY = "RewardsproMembership"; // your app's key
-    const CUSTOMER_ACCOUNT_TARGET = "customer-account.profile.block.render";
+    // Detection strategy: Cache (primary) → Heartbeat (secondary fallback)
+    //
+    // NOTE: GraphQL detection disabled because customerAccountAppExtensionRegistrations
+    // field doesn't exist in Admin API 2025-01 (never shipped).
+    // Relying on cache/heartbeat until proper API is available.
 
     let hasCustomerAccountBlock = false;
-    let customerAccountDetectionReason: "graphql" | "cached" | "heartbeat" | "none" = "none";
+    let customerAccountDetectionReason: "cached" | "heartbeat" | "none" = "none";
 
     try {
-      console.log("[Dashboard] Starting customer account block detection...");
+      console.log("[Dashboard] Starting customer account block detection (cache/heartbeat only)...");
 
-      // PRIMARY: Try GraphQL detection first
-      try {
-        const query = `#graphql
-          query CustomerAccountBlocks($appKey: String!) {
-            customerAccountAppExtensionRegistrations(appKeys: [$appKey]) {
-              nodes {
-                appKey
-                registration {
-                  ... on CustomerAccountProfileComponentRegistration {
-                    id
-                    target
-                    handle
-                    active
-                  }
-                  ... on CustomerAccountProfileBlockRegistration {
-                    id
-                    target
-                    handle
-                    active
-                  }
-                  ... on CustomerAccountOrderStatusRegistration {
-                    id
-                    target
-                    handle
-                    active
-                  }
-                }
-              }
-            }
-          }
-        `;
-
-        const result = await admin.graphql(query, {
-          variables: {
-            appKey: CUSTOMER_ACCOUNT_APP_KEY,
-          },
-        });
-
-        const jsonResult = await result.json();
-        const nodes = jsonResult?.data?.customerAccountAppExtensionRegistrations?.nodes ?? [];
-
-        const match = nodes
-          .flatMap((node: any) => node.registration ? [node.registration] : [])
-          .find((registration: any) => {
-            return (
-              registration?.target === CUSTOMER_ACCOUNT_TARGET &&
-              registration?.active === true
-            );
-          });
-
-        if (match) {
-          hasCustomerAccountBlock = true;
-          customerAccountDetectionReason = "graphql";
-          console.log(`[Dashboard] ✓ Customer account block detected via GraphQL: ${match.handle}`);
-
-          // Update cache with positive detection (only if changed)
-          if (!shopSettings?.customerAccountBlockIsActive) {
-            try {
-              await db.shopSettings.update({
-                where: { shop },
-                data: {
-                  customerAccountBlockIsActive: true,
-                  updatedAt: new Date(),
-                },
-              });
-              console.log("[Dashboard] Updated customer account block cache: true");
-            } catch (e) {
-              console.error("[Dashboard] Failed to update customer account block cache:", e);
-            }
-          }
-        } else {
-          console.log("[Dashboard] Customer account block not found via GraphQL");
-        }
-      } catch (error: any) {
-        console.error("[Dashboard] GraphQL customer account block detection failed:", error);
-
-        // Check if it's a scope/authorization issue
-        if (error?.message?.includes('403') ||
-            error?.message?.includes('Unauthorized') ||
-            error?.message?.includes('read_customer_accounts')) {
-          console.warn("[Dashboard] Missing read_customer_accounts scope - merchant needs to re-authorize");
-        }
-      }
-
-      // SECONDARY: Fall back to cached status if GraphQL detection failed
-      if (!hasCustomerAccountBlock && shopSettings?.customerAccountBlockIsActive) {
+      // PRIMARY: Check cached status
+      if (shopSettings?.customerAccountBlockIsActive) {
         hasCustomerAccountBlock = true;
         customerAccountDetectionReason = "cached";
-        console.log(`[Dashboard] Using cached customer account block status (GraphQL unavailable)`);
+        console.log(`[Dashboard] Customer account block detected via cache`);
       }
 
-      // TERTIARY: Fall back to heartbeat as last resort
+      // SECONDARY: Fall back to heartbeat if cache is false/null
       if (!hasCustomerAccountBlock && shopSettings?.customerAccountBlockLastHeartbeat) {
         const lastHeartbeat = new Date(shopSettings.customerAccountBlockLastHeartbeat);
         const now = new Date();
@@ -609,6 +533,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           hasCustomerAccountBlock = true;
           customerAccountDetectionReason = "heartbeat";
           console.log(`[Dashboard] Customer account block detected via heartbeat fallback (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
+
+          // Update cache with heartbeat detection (only if changed)
+          if (!shopSettings?.customerAccountBlockIsActive) {
+            try {
+              await db.shopSettings.update({
+                where: { shop },
+                data: {
+                  customerAccountBlockIsActive: true,
+                  updatedAt: new Date(),
+                },
+              });
+              console.log("[Dashboard] Updated customer account block cache from heartbeat: true");
+            } catch (e) {
+              console.error("[Dashboard] Failed to update customer account block cache:", e);
+            }
+          }
         }
       }
 
