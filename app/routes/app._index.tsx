@@ -384,8 +384,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             // Step 3: Parse JSON after removing Shopify's comment blocks
             // Wrap in try/catch to handle malformed JSON gracefully
             try {
+              // Remove comment blocks
               settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
               settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
+
+              // Additional cleanup for common JSON issues
+              // Remove trailing commas before closing braces/brackets
+              settingsContent = settingsContent.replace(/,(\s*[}\]])/g, '$1');
 
               const themeSettings = JSON.parse(settingsContent);
 
@@ -423,6 +428,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               }
             } catch (parseError) {
               console.error("[Dashboard] Failed to parse theme settings JSON:", parseError);
+              console.error("[Dashboard] JSON parse failed - falling back to cached/heartbeat detection");
+              // Continue to fallback detection methods
             }
           }
         }
@@ -503,7 +510,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // PRIMARY: Try GraphQL detection first
       try {
         const query = `#graphql
-          query CustomerAccountBlocks($appKey: String!, $target: CustomerAccountAppExtensionTarget!) {
+          query CustomerAccountBlocks($appKey: String!) {
             customerAccountAppExtensionRegistrations(appKeys: [$appKey]) {
               nodes {
                 appKey
@@ -535,7 +542,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const result = await admin.graphql(query, {
           variables: {
             appKey: CUSTOMER_ACCOUNT_APP_KEY,
-            target: CUSTOMER_ACCOUNT_TARGET,
           },
         });
 
@@ -1067,8 +1073,8 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* Widget Setup Nudge - Only show if widget is not enabled */}
-        {!data.hasWidget && !data.widgetDismissed && (
+        {/* Widget Setup Nudge - Always show until detected */}
+        {!data.hasWidget && (
           <Layout.Section>
             <Banner
               title="Important: Add RewardsPro widget to your store theme"
@@ -1152,24 +1158,14 @@ export default function Dashboard() {
                 <Box paddingBlock="200">
                   <Banner tone="info">
                     <Text variant="bodySm" as="p">
-                      Note: Clicking "Enable widget in theme editor" will open the theme editor and hide this full reminder.
-                      The widget will only show as enabled once we detect it's actually installed (via theme detection).
+                      Note: The widget will only show as enabled once we detect it's actually installed (via theme detection).
+                      This onboarding guide will persist until the widget is detected as active.
                     </Text>
                   </Banner>
                 </Box>
 
                 <Button
-                  onClick={async () => {
-                    try {
-                      // Dismiss the banner permanently
-                      await fetch('/api/dismiss-widget-banner', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                      });
-                    } catch (error) {
-                      console.error('Failed to dismiss banner:', error);
-                    }
-                    // Open theme editor
+                  onClick={() => {
                     window.open(
                       `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
                       '_blank'
@@ -1178,30 +1174,6 @@ export default function Dashboard() {
                   variant="primary"
                 >
                   Enable widget in theme editor
-                </Button>
-              </BlockStack>
-            </Banner>
-          </Layout.Section>
-        )}
-
-        {/* Softer Widget Reminder - Show if widget dismissed but not detected */}
-        {!data.hasWidget && data.widgetDismissed && (
-          <Layout.Section>
-            <Banner tone="info">
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  You dismissed the widget setup earlier. Remember to enable the RewardsPro widget when you're ready — it's required for customers to see their rewards on your storefront.
-                </Text>
-                <Button
-                  onClick={() => {
-                    window.open(
-                      `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
-                      '_blank'
-                    );
-                  }}
-                  variant="plain"
-                >
-                  Enable widget now
                 </Button>
               </BlockStack>
             </Banner>
