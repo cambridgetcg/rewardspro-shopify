@@ -32,6 +32,7 @@
     "migrate:apply-schema-fixes": "node scripts/apply-schema-fixes.mjs",
     "migrate:usage-billing": "node scripts/apply-usage-billing-migration.mjs",
     "migrate:widget-heartbeat": "node scripts/apply-widget-heartbeat-migration.mjs",
+    "migrate:widget-setup-dismissed": "node scripts/apply-widget-setup-dismissed-migration.mjs",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",

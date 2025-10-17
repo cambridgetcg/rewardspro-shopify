@@ -89,6 +89,7 @@ model ShopSettings {
   // Widget Heartbeat Tracking
   widgetLastHeartbeat     DateTime?           // Last time widget sent heartbeat signal
   widgetIsActive          Boolean             @default(false)  // Is widget currently active (heartbeat within last 2 min)
+  widgetSetupDismissed    Boolean             @default(false)  // Has merchant clicked "Enable widget" button
 
   // Metadata
   createdAt               DateTime            @default(now())

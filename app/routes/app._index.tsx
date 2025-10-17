@@ -364,37 +364,48 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           select: {
             widgetLastHeartbeat: true,
             widgetIsActive: true,
+            widgetSetupDismissed: true,
           }
         });
 
-        if (shopSettings?.widgetLastHeartbeat) {
-          const lastHeartbeat = new Date(shopSettings.widgetLastHeartbeat);
-          const now = new Date();
-          const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
-
-          // Consider active if heartbeat within last 5 minutes
-          activeOnStorefront = minutesSinceHeartbeat < 5;
-
-          console.log(`[Dashboard] Widget heartbeat: ${lastHeartbeat.toISOString()}`);
-          console.log(`[Dashboard] Minutes since heartbeat: ${minutesSinceHeartbeat.toFixed(2)}`);
-          console.log(`[Dashboard] Widget active on storefront: ${activeOnStorefront}`);
+        // If merchant clicked "Enable widget" button, hide the banner
+        if (shopSettings?.widgetSetupDismissed) {
+          hasWidget = true; // Treat as if widget is enabled (hide banner)
+          widgetDetectionMethod = "dismissed";
+          console.log(`[Dashboard] Widget setup banner dismissed by merchant`);
         } else {
-          console.log(`[Dashboard] No widget heartbeat recorded yet`);
+          // Check heartbeat
+          if (shopSettings?.widgetLastHeartbeat) {
+            const lastHeartbeat = new Date(shopSettings.widgetLastHeartbeat);
+            const now = new Date();
+            const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
+
+            // Consider active if heartbeat within last 5 minutes
+            activeOnStorefront = minutesSinceHeartbeat < 5;
+
+            console.log(`[Dashboard] Widget heartbeat: ${lastHeartbeat.toISOString()}`);
+            console.log(`[Dashboard] Minutes since heartbeat: ${minutesSinceHeartbeat.toFixed(2)}`);
+            console.log(`[Dashboard] Widget active on storefront: ${activeOnStorefront}`);
+          } else {
+            console.log(`[Dashboard] No widget heartbeat recorded yet`);
+          }
         }
       } catch (error) {
         console.error("[Dashboard] Error checking widget heartbeat:", error);
       }
 
-      // Widget is considered "enabled" if EITHER method detects it
+      // Widget is considered "enabled" if EITHER method detects it OR if dismissed
       // This handles both preview state and actual live rendering
-      hasWidget = savedInTheme || activeOnStorefront;
+      if (widgetDetectionMethod !== "dismissed") {
+        hasWidget = savedInTheme || activeOnStorefront;
 
-      if (activeOnStorefront && savedInTheme) {
-        widgetDetectionMethod = "both";
-      } else if (activeOnStorefront) {
-        widgetDetectionMethod = "heartbeat";
-      } else if (savedInTheme) {
-        widgetDetectionMethod = "theme-settings";
+        if (activeOnStorefront && savedInTheme) {
+          widgetDetectionMethod = "both";
+        } else if (activeOnStorefront) {
+          widgetDetectionMethod = "heartbeat";
+        } else if (savedInTheme) {
+          widgetDetectionMethod = "theme-settings";
+        }
       }
 
       console.log(`[Dashboard] Widget detection result: ${hasWidget} (method: ${widgetDetectionMethod})`);
@@ -900,8 +911,22 @@ export default function Dashboard() {
                 </Box>
 
                 <Button
-                  url={`https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`}
-                  target="_blank"
+                  onClick={async () => {
+                    try {
+                      // Dismiss the banner
+                      await fetch('/api/dismiss-widget-banner', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                    } catch (error) {
+                      console.error('Failed to dismiss banner:', error);
+                    }
+                    // Open theme editor
+                    window.open(
+                      `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
+                      '_blank'
+                    );
+                  }}
                   variant="primary"
                 >
                   Enable widget in theme editor

@@ -22,6 +22,7 @@
       "routes/api.customer-subscriptions": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.app.scopes_update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.cron.tier-maintenance": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.dismiss-widget-banner": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.customers.create": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.customers.update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.customer-details.$id": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -174,6 +175,15 @@
         "parentId": "root",
         "file": "app/routes/api.cron.tier-maintenance.tsx",
         "path": "api/cron/tier-maintenance",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.dismiss-widget-banner": {
+        "id": "routes/api.dismiss-widget-banner",
+        "parentId": "root",
+        "file": "app/routes/api.dismiss-widget-banner.tsx",
+        "path": "api/dismiss-widget-banner",
         "config": {
           "runtime": "nodejs"
         }
@@ -631,6 +641,12 @@
         "parentId": "root",
         "file": "routes/api.cron.tier-maintenance.tsx",
         "path": "api/cron/tier-maintenance"
+      },
+      "routes/api.dismiss-widget-banner": {
+        "id": "routes/api.dismiss-widget-banner",
+        "parentId": "root",
+        "file": "routes/api.dismiss-widget-banner.tsx",
+        "path": "api/dismiss-widget-banner"
       },
       "routes/webhooks.customers.create": {
         "id": "routes/webhooks.customers.create",
