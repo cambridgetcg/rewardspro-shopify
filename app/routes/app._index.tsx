@@ -296,15 +296,35 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
+    // STEP 1: Fetch shop settings ONCE (reused everywhere)
+    // This avoids duplicate queries and ensures consistent data
+    const shopSettings = await db.shopSettings.findUnique({
+      where: { shop },
+      select: {
+        storeCurrency: true,
+        currencyDisplayType: true,
+        customersInitialSynced: true,
+        customersSyncInProgress: true,
+        currencySelected: true,
+        widgetLastHeartbeat: true,
+        widgetIsActive: true,
+        widgetSetupDismissed: true,
+        customerAccountBlockDismissed: true,
+      }
+    });
+
+    // Extract flags (dismissal is SEPARATE from detection)
+    const widgetDismissed = shopSettings?.widgetSetupDismissed || false;
+    const customerAccountBlockDismissed = shopSettings?.customerAccountBlockDismissed || false;
+
     // Widget detection - PROPER SEPARATION OF CONCERNS:
-    // 1. Dismissal flag is separate from detection
-    // 2. Run detection regardless of dismissal state
+    // 1. Dismissal flag is ONLY for UI (suppress banner)
+    // 2. Detection runs regardless of dismissal state
     // 3. Cache last known status for fallback
     // 4. Check both theme settings AND heartbeat
-    // 5. Only hide banner if ACTUALLY detected (not just dismissed)
+    // 5. hasWidget = true ONLY if actually detected (not just dismissed)
     let hasWidget = false;
     let widgetDetectionMethod = "none";
-    let widgetDismissed = false;
 
     try {
       console.log("[Dashboard] Starting widget detection...");
@@ -313,7 +333,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Check both current.blocks AND current.enabled_app_embeds
       let detectedInTheme = false;
       let detectedViaHeartbeat = false;
-      let cachedStatus = false;
+      const cachedStatus = shopSettings?.widgetIsActive || false;
 
       try {
         // Step 1: Get the main (published) theme
@@ -361,76 +381,73 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
           if (settingsContent) {
             // Step 3: Parse JSON after removing Shopify's comment blocks
-            settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
-            settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
+            // Wrap in try/catch to handle malformed JSON gracefully
+            try {
+              settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
+              settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
 
-            const themeSettings = JSON.parse(settingsContent);
+              const themeSettings = JSON.parse(settingsContent);
 
-            // CANONICAL CHECK: current.enabled_app_embeds (Shopify's official flag)
-            const enabledAppEmbeds = themeSettings.current?.enabled_app_embeds || [];
-            const appHandle = 'RewardsproMembership';
-            const blockHandle = 'membership_widget';
-            const extensionUid = 'a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9';
-            const expectedType = `shopify://apps/${appHandle}/blocks/${blockHandle}/${extensionUid}`;
+              // CANONICAL CHECK: current.enabled_app_embeds (Shopify's official flag)
+              const enabledAppEmbeds = themeSettings.current?.enabled_app_embeds || [];
+              const appHandle = 'RewardsproMembership';
+              const blockHandle = 'membership_widget';
+              const extensionUid = 'a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9';
+              const expectedType = `shopify://apps/${appHandle}/blocks/${blockHandle}/${extensionUid}`;
 
-            // Check if our app embed is in the enabled list
-            const isInEnabledList = enabledAppEmbeds.some((embed: string) =>
-              embed === expectedType || embed.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)
-            );
+              // Check if our app embed is in the enabled list
+              const isInEnabledList = enabledAppEmbeds.some((embed: string) =>
+                embed === expectedType || embed.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)
+              );
 
-            if (isInEnabledList) {
-              detectedInTheme = true;
-              console.log(`[Dashboard] ✓ App embed found in enabled_app_embeds`);
-            }
+              if (isInEnabledList) {
+                detectedInTheme = true;
+                console.log(`[Dashboard] ✓ App embed found in enabled_app_embeds`);
+              }
 
-            // FALLBACK CHECK: current.blocks (legacy detection)
-            if (!detectedInTheme) {
-              const blocks = themeSettings.current?.blocks || {};
-              for (const [blockId, blockInfo] of Object.entries(blocks)) {
-                const block = blockInfo as any;
-                if (typeof block.type === 'string') {
-                  if (block.type === expectedType ||
-                      block.type.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)) {
-                    detectedInTheme = block.disabled !== true;
-                    console.log(`[Dashboard] App embed block found in blocks: ${block.type} (enabled: ${detectedInTheme})`);
-                    break;
+              // FALLBACK CHECK: current.blocks (legacy detection)
+              if (!detectedInTheme) {
+                const blocks = themeSettings.current?.blocks || {};
+                for (const [blockId, blockInfo] of Object.entries(blocks)) {
+                  const block = blockInfo as any;
+                  if (typeof block.type === 'string') {
+                    if (block.type === expectedType ||
+                        block.type.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)) {
+                      detectedInTheme = block.disabled !== true;
+                      console.log(`[Dashboard] App embed block found in blocks: ${block.type} (enabled: ${detectedInTheme})`);
+                      break;
+                    }
                   }
                 }
               }
+            } catch (parseError) {
+              console.error("[Dashboard] Failed to parse theme settings JSON:", parseError);
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("[Dashboard] GraphQL theme detection failed:", error);
+
+        // Check if it's a scope/authorization issue
+        if (error?.message?.includes('403') ||
+            error?.message?.includes('Unauthorized') ||
+            error?.message?.includes('read_themes')) {
+          widgetDetectionMethod = "missing-scope";
+          console.warn("[Dashboard] Missing read_themes scope - merchant needs to re-authorize");
+        }
+
         // Continue to check heartbeat and cache
       }
 
-      // Check heartbeat as secondary confirmation (useful for live stores)
-      // Also get cached status and dismissal flag
-      try {
-        const widgetSettings = await db.shopSettings.findUnique({
-          where: { shop },
-          select: {
-            widgetLastHeartbeat: true,
-            widgetIsActive: true,
-            widgetSetupDismissed: true,
-          }
-        });
+      // Check heartbeat as secondary confirmation
+      if (shopSettings?.widgetLastHeartbeat) {
+        const lastHeartbeat = new Date(shopSettings.widgetLastHeartbeat);
+        const now = new Date();
+        const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
 
-        widgetDismissed = widgetSettings?.widgetSetupDismissed || false;
-        cachedStatus = widgetSettings?.widgetIsActive || false;
-
-        if (widgetSettings?.widgetLastHeartbeat) {
-          const lastHeartbeat = new Date(widgetSettings.widgetLastHeartbeat);
-          const now = new Date();
-          const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
-
-          // Widget is active if heartbeat within last 5 minutes
-          detectedViaHeartbeat = minutesSinceHeartbeat < 5;
-          console.log(`[Dashboard] Heartbeat check: ${detectedViaHeartbeat} (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
-        }
-      } catch (error) {
-        console.error("[Dashboard] Failed to check heartbeat/cache:", error);
+        // Widget is active if heartbeat within last 5 minutes
+        detectedViaHeartbeat = minutesSinceHeartbeat < 5;
+        console.log(`[Dashboard] Heartbeat check: ${detectedViaHeartbeat} (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
       }
 
       // Determine final status with fallback logic
@@ -484,43 +501,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Check customer account block status
     // IMPORTANT: Dismissal is SEPARATE from detection
     // We track if banner was dismissed, but still need to detect if block is actually installed
-    let hasCustomerAccountBlock = false;
-    let customerAccountBlockDismissed = false;
+    // For now, we only have dismissal tracking (already fetched in shopSettings above)
+    // TODO: Add actual detection (heartbeat or GraphQL query for customer account extensions)
+    const hasCustomerAccountBlock = customerAccountBlockDismissed; // Hide banner if dismissed
 
-    try {
-      // For now, we only have dismissal tracking for customer account block
-      // TODO: Add actual detection (heartbeat or GraphQL query for customer account extensions)
-      const blockSettings = await db.shopSettings.findUnique({
-        where: { shop },
-        select: {
-          customerAccountBlockDismissed: true,
-        }
-      });
-
-      customerAccountBlockDismissed = blockSettings?.customerAccountBlockDismissed || false;
-
-      // For customer account block, we currently only have dismissal
-      // Hide banner if dismissed (will add proper detection in future)
-      hasCustomerAccountBlock = customerAccountBlockDismissed;
-
-      console.log(`[Dashboard] Customer account block: ${hasCustomerAccountBlock} (dismissed: ${customerAccountBlockDismissed})`);
-    } catch (error) {
-      console.error("[Dashboard] Error checking customer account block status:", error);
-    }
+    console.log(`[Dashboard] Customer account block: ${hasCustomerAccountBlock} (dismissed: ${customerAccountBlockDismissed})`);
 
     // Fetch all data in parallel for performance
+    // Note: shopSettings already fetched above, so we fetch only remaining data here
     const [
-      shopSettings,
       customers,
       tiers,
       recentTransactions,
       billingSubscription,
     ] = await Promise.all([
-      // Shop settings
-      db.shopSettings.findUnique({
-        where: { shop }
-      }),
-
       // All customers with tier info
       db.customer.findMany({
         where: { shop },
