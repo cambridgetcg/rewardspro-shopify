@@ -1088,8 +1088,8 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* Customer Account Block Setup - Always show until detected */}
-        {!data.hasCustomerAccountBlock && (
+        {/* Customer Account Block Setup - TEMPORARILY DISABLED */}
+        {false && !data.hasCustomerAccountBlock && (
           <Layout.Section data-banner="customer-account-block">
             <Banner
               title="Enable customer account membership block"
