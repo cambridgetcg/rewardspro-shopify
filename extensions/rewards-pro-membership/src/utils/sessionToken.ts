@@ -15,6 +15,15 @@ export function decodeSessionToken(token: string): DecodedSessionToken {
     const decodedPayload = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
     const claims = JSON.parse(decodedPayload) as SessionTokenClaims;
 
+    console.log('[decodeSessionToken] Decoded claims:', {
+      hasDest: !!claims.dest,
+      hasSub: !!claims.sub,
+      dest: claims.dest,
+      sub: claims.sub,
+      aud: claims.aud,
+      exp: claims.exp
+    });
+
     // Check if token is expired
     const now = Math.floor(Date.now() / 1000);
     const isExpired = claims.exp < now;
@@ -24,6 +33,7 @@ export function decodeSessionToken(token: string): DecodedSessionToken {
     if (claims.sub) {
       const match = claims.sub.match(/gid:\/\/shopify\/Customer\/(\d+)/);
       customerId = match ? match[1] : undefined;
+      console.log('[decodeSessionToken] Extracted customer ID:', customerId, 'from sub:', claims.sub);
     }
 
     return {

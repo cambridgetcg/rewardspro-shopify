@@ -12,11 +12,11 @@ import {
   Spinner,
   Divider,
   View,
+  useExtension,
 } from '@shopify/ui-extensions-react/customer-account';
 import { useSessionToken } from './hooks/useSessionToken';
 import { useApiClient } from './hooks/useApiClient';
 import { useAuthenticatedCustomer } from './hooks/useAuthenticatedCustomer';
-import { createApiClient } from './utils/apiClient';
 
 export default reactExtension(
   'customer-account.profile.block.render',
@@ -58,12 +58,17 @@ interface LoyaltyData {
   currency: string;
   message?: string;
   canEnroll?: boolean;
+  isPreview?: boolean;
 }
 
 function HelloWorldBlock() {
   const translate = useTranslate();
   const i18n = useI18n();
   const language = useLanguage();
+
+  // Detect if we're in the theme editor
+  const { editor } = useExtension();
+  const isInEditor = editor?.type === 'checkout';
 
   // Authenticated customer (simpler, direct access)
   const {
@@ -86,6 +91,13 @@ function HelloWorldBlock() {
 
   // Extract shop domain from decoded token for absolute URL construction
   const shopDomain = decodedToken?.claims?.dest; // e.g., "store.myshopify.com"
+
+  console.log('[HelloWorldBlock] Shop domain extraction:', {
+    hasDecodedToken: !!decodedToken,
+    hasClaims: !!decodedToken?.claims,
+    shopDomain: shopDomain,
+    dest: decodedToken?.claims?.dest
+  });
 
   // API client - needs shop domain for absolute URLs
   const apiClient = useApiClient({
@@ -118,8 +130,49 @@ function HelloWorldBlock() {
       console.log('[HelloWorldBlock] fetchLoyaltyData called', {
         isAuthenticated,
         hasSessionToken: !!sessionToken,
+        isInEditor,
         willFetch: isAuthenticated && !!sessionToken
       });
+
+      // If in editor mode, always show mock data
+      if (isInEditor) {
+        console.log('[HelloWorldBlock] Editor mode detected, setting mock data');
+        setLoyaltyData({
+          success: true,
+          enrolled: true,
+          balance: 50.00,
+          tier: {
+            name: 'Gold Member',
+            cashbackPercent: 5,
+            minSpend: 500
+          },
+          nextTier: {
+            name: 'Platinum Member',
+            cashbackPercent: 10,
+            minSpend: 1000
+          },
+          progressToNextTier: 65,
+          amountToNextTier: 350,
+          totalEarned: 125.50,
+          stats: {
+            orderCount: 12,
+            totalSpent: 650.00,
+            netSpent: 650.00,
+            averageCashbackPerOrder: 10.46,
+            lastOrderDate: new Date().toISOString()
+          },
+          allTiers: [
+            { name: 'Bronze Member', cashbackPercent: 2, minSpend: 0 },
+            { name: 'Silver Member', cashbackPercent: 3, minSpend: 250 },
+            { name: 'Gold Member', cashbackPercent: 5, minSpend: 500 },
+            { name: 'Platinum Member', cashbackPercent: 10, minSpend: 1000 }
+          ],
+          recentTransactions: [],
+          currency: 'USD',
+          message: 'Editor Preview - This is sample membership data'
+        });
+        return;
+      }
 
       if (!isAuthenticated || !sessionToken) {
         console.log('[HelloWorldBlock] Skipping fetch - not authenticated or no session token');
@@ -142,6 +195,7 @@ function HelloWorldBlock() {
           success: response.success,
           hasData: !!response.data,
           error: response.error,
+          isPreview: response.data?.isPreview,
         });
 
         if (response.success && response.data) {
@@ -149,8 +203,46 @@ function HelloWorldBlock() {
             enrolled: response.data.enrolled,
             balance: response.data.balance,
             tierName: response.data.tier?.name,
+            isPreview: response.data.isPreview,
           });
           setLoyaltyData(response.data);
+        } else if (response.data?.isPreview) {
+          // Preview mode - show mock data instead of error
+          console.log('[HelloWorldBlock] Preview mode detected, setting mock data');
+          setLoyaltyData({
+            success: true,
+            enrolled: true,
+            balance: 50.00,
+            tier: {
+              name: 'Gold Member',
+              cashbackPercent: 5,
+              minSpend: 500
+            },
+            nextTier: {
+              name: 'Platinum Member',
+              cashbackPercent: 10,
+              minSpend: 1000
+            },
+            progressToNextTier: 65,
+            amountToNextTier: 350,
+            totalEarned: 125.50,
+            stats: {
+              orderCount: 12,
+              totalSpent: 650.00,
+              netSpent: 650.00,
+              averageCashbackPerOrder: 10.46,
+              lastOrderDate: new Date().toISOString()
+            },
+            allTiers: [
+              { name: 'Bronze Member', cashbackPercent: 2, minSpend: 0 },
+              { name: 'Silver Member', cashbackPercent: 3, minSpend: 250 },
+              { name: 'Gold Member', cashbackPercent: 5, minSpend: 500 },
+              { name: 'Platinum Member', cashbackPercent: 10, minSpend: 1000 }
+            ],
+            recentTransactions: [],
+            currency: 'USD',
+            message: 'Preview - Sign in to view your actual membership data'
+          });
         } else {
           const errorMsg = response.error || 'Failed to fetch loyalty data';
           console.error('[HelloWorldBlock] API error:', errorMsg);
@@ -159,7 +251,12 @@ function HelloWorldBlock() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         console.error('[HelloWorldBlock] Exception during fetch:', errorMessage, err);
-        setError(errorMessage);
+
+        // Don't show errors in preview/unauthenticated mode - just log them
+        // The placeholder will be shown by the !isAuthenticated check
+        if (isAuthenticated) {
+          setError(errorMessage);
+        }
       } finally {
         console.log('[HelloWorldBlock] Fetch complete, setting loading to false');
         setDataLoading(false);
@@ -167,53 +264,7 @@ function HelloWorldBlock() {
     }
 
     fetchLoyaltyData();
-  }, [isAuthenticated, sessionToken, apiClient]);
-
-  // Send heartbeat signals to confirm block is installed and rendering
-  // This allows dashboard to detect actual installation vs just dismissal
-  useEffect(() => {
-    async function sendHeartbeat() {
-      if (!isAuthenticated || !sessionToken || !shopDomain) {
-        console.log('[HelloWorldBlock] Skipping heartbeat - not authenticated or no shop domain');
-        return;
-      }
-
-      try {
-        console.log('[HelloWorldBlock] Sending heartbeat signal...');
-
-        // Create heartbeat client with shop domain for absolute URL
-        const heartbeatApiClient = createApiClient({
-          shopDomain: shopDomain,
-          baseUrl: '/api/customer-account/heartbeat',
-          timeout: 5000,
-          enableDebugLogs: false,
-        });
-
-        const response = await heartbeatApiClient.post(sessionToken, '');
-
-        if (response.success) {
-          console.log('[HelloWorldBlock] Heartbeat sent successfully');
-        } else {
-          console.warn('[HelloWorldBlock] Heartbeat failed:', response.error);
-        }
-      } catch (err) {
-        // Don't show error to user, just log it
-        console.error('[HelloWorldBlock] Heartbeat failed:', err);
-      }
-    }
-
-    // Send immediate heartbeat on mount
-    sendHeartbeat();
-
-    // Send heartbeat every 2 minutes while component is mounted
-    const heartbeatInterval = setInterval(sendHeartbeat, 2 * 60 * 1000);
-
-    // Cleanup interval on unmount
-    return () => {
-      console.log('[HelloWorldBlock] Cleaning up heartbeat interval');
-      clearInterval(heartbeatInterval);
-    };
-  }, [isAuthenticated, sessionToken, shopDomain]);
+  }, [isAuthenticated, sessionToken, apiClient, isInEditor]);
 
   // Placeholder for unauthenticated state (useful in theme editor / testing)
   if (!isAuthenticated) {

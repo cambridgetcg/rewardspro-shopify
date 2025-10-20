@@ -307,11 +307,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         customersInitialSynced: true,
         customersSyncInProgress: true,
         currencySelected: true,
-        widgetLastHeartbeat: true,
         widgetIsActive: true,
         widgetSetupDismissed: true,
         customerAccountBlockDismissed: true,
-        customerAccountBlockLastHeartbeat: true,
         customerAccountBlockIsActive: true,
       }
     });
@@ -324,7 +322,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // 1. Dismissal flag is ONLY for UI (suppress banner)
     // 2. Detection runs regardless of dismissal state
     // 3. Cache last known status for fallback
-    // 4. Check both theme settings AND heartbeat
+    // 4. Check theme settings for actual detection
     // 5. hasWidget = true ONLY if actually detected (not just dismissed)
     let hasWidget = false;
     let widgetDetectionMethod = "none";
@@ -503,53 +501,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Check customer account block status
     // IMPORTANT: Dismissal is SEPARATE from detection
     // We track if banner was dismissed, but still need to detect if block is actually installed
-    // Detection strategy: Cache (primary) → Heartbeat (secondary fallback)
+    // Detection strategy: Cache only
     //
     // NOTE: GraphQL detection disabled because customerAccountAppExtensionRegistrations
     // field doesn't exist in Admin API 2025-01 (never shipped).
-    // Relying on cache/heartbeat until proper API is available.
+    // Relying on cache until proper API is available.
 
     let hasCustomerAccountBlock = false;
-    let customerAccountDetectionReason: "cached" | "heartbeat" | "none" = "none";
+    let customerAccountDetectionReason: "cached" | "none" = "none";
 
     try {
-      console.log("[Dashboard] Starting customer account block detection (cache/heartbeat only)...");
+      console.log("[Dashboard] Starting customer account block detection (cache only)...");
 
-      // PRIMARY: Check cached status
+      // Check cached status
       if (shopSettings?.customerAccountBlockIsActive) {
         hasCustomerAccountBlock = true;
         customerAccountDetectionReason = "cached";
         console.log(`[Dashboard] Customer account block detected via cache`);
-      }
-
-      // SECONDARY: Fall back to heartbeat if cache is false/null
-      if (!hasCustomerAccountBlock && shopSettings?.customerAccountBlockLastHeartbeat) {
-        const lastHeartbeat = new Date(shopSettings.customerAccountBlockLastHeartbeat);
-        const now = new Date();
-        const minutesSinceHeartbeat = (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60);
-
-        // Block is active if heartbeat within last 5 minutes
-        if (minutesSinceHeartbeat < 5) {
-          hasCustomerAccountBlock = true;
-          customerAccountDetectionReason = "heartbeat";
-          console.log(`[Dashboard] Customer account block detected via heartbeat fallback (${minutesSinceHeartbeat.toFixed(1)} min ago)`);
-
-          // Update cache with heartbeat detection (only if changed)
-          if (!shopSettings?.customerAccountBlockIsActive) {
-            try {
-              await db.shopSettings.update({
-                where: { shop },
-                data: {
-                  customerAccountBlockIsActive: true,
-                  updatedAt: new Date(),
-                },
-              });
-              console.log("[Dashboard] Updated customer account block cache from heartbeat: true");
-            } catch (e) {
-              console.error("[Dashboard] Failed to update customer account block cache:", e);
-            }
-          }
-        }
       }
 
       console.log(`[Dashboard] Final customer account block status: ${hasCustomerAccountBlock} (method: ${customerAccountDetectionReason}, dismissed: ${customerAccountBlockDismissed})`);
@@ -1164,7 +1132,7 @@ export default function Dashboard() {
                 <Box paddingBlock="200">
                   <Banner tone="info">
                     <Text variant="bodySm" as="p">
-                      Note: The block will only show as enabled once we detect it's actually installed (via GraphQL detection).
+                      Note: The block will only show as enabled once we detect it's actually installed.
                       This onboarding guide will persist until the block is detected as active.
                     </Text>
                   </Banner>

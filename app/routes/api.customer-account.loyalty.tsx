@@ -8,6 +8,12 @@
  * - Token provided by customer account extension via sessionToken API
  * - Validated using authenticate.public.customerAccount()
  *
+ * PREVIEW MODE HANDLING:
+ * - In theme/customer-account preview, Shopify sends tokens with blank dest/sub claims
+ * - We decode the JWT payload first to detect this case
+ * - Returns friendly "not enrolled" preview state instead of attempting authentication
+ * - This avoids noisy errors from the auth helper when no real customer session exists
+ *
  * SECURITY:
  * - All queries scoped to authenticated shop
  * - Customer ID verified from token sub claim
@@ -207,6 +213,63 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Error boundary for entire function
   try {
+    // Step 0: Check if token has required claims before attempting authentication
+    // In preview mode, Shopify sends a token with blank dest/sub claims
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        // Decode JWT payload (without verification - just to peek at claims)
+        const [, payloadBase64] = token.split('.');
+        if (payloadBase64) {
+          const payload = JSON.parse(atob(payloadBase64));
+
+          // Check if required claims are present
+          if (!payload.dest || !payload.sub) {
+            console.log(`[${requestId}] Preview mode detected - token missing dest/sub claims`);
+
+            // Return friendly preview state instead of error
+            return json(
+              {
+                success: true,
+                enrolled: false,
+                balance: 0,
+                message: "Sign in to view your membership tier and store credit balance",
+                isPreview: true,
+                tier: null,
+                nextTier: null,
+                progressToNextTier: 0,
+                amountToNextTier: 0,
+                totalEarned: 0,
+                stats: {
+                  orderCount: 0,
+                  totalSpent: 0,
+                  netSpent: 0,
+                  averageCashbackPerOrder: 0,
+                  lastOrderDate: null
+                },
+                allTiers: [],
+                recentTransactions: [],
+                currency: 'USD'
+              },
+              {
+                status: 200,
+                headers: {
+                  ...getCorsHeaders(origin),
+                  "Cache-Control": "no-store",
+                  "X-Response-Time": `${Date.now() - startTime}ms`,
+                  "X-Preview-Mode": "true"
+                }
+              }
+            );
+          }
+        }
+      } catch (decodeError) {
+        // If we can't decode, let the auth helper handle it
+        console.log(`[${requestId}] Could not decode token, proceeding with authentication`);
+      }
+    }
+
     // Step 1: Validate session token from customer account extension
     console.log(`[${requestId}] Step 1: Authenticating request...`);
 
@@ -215,7 +278,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       authResult = await authenticate.public.customerAccount(request);
       console.log(`[${requestId}] Step 2: Authenticated successfully`);
     } catch (authError: any) {
-      console.error(`[${requestId}] Authentication failed:`, authError.message);
+      console.log(`[${requestId}] Authentication failed:`, authError.message || 'Unknown error');
       return json({
         error: "Authentication failed",
         message: authError.message || "Unable to authenticate customer account session"
@@ -242,25 +305,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.log(`[${requestId}] Customer GID: ${customerGid}`);
     console.log(`[${requestId}] Shop: ${shop}`);
 
-    // Validate that we have the required claims
-    if (!customerGid) {
-      console.error(`[${requestId}] Missing customer GID (sub claim) in session token`);
+    // Validate that we have the required claims (should always be present if auth succeeded)
+    if (!customerGid || !shop) {
+      console.error(`[${requestId}] Missing required claims after successful authentication:`, {
+        hasCustomerGid: !!customerGid,
+        hasShop: !!shop
+      });
       return json(
-        {
-          error: "Invalid session token",
-          message: "Session token is missing customer identifier"
-        },
-        { status: 401, headers: getCorsHeaders(origin) }
-      );
-    }
-
-    if (!shop) {
-      console.error(`[${requestId}] Missing shop (dest claim) in session token`);
-      return json(
-        {
-          error: "Invalid session token",
-          message: "Session token is missing shop identifier"
-        },
+        { error: "Invalid session token", message: "Session token is missing required claims" },
         { status: 401, headers: getCorsHeaders(origin) }
       );
     }
