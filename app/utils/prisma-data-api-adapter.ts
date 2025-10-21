@@ -532,7 +532,7 @@ export class DataAPIModelProxy<T = any> {
     // Map of known enum fields per table
     const enumFields: Record<string, string[]> = {
       Tier: ['evaluationPeriod', 'billingInterval'],
-      ShopSettings: ['storeCurrency', 'currencyDisplayType'],
+      ShopSettings: ['storeCurrency', 'currencyDisplayType', 'tierRecalculationFrequency'],
       StoreCreditLedger: ['type'],
       TierChangeLog: ['changeType', 'triggerType'],
       TierProduct: ['purchaseType', 'duration', 'currency'],
@@ -561,6 +561,7 @@ export class DataAPIModelProxy<T = any> {
       storeCurrency: '"Currency"',
       currency: '"Currency"',
       currencyDisplayType: '"CurrencyDisplayType"',
+      tierRecalculationFrequency: '"RecalculationFrequency"',
       type: '"LedgerEntryType"',
       changeType: '"TierChangeType"',
       triggerType: '"TierTriggerType"',
