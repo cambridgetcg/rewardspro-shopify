@@ -403,21 +403,10 @@ export default function BillingPage() {
                   <BlockStack gap="300">
                     <BlockStack gap="200">
                       <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        Can I upgrade or downgrade my plan at any time?
-                      </Text>
-                      <Text as="p" variant="bodyMd" tone="subdued">
-                        Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.
-                      </Text>
-                    </BlockStack>
-
-                    <Divider />
-
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyMd" fontWeight="semibold">
                         How does billing work?
                       </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        All plans are billed monthly through your Shopify invoice. The charge appears on your regular Shopify bill.
+                        All billing is handled through Shopify. Charges appear on your regular Shopify invoice—the same monthly invoice you already receive for your Shopify subscription. We never charge your card directly; all payments flow through Shopify's secure billing system.
                       </Text>
                     </BlockStack>
 
@@ -425,10 +414,98 @@ export default function BillingPage() {
 
                     <BlockStack gap="200">
                       <Text as="p" variant="bodyMd" fontWeight="semibold">
-                        When will I be charged?
+                        What's the difference between monthly and annual billing?
                       </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        Charges appear on your regular Shopify invoice. You'll be charged monthly on the same billing cycle as your Shopify subscription.
+                        Annual plans charge the yearly total up front (e.g., Pro Annual is $336/year instead of $39/month) and offer significant savings—up to 28% off. When you switch from monthly to annual or vice versa, Shopify automatically handles proration of your existing subscription. The new billing agreement starts immediately.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        What are overage/usage charges?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Pro and Max plans include usage-based billing for orders beyond your monthly limit. Pro: $10 per 100 orders over 500 (capped at $50/month). Max: $5 per 100 orders over 2,000 (capped at $100/month). These charges appear as usage line items on your Shopify invoice. Ultra plan has unlimited orders with no overage charges.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        Can I upgrade or downgrade my plan at any time?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Yes! Plan changes take effect immediately. Upgrades remove any "plan locked" state instantly and increase your order limit right away. Downgrades or returns to the free plan also apply instantly, though you may be locked again if your current usage exceeds the new limit.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        What happens when I reach my order limit?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        When you hit your order limit, your store is automatically locked and the dashboard will prompt you to upgrade. Premium features will be locked or greyed out. Upgrading instantly unlocks your store and raises the limit. Pro and Max plans with usage billing will continue processing orders and charge the overage rate (up to the monthly cap).
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        What happens after I cancel my subscription?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Cancellation instantly reverts your account to the Free plan with a 100 order/month limit. Your existing configuration (tiers, rewards, etc.) stays intact, but premium features lock or grey out once the free plan limit is reached. No data is lost—you can re-upgrade anytime.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        What if I cancel my annual plan mid-term?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Shopify handles annual subscription cancellations automatically. Any prorated refunds or final charges are processed through Shopify Billing. Once cancelled, we receive a webhook and immediately downgrade your account to Free. To ensure billing stops, complete the full cancellation flow in Shopify.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        What is your refund policy?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Since all billing is handled through Shopify, any refunds must go through Shopify's billing channels. Contact Shopify Support or reach out to our support team, who can initiate the refund process via Shopify on your behalf.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        How do I cancel my subscription?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Visit the Billing page, click "Manage plan," and follow the confirmation flow in Shopify. Make sure to complete all steps in the Shopify confirmation page to ensure billing stops. If you encounter any issues, contact our support team for assistance.
+                      </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="200">
+                      <Text as="p" variant="bodyMd" fontWeight="semibold">
+                        I see "shop cannot accept the provided charge" — what does this mean?
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        This message appears when the app is still in development mode and billing hasn't been approved yet. If you're seeing this on a live store, please contact our support team to enable billing for your shop.
                       </Text>
                     </BlockStack>
                   </BlockStack>
