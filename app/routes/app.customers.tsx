@@ -28,8 +28,6 @@ import {
   Tooltip,
   Avatar,
   SkeletonBodyText,
-  Popover,
-  ActionList,
   SkeletonDisplayText,
   Toast,
   Frame,
@@ -37,7 +35,6 @@ import {
   Checkbox,
   ChoiceList,
 } from "@shopify/polaris";
-import { MenuHorizontalIcon } from "@shopify/polaris-icons";
 import {
   SearchIcon,
   PersonIcon,
@@ -1434,8 +1431,6 @@ function CustomersTableContent({
   isCalculating,
   calculatingCustomerId,
   handleViewCustomer,
-  togglePopover,
-  activePopover,
   handleManualTierAssignment,
   handleCalculateSingle
 }: {
@@ -1446,8 +1441,6 @@ function CustomersTableContent({
   isCalculating: boolean;
   calculatingCustomerId: string | null;
   handleViewCustomer: (id: string, tabIndex?: number) => void;
-  togglePopover: (id: string) => void;
-  activePopover: string | null;
   handleManualTierAssignment: (customer: Customer) => void;
   handleCalculateSingle: (customerId: string) => void;
 }) {
@@ -1574,36 +1567,6 @@ function CustomersTableContent({
             >
               Assign Tier
             </Button>
-            <Popover
-              active={activePopover === customer.id}
-              activator={
-                <Button
-                  size="slim"
-                  icon={MenuHorizontalIcon}
-                  variant="tertiary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    togglePopover(customer.id);
-                  }}
-                  accessibilityLabel={`More actions for ${customer.email}`}
-                />
-              }
-              onClose={() => togglePopover(customer.id)}
-            >
-              <ActionList
-                items={[
-                  {
-                    content: isProcessing ? 'Calculating...' : 'Recalculate tier',
-                    icon: RefreshIcon,
-                    onAction: () => {
-                      handleCalculateSingle(customer.id);
-                      togglePopover(customer.id);
-                    },
-                    disabled: isProcessing,
-                  },
-                ]}
-              />
-            </Popover>
           </InlineStack>
         </IndexTable.Cell>
       </IndexTable.Row>
@@ -1698,8 +1661,7 @@ export default function Customers() {
   const [modalInitialTab, setModalInitialTab] = useState(0);
   const [visibleRows, setVisibleRows] = useState<number[]>([]);
   const [toast, setToast] = useState<ToastState>({ active: false, content: '' });
-  const [activePopover, setActivePopover] = useState<string | null>(null);
-  
+
   // Tier management states
   const [tierModalActive, setTierModalActive] = useState(false);
   const [editingTier, setEditingTier] = useState<any>(null);
@@ -1822,11 +1784,6 @@ export default function Customers() {
     setModalInitialTab(tabIndex);
     setModalOpen(true);
   }, []);
-
-  // Toggle actions popover
-  const togglePopover = useCallback((customerId: string) => {
-    setActivePopover(activePopover === customerId ? null : customerId);
-  }, [activePopover]);
 
   // Open manual tier assignment modal
   const handleManualTierAssignment = useCallback((customer: Customer) => {
@@ -2094,8 +2051,6 @@ export default function Customers() {
                 isCalculating={isCalculating}
                 calculatingCustomerId={calculatingCustomerId}
                 handleViewCustomer={handleViewCustomer}
-                togglePopover={togglePopover}
-                activePopover={activePopover}
                 handleManualTierAssignment={handleManualTierAssignment}
                 handleCalculateSingle={handleCalculateSingle}
               />
