@@ -1565,6 +1565,15 @@ function CustomersTableContent({
         </IndexTable.Cell>
         <IndexTable.Cell>
           <InlineStack gap="200" align="end">
+            <Button
+              size="slim"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleManualTierAssignment(customer);
+              }}
+            >
+              Assign Tier
+            </Button>
             <Popover
               active={activePopover === customer.id}
               activator={
@@ -1572,7 +1581,10 @@ function CustomersTableContent({
                   size="slim"
                   icon={MenuHorizontalIcon}
                   variant="tertiary"
-                  onClick={() => togglePopover(customer.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePopover(customer.id);
+                  }}
                   accessibilityLabel={`More actions for ${customer.email}`}
                 />
               }
@@ -1580,14 +1592,6 @@ function CustomersTableContent({
             >
               <ActionList
                 items={[
-                  {
-                    content: 'Assign tier manually',
-                    icon: EditIcon,
-                    onAction: () => {
-                      handleManualTierAssignment(customer);
-                      togglePopover(customer.id);
-                    },
-                  },
                   {
                     content: isProcessing ? 'Calculating...' : 'Recalculate tier',
                     icon: RefreshIcon,
