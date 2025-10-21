@@ -1528,9 +1528,10 @@ export default function SettingsPage() {
                           currentMonth: currentMonth
                         }}
                         showUpgradeButton={true}
-                        showOverageBanner={true}
+                        showOverageBanner={false}
                         showCountStrategy={false}
                         showProjectedUsage={true}
+                        compact={false}
                         onUpgrade={() => navigate("/app/billing")}
                       />
 
