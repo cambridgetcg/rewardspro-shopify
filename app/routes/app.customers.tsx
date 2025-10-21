@@ -9,7 +9,6 @@ import {
   Layout,
   Card,
   IndexTable,
-  useIndexResourceState,
   TextField,
   Select,
   Button,
@@ -1438,8 +1437,7 @@ function CustomersTableContent({
   togglePopover,
   activePopover,
   handleManualTierAssignment,
-  handleCalculateSingle,
-  onSelectionChange
+  handleCalculateSingle
 }: {
   customers: Customer[];
   pagination: any;
@@ -1447,12 +1445,11 @@ function CustomersTableContent({
   tiers: any[];
   isCalculating: boolean;
   calculatingCustomerId: string | null;
-  handleViewCustomer: (id: string) => void;
+  handleViewCustomer: (id: string, tabIndex?: number) => void;
   togglePopover: (id: string) => void;
   activePopover: string | null;
   handleManualTierAssignment: (customer: Customer) => void;
   handleCalculateSingle: (customerId: string) => void;
-  onSelectionChange?: (resources: string[]) => void;
 }) {
   const navigation = useNavigation();
   const [visibleRows, setVisibleRows] = useState<number[]>([]);
@@ -1465,7 +1462,7 @@ function CustomersTableContent({
 
   // Pagination handlers
   const handlePreviousPage = useCallback(() => {
-    if (pagination.hasPrevPage) {
+    if (pagination?.hasPrevPage) {
       const newParams = new URLSearchParams(searchParams);
       newParams.set("page", String(pagination.currentPage - 1));
       setSearchParams(newParams);
@@ -1473,22 +1470,12 @@ function CustomersTableContent({
   }, [pagination, searchParams, setSearchParams]);
 
   const handleNextPage = useCallback(() => {
-    if (pagination.hasNextPage) {
+    if (pagination?.hasNextPage) {
       const newParams = new URLSearchParams(searchParams);
       newParams.set("page", String(pagination.currentPage + 1));
       setSearchParams(newParams);
     }
   }, [pagination, searchParams, setSearchParams]);
-
-  const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
-    useIndexResourceState(customers);
-
-  // Notify parent of selection changes
-  useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange(selectedResources);
-    }
-  }, [selectedResources, onSelectionChange]);
 
   // Stagger animation on mount
   useEffect(() => {
@@ -1504,15 +1491,6 @@ function CustomersTableContent({
     }
   }, [customers.length]);
 
-  const bulkActions = [
-    {
-      content: 'Calculate tiers',
-      onAction: () => {
-        // Handle bulk tier calculation
-      },
-    },
-  ];
-
   const rowMarkup = customers.map((customer, index) => {
     const isVisible = visibleRows.includes(index);
     const isProcessing = calculatingCustomerId === customer.id;
@@ -1521,8 +1499,8 @@ function CustomersTableContent({
       <IndexTable.Row
         id={customer.id}
         key={customer.id}
-        selected={selectedResources.includes(customer.id)}
         position={index}
+        onClick={() => handleViewCustomer(customer.id)}
       >
         <IndexTable.Cell>
           <div
@@ -1654,11 +1632,6 @@ function CustomersTableContent({
           <IndexTable
             resourceName={resourceName}
             itemCount={customers.length}
-            selectedItemsCount={
-              allResourcesSelected ? 'All' : selectedResources.length
-            }
-            onSelectionChange={handleSelectionChange}
-            bulkActions={bulkActions}
             headings={[
               { title: 'Customer' },
               { title: 'Tier' },
@@ -1666,6 +1639,7 @@ function CustomersTableContent({
               { title: 'Actions', alignment: 'end' },
             ]}
             loading={isLoading}
+            selectable={false}
           >
             {rowMarkup}
           </IndexTable>
@@ -1673,7 +1647,7 @@ function CustomersTableContent({
       </Box>
 
       {/* Bottom pagination */}
-      {pagination.totalPages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <>
           <Divider />
           <Box padding="400">
@@ -1714,7 +1688,6 @@ export default function Customers() {
   // State - Initialize from URL params
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [tierFilter, setTierFilter] = useState(searchParams.get("tier") || "all");
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [queryValue, setQueryValue] = useState(searchParams.get("search") || "");
   const [pageSize, setPageSize] = useState(parseInt(searchParams.get("pageSize") || "25"));
   const [isCalculating, setIsCalculating] = useState(false);
@@ -2059,14 +2032,17 @@ export default function Customers() {
               </InlineStack>
 
               <InlineStack gap="200" blockAlign="center">
-                <Button
-                  icon={RefreshIcon}
-                  onClick={handleSyncCustomers}
-                  loading={isCalculating}
-                  disabled={isCalculating}
-                >
-                  Sync from Shopify
-                </Button>
+                {/* Sync from Shopify button - temporarily hidden */}
+                {false && (
+                  <Button
+                    icon={RefreshIcon}
+                    onClick={handleSyncCustomers}
+                    loading={isCalculating}
+                    disabled={isCalculating}
+                  >
+                    Sync from Shopify
+                  </Button>
+                )}
 
                 <Button
                   icon={RefreshIcon}
@@ -2121,7 +2097,6 @@ export default function Customers() {
                 activePopover={activePopover}
                 handleManualTierAssignment={handleManualTierAssignment}
                 handleCalculateSingle={handleCalculateSingle}
-                onSelectionChange={(resources) => setSelectedCustomers(resources)}
               />
             )}
           </Await>
