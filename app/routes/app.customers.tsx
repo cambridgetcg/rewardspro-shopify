@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData, useSearchParams } from "@remix-run/react";
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { json, defer } from "@remix-run/node";
+import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData, useSearchParams, Await } from "@remix-run/react";
+import { useState, useCallback, useMemo, useEffect, useRef, Suspense } from "react";
 import * as crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -123,7 +123,7 @@ interface Customer {
 }
 
 interface LoaderData {
-  customers: Customer[];
+  // Immediate data (page shell)
   tiers: Array<{
     id: string;
     name: string;
@@ -136,21 +136,24 @@ interface LoaderData {
     storeCurrency: string;
     currencyDisplayType: string;
   } | null;
-  totalCustomers: number;
-  tierDistribution: Record<string, number>;
-  stats: {
+
+  // Deferred data (streams in)
+  customersData: Promise<{
+    customers: Customer[];
+    pagination: {
+      currentPage: number;
+      pageSize: number;
+      totalPages: number;
+      totalItems: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
+  }>;
+  statsData: Promise<{
     totalTiers: number;
     totalCustomers: number;
     tierDistribution: Record<string, number>;
-  };
-  pagination: {
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-    totalItems: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
+  }>;
 }
 
 interface ToastState {
@@ -158,6 +161,115 @@ interface ToastState {
   content: string;
   error?: boolean;
   duration?: number;
+}
+
+// ============================================
+// LOADER HELPER FUNCTIONS (Deferred)
+// ============================================
+
+/**
+ * Fetch and format customers with membership status (HEAVY - deferred)
+ */
+async function fetchCustomersData(
+  shop: string,
+  whereClause: any,
+  page: number,
+  pageSize: number,
+  sortKey: string,
+  sortDirection: string
+) {
+  // Fetch customers and total count in parallel
+  const [customers, totalCount] = await Promise.all([
+    db.customer.findMany({
+      where: whereClause,
+      include: {
+        currentTier: true,
+      },
+      orderBy: { [sortKey]: sortDirection as 'asc' | 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    db.customer.count({
+      where: whereClause,
+    }),
+  ]);
+
+  // Format customers with membership status (N*3 queries)
+  const formattedCustomers = await Promise.all(customers.map(async customer => {
+    // Check tier membership status (purchased or manual)
+    const membershipStatus = await checkTierMembershipExpiry(customer.id);
+
+    // Check if customer has manual override
+    const hasManualOverrideStatus = await hasManualOverride(customer.id);
+
+    // Get tier history for last change
+    const tierHistory = await getTierHistory(customer.id, 1);
+    const lastTierChange = tierHistory.length > 0 ? {
+      triggerType: tierHistory[0].triggerType,
+      createdAt: tierHistory[0].createdAt.toISOString(),
+      note: tierHistory[0].note || undefined,
+    } : null;
+
+    return {
+      id: customer.id,
+      shopifyCustomerId: customer.shopifyCustomerId,
+      email: customer.email,
+      storeCredit: parseFloat(customer.storeCredit.toString()),
+      currentTier: customer.currentTier ? {
+        id: customer.currentTier.id,
+        name: customer.currentTier.name,
+        cashbackPercent: customer.currentTier.cashbackPercent,
+        minSpend: customer.currentTier.minSpend,
+      } : null,
+      // Add membership status
+      membershipStatus: {
+        isPurchased: membershipStatus.isPurchased,
+        needsRenewal: membershipStatus.needsRenewal,
+        expiresAt: membershipStatus.expiresAt?.toISOString() || null,
+        daysRemaining: membershipStatus.daysRemaining,
+      },
+      hasManualOverride: hasManualOverrideStatus,
+      lastTierChange,
+      createdAt: customer.createdAt.toISOString(),
+      updatedAt: customer.updatedAt.toISOString(),
+    };
+  }));
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  return {
+    customers: formattedCustomers,
+    pagination: {
+      currentPage: page,
+      pageSize,
+      totalPages,
+      totalItems: totalCount,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+  };
+}
+
+/**
+ * Calculate tier distribution across all customers (HEAVY - deferred)
+ */
+async function calculateTierDistributionData(shop: string) {
+  const allCustomers = await db.customer.findMany({
+    where: { shop },
+    select: { currentTierId: true },
+  });
+
+  const tierDistribution: Record<string, number> = {};
+  allCustomers.forEach((customer) => {
+    if (customer.currentTierId) {
+      tierDistribution[customer.currentTierId] = (tierDistribution[customer.currentTierId] || 0) + 1;
+    }
+  });
+
+  return {
+    tierDistribution,
+    totalCustomers: allCustomers.length,
+  };
 }
 
 // ============================================
@@ -183,14 +295,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Build where clause for filtering
     const whereClause: any = { shop };
-    
+
     if (searchQuery) {
       whereClause.OR = [
         { email: { contains: searchQuery, mode: 'insensitive' } },
         { shopifyCustomerId: { contains: searchQuery, mode: 'insensitive' } },
       ];
     }
-    
+
     if (tierFilter !== "all") {
       if (tierFilter === "none") {
         whereClause.currentTierId = null;
@@ -199,17 +311,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // Fetch data in parallel
-    const [customers, tiers, shopSettings, totalCount] = await Promise.all([
-      db.customer.findMany({
-        where: whereClause,
-        include: {
-          currentTier: true,
-        },
-        orderBy: { [sortKey]: sortDirection as 'asc' | 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
+    // ============================================
+    // IMMEDIATE: Fetch shell data (FAST - blocks render)
+    // ============================================
+    const [tiers, shopSettings] = await Promise.all([
       db.tier.findMany({
         where: { shop },
         orderBy: { minSpend: 'asc' },
@@ -217,100 +322,47 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       db.shopSettings.findUnique({
         where: { shop },
       }),
-      db.customer.count({
-        where: whereClause,
-      }),
     ]);
-
-    // Calculate tier distribution
-    const tierDistribution: Record<string, number> = {};
-    const allCustomers = await db.customer.findMany({
-      where: { shop },
-      select: { currentTierId: true },
-    });
-    
-    allCustomers.forEach((customer) => {
-      if (customer.currentTierId) {
-        tierDistribution[customer.currentTierId] = (tierDistribution[customer.currentTierId] || 0) + 1;
-      }
-    });
 
     // Serialize dates for tiers
     const serializedTiers = tiers.map(tier => ({
       ...tier,
       evaluationPeriod: (tier as any).evaluationPeriod || "ANNUAL" as "ANNUAL",
-      createdAt: tier.createdAt instanceof Date 
-        ? tier.createdAt.toISOString() 
+      createdAt: tier.createdAt instanceof Date
+        ? tier.createdAt.toISOString()
         : tier.createdAt,
     }));
 
-    const stats = {
-      totalTiers: tiers.length,
-      totalCustomers: totalCount,
-      tierDistribution,
-    };
+    // ============================================
+    // DEFERRED: Heavy queries (streams in later)
+    // ============================================
+    const customersDataPromise = fetchCustomersData(
+      shop,
+      whereClause,
+      page,
+      pageSize,
+      sortKey,
+      sortDirection
+    );
 
-    // Format customers for display with membership status
-    const formattedCustomers = await Promise.all(customers.map(async customer => {
-      // Check tier membership status (purchased or manual)
-      const membershipStatus = await checkTierMembershipExpiry(customer.id);
-      
-      // Check if customer has manual override
-      const hasManualOverrideStatus = await hasManualOverride(customer.id);
-      
-      // Get tier history for last change
-      const tierHistory = await getTierHistory(customer.id, 1);
-      const lastTierChange = tierHistory.length > 0 ? {
-        triggerType: tierHistory[0].triggerType,
-        createdAt: tierHistory[0].createdAt.toISOString(),
-        note: tierHistory[0].note || undefined,
-      } : null;
-      
-      return {
-        id: customer.id,
-        shopifyCustomerId: customer.shopifyCustomerId,
-        email: customer.email,
-        storeCredit: parseFloat(customer.storeCredit.toString()),
-        currentTier: customer.currentTier ? {
-          id: customer.currentTier.id,
-          name: customer.currentTier.name,
-          cashbackPercent: customer.currentTier.cashbackPercent,
-          minSpend: customer.currentTier.minSpend,
-        } : null,
-        // Add membership status
-        membershipStatus: {
-          isPurchased: membershipStatus.isPurchased,
-          needsRenewal: membershipStatus.needsRenewal,
-          expiresAt: membershipStatus.expiresAt?.toISOString() || null,
-          daysRemaining: membershipStatus.daysRemaining,
-        },
-        hasManualOverride: hasManualOverrideStatus,
-        lastTierChange,
-        createdAt: customer.createdAt.toISOString(),
-        updatedAt: customer.updatedAt.toISOString(),
-      };
+    const statsDataPromise = calculateTierDistributionData(shop).then(data => ({
+      totalTiers: tiers.length,
+      totalCustomers: data.totalCustomers,
+      tierDistribution: data.tierDistribution,
     }));
 
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    return json({
-      customers: formattedCustomers,
+    // Return immediately - deferred data streams later
+    return defer({
+      // Immediate data (shell)
       tiers: serializedTiers,
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
       } : null,
-      totalCustomers: totalCount,
-      tierDistribution,
-      stats,
-      pagination: {
-        currentPage: page,
-        pageSize,
-        totalPages,
-        totalItems: totalCount,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
+
+      // Deferred data (streams in)
+      customersData: customersDataPromise,
+      statsData: statsDataPromise,
     });
   } catch (error) {
     console.error("[Customers] Loader error:", error);
@@ -1355,10 +1407,301 @@ function CustomerAvatar({ email }: { email: string }) {
   );
 }
 
+// ============================================
+// SKELETON LOADING STATE
+// ============================================
+
+function CustomersTableSkeleton() {
+  return (
+    <Box padding="400">
+      <BlockStack gap="400">
+        <SkeletonDisplayText size="small" />
+        <SkeletonBodyText lines={10} />
+      </BlockStack>
+    </Box>
+  );
+}
 
 // ============================================
 // MAIN COMPONENT
 // ============================================
+
+// Customer Table Content Component (receives resolved data)
+function CustomersTableContent({
+  customers,
+  pagination,
+  shopSettings,
+  tiers,
+  isCalculating,
+  calculatingCustomerId,
+  handleViewCustomer,
+  togglePopover,
+  activePopover,
+  handleManualTierAssignment,
+  handleCalculateSingle,
+  onSelectionChange
+}: {
+  customers: Customer[];
+  pagination: any;
+  shopSettings: any;
+  tiers: any[];
+  isCalculating: boolean;
+  calculatingCustomerId: string | null;
+  handleViewCustomer: (id: string) => void;
+  togglePopover: (id: string) => void;
+  activePopover: string | null;
+  handleManualTierAssignment: (customer: Customer) => void;
+  handleCalculateSingle: (customerId: string) => void;
+  onSelectionChange?: (resources: string[]) => void;
+}) {
+  const navigation = useNavigation();
+  const [visibleRows, setVisibleRows] = useState<number[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const resourceName = {
+    singular: 'customer',
+    plural: 'customers',
+  };
+
+  // Pagination handlers
+  const handlePreviousPage = useCallback(() => {
+    if (pagination.hasPrevPage) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("page", String(pagination.currentPage - 1));
+      setSearchParams(newParams);
+    }
+  }, [pagination, searchParams, setSearchParams]);
+
+  const handleNextPage = useCallback(() => {
+    if (pagination.hasNextPage) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("page", String(pagination.currentPage + 1));
+      setSearchParams(newParams);
+    }
+  }, [pagination, searchParams, setSearchParams]);
+
+  const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
+    useIndexResourceState(customers);
+
+  // Notify parent of selection changes
+  useEffect(() => {
+    if (onSelectionChange) {
+      onSelectionChange(selectedResources);
+    }
+  }, [selectedResources, onSelectionChange]);
+
+  // Stagger animation on mount
+  useEffect(() => {
+    if (customers.length > 0) {
+      const timers: NodeJS.Timeout[] = [];
+      customers.forEach((_, index) => {
+        const timer = setTimeout(() => {
+          setVisibleRows(prev => [...prev, index]);
+        }, index * 30);
+        timers.push(timer);
+      });
+      return () => timers.forEach(clearTimeout);
+    }
+  }, [customers.length]);
+
+  const bulkActions = [
+    {
+      content: 'Calculate tiers',
+      onAction: () => {
+        // Handle bulk tier calculation
+      },
+    },
+  ];
+
+  const rowMarkup = customers.map((customer, index) => {
+    const isVisible = visibleRows.includes(index);
+    const isProcessing = calculatingCustomerId === customer.id;
+
+    return (
+      <IndexTable.Row
+        id={customer.id}
+        key={customer.id}
+        selected={selectedResources.includes(customer.id)}
+        position={index}
+      >
+        <IndexTable.Cell>
+          <div
+            style={{
+              opacity: isVisible ? 1 : 0,
+              transform: isVisible ? 'translateX(0)' : 'translateX(-20px)',
+              transition: `all 200ms ease-out`,
+            }}
+          >
+            <BlockStack gap="050">
+              <Text variant="bodyMd" fontWeight="medium" as="span">
+                {customer.email}
+              </Text>
+              <Text variant="bodySm" tone="subdued" as="span">
+                ID: {customer.shopifyCustomerId}
+              </Text>
+            </BlockStack>
+          </div>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <BlockStack gap="100">
+            <InlineStack gap="200" align="start">
+              {customer.currentTier ? (
+                <>
+                  <Badge tone={customer.membershipStatus?.isPurchased ? "info" : "success"}>
+                    {`${customer.currentTier.name}`}
+                  </Badge>
+                  <Text variant="bodySm" tone="subdued" as="span">
+                    {String(customer.currentTier.cashbackPercent)}%
+                  </Text>
+                </>
+              ) : (
+                <Badge tone="attention">No tier</Badge>
+              )}
+            </InlineStack>
+            {customer.membershipStatus?.isPurchased && customer.membershipStatus.needsRenewal && (
+              <InlineStack gap="100">
+                <Icon source={AlertTriangleIcon} tone="warning" />
+                <Text variant="bodySm" tone="warning" as="span">
+                  Expires in {customer.membershipStatus.daysRemaining} days
+                </Text>
+              </InlineStack>
+            )}
+            {customer.hasManualOverride && (
+              <InlineStack gap="100">
+                <Icon source={InfoIcon} tone="info" />
+                <Text variant="bodySm" tone="subdued" as="span">
+                  Manual
+                </Text>
+              </InlineStack>
+            )}
+          </BlockStack>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <div style={{ textAlign: 'right' }}>
+            <StoreCreditDisplay
+              amount={customer.storeCredit}
+              shopSettings={shopSettings}
+              size="small"
+            />
+          </div>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
+          <InlineStack gap="200" align="end">
+            <Button size="slim" onClick={() => handleViewCustomer(customer.id)}>
+              View
+            </Button>
+            <Popover
+              active={activePopover === customer.id}
+              activator={
+                <Button
+                  size="slim"
+                  icon={MenuHorizontalIcon}
+                  variant="tertiary"
+                  onClick={() => togglePopover(customer.id)}
+                  accessibilityLabel={`More actions for ${customer.email}`}
+                />
+              }
+              onClose={() => togglePopover(customer.id)}
+            >
+              <ActionList
+                items={[
+                  {
+                    content: 'Assign tier manually',
+                    icon: EditIcon,
+                    onAction: () => {
+                      handleManualTierAssignment(customer);
+                      togglePopover(customer.id);
+                    },
+                  },
+                  {
+                    content: isProcessing ? 'Calculating...' : 'Recalculate tier',
+                    icon: RefreshIcon,
+                    onAction: () => {
+                      handleCalculateSingle(customer.id);
+                      togglePopover(customer.id);
+                    },
+                    disabled: isProcessing,
+                  },
+                ]}
+              />
+            </Popover>
+          </InlineStack>
+        </IndexTable.Cell>
+      </IndexTable.Row>
+    );
+  });
+
+  const isLoading = navigation.state === "loading" || navigation.state === "submitting" || isCalculating;
+
+  const emptyStateMarkup = (
+    <EmptyState
+      heading="No customers found"
+      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+    >
+      <p>No customers match your search criteria.</p>
+    </EmptyState>
+  );
+
+  return (
+    <>
+      <Divider />
+      <Box>
+        {customers.length === 0 ? (
+          <Box padding="400">
+            {emptyStateMarkup}
+          </Box>
+        ) : (
+          <IndexTable
+            resourceName={resourceName}
+            itemCount={customers.length}
+            selectedItemsCount={
+              allResourcesSelected ? 'All' : selectedResources.length
+            }
+            onSelectionChange={handleSelectionChange}
+            bulkActions={bulkActions}
+            headings={[
+              { title: 'Customer' },
+              { title: 'Tier' },
+              { title: 'Store Credit', alignment: 'end' },
+              { title: 'Actions', alignment: 'end' },
+            ]}
+            loading={isLoading}
+          >
+            {rowMarkup}
+          </IndexTable>
+        )}
+      </Box>
+
+      {/* Bottom pagination */}
+      {pagination.totalPages > 1 && (
+        <>
+          <Divider />
+          <Box padding="400">
+            <InlineStack align="center">
+              <Button
+                accessibilityLabel="Previous page"
+                onClick={handlePreviousPage}
+                disabled={!pagination.hasPrevPage}
+              >
+                Previous
+              </Button>
+              <Text variant="bodySm" as="span">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </Text>
+              <Button
+                accessibilityLabel="Next page"
+                onClick={handleNextPage}
+                disabled={!pagination.hasNextPage}
+              >
+                Next
+              </Button>
+            </InlineStack>
+          </Box>
+        </>
+      )}
+    </>
+  );
+}
 
 export default function Customers() {
   const data = useLoaderData<typeof loader>();
@@ -1459,38 +1802,22 @@ export default function Customers() {
     setSearchParams(newParams);
   }, [searchParams, setSearchParams]);
 
-  // Handle pagination
-  const handlePreviousPage = useCallback(() => {
-    if (data.pagination.hasPrevPage) {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("page", String(currentPage - 1));
-      setSearchParams(newParams);
-    }
-  }, [currentPage, data.pagination.hasPrevPage, searchParams, setSearchParams]);
-
-  const handleNextPage = useCallback(() => {
-    if (data.pagination.hasNextPage) {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set("page", String(currentPage + 1));
-      setSearchParams(newParams);
-    }
-  }, [currentPage, data.pagination.hasNextPage, searchParams, setSearchParams]);
 
   // Calculate all tiers with better feedback
   const handleCalculateAll = useCallback(() => {
     setIsCalculating(true);
-    
+
     // Show processing toast
     setToast({
       active: true,
-      content: `Processing ${data.totalCustomers} customers...`,
+      content: "Processing all customers...",
       duration: 60000, // Long duration for processing
     });
-    
+
     const formData = new FormData();
     formData.append("action", "calculate-all");
     submit(formData, { method: "post" });
-  }, [data.totalCustomers, submit]);
+  }, [submit]);
 
   // Sync customers from Shopify
   const handleSyncCustomers = useCallback(() => {
@@ -1564,7 +1891,7 @@ export default function Customers() {
     if (isRecalculatingAll) return;
 
     const confirmed = window.confirm(
-      `This will recalculate tiers for all ${data.totalCustomers} customers. This may take some time. Continue?`
+      "This will recalculate tiers for all customers. This may take some time. Continue?"
     );
 
     if (!confirmed) return;
@@ -1604,7 +1931,7 @@ export default function Customers() {
     } finally {
       setIsRecalculatingAll(false);
     }
-  }, [isRecalculatingAll, data.totalCustomers]);
+  }, [isRecalculatingAll]);
 
   // Tier management handlers
   const handleSaveTier = useCallback(() => {
@@ -1635,66 +1962,6 @@ export default function Customers() {
     }
   }, [deletingTierId, submit]);
 
-  // Use resource state for table selection
-  const resourceName = {
-    singular: 'customer',
-    plural: 'customers',
-  };
-
-  const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
-    useIndexResourceState(data.customers);
-
-  // Filter options for IndexFilters
-  const filters = [
-    {
-      key: 'tier',
-      label: 'Tier',
-      filter: (
-        <ChoiceList
-          title="Tier"
-          titleHidden
-          choices={[
-            { label: 'All tiers', value: 'all' },
-            { label: 'No tier', value: 'none' },
-            ...data.tiers.map(tier => ({
-              label: `${tier.name} (${String(tier.cashbackPercent)}%)`,
-              value: tier.id,
-            })),
-          ]}
-          selected={tierFilter ? [tierFilter] : []}
-          onChange={handleFiltersChange}
-          allowMultiple={false}
-        />
-      ),
-      shortcut: true,
-    },
-  ];
-
-  // Applied filters for IndexFilters
-  const appliedFilters = tierFilter && tierFilter !== 'all' ? [
-    {
-      key: 'tier',
-      label: tierFilter === 'none' ? 'No tier' : data.tiers.find(t => t.id === tierFilter)?.name || tierFilter,
-      onRemove: () => {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete('tier');
-        setSearchParams(newParams);
-      },
-    },
-  ] : [];
-
-
-  // Animate table rows on mount/filter change
-  useEffect(() => {
-    if (data.customers.length > 0) {
-      setVisibleRows([]);
-      data.customers.forEach((_, index) => {
-        setTimeout(() => {
-          setVisibleRows(prev => [...prev, index]);
-        }, index * 30); // Stagger by 30ms
-      });
-    }
-  }, [data.customers.length, tierFilter]);
 
   // Handle fetcher response for single customer
   useEffect(() => {
@@ -1751,184 +2018,14 @@ export default function Customers() {
     }
   }, [navigation.state, isCalculating, navigation.formData, actionData]);
 
-  // Skip animations on first render for performance
-  useEffect(() => {
-    if (isFirstRender.current) {
-      setVisibleRows(data.customers.map((_, i) => i));
-      isFirstRender.current = false;
-    }
-  }, []);
-
-  // Bulk actions for selected customers
-  const bulkActions = [
-    {
-      content: 'Calculate tiers',
-      onAction: () => {
-        // Handle bulk tier calculation
-      },
-    },
-  ];
-
-  // Table rows for IndexTable
-  const rowMarkup = data.customers.map((customer, index) => {
-    const isVisible = visibleRows.includes(index);
-    const isProcessing = calculatingCustomerId === customer.id;
-
-    return (
-      <IndexTable.Row
-        id={customer.id}
-        key={customer.id}
-        selected={selectedResources.includes(customer.id)}
-        position={index}
-      >
-        <IndexTable.Cell>
-          <div
-            style={{
-              opacity: isVisible ? 1 : 0,
-              transform: isVisible ? 'translateX(0)' : 'translateX(-20px)',
-              transition: `all 200ms ease-out`,
-            }}
-          >
-            <BlockStack gap="050">
-              <Text variant="bodyMd" fontWeight="medium" as="span">
-                {customer.email}
-              </Text>
-              <Text variant="bodySm" tone="subdued" as="span">
-                ID: {customer.shopifyCustomerId}
-              </Text>
-            </BlockStack>
-          </div>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <BlockStack gap="100">
-            <InlineStack gap="200" align="start">
-              {customer.currentTier ? (
-                <>
-                  <Badge tone={customer.membershipStatus?.isPurchased ? "info" : "success"}>
-                    {`${customer.currentTier.name}`}
-                  </Badge>
-                  <Text variant="bodySm" tone="subdued" as="span">
-                    {String(customer.currentTier.cashbackPercent)}%
-                  </Text>
-                </>
-              ) : (
-                <Badge tone="attention">No tier</Badge>
-              )}
-            </InlineStack>
-            {customer.membershipStatus?.isPurchased && (
-              <InlineStack gap="100" align="center">
-                <Icon source={CheckCircleIcon} />
-                <Text variant="bodySm" tone="subdued" as="span">
-                  Purchased
-                </Text>
-                {customer.membershipStatus.expiresAt && (
-                  <>
-                    {customer.membershipStatus.needsRenewal ? (
-                      <Badge tone="attention">
-                        {customer.membershipStatus.daysRemaining} days left
-                      </Badge>
-                    ) : (
-                      <Text variant="bodySm" tone="subdued" as="span">
-                        {customer.membershipStatus.daysRemaining ?
-                          `${customer.membershipStatus.daysRemaining} days` :
-                          'Lifetime'}
-                      </Text>
-                    )}
-                  </>
-                )}
-              </InlineStack>
-            )}
-            {customer.hasManualOverride && (
-              <InlineStack gap="100" align="center">
-                <Icon source={EditIcon} />
-                <Text variant="bodySm" tone="critical" as="span">
-                  Manual
-                </Text>
-              </InlineStack>
-            )}
-          </BlockStack>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <div style={{ textAlign: 'right' }}>
-            <StoreCreditDisplay
-              amount={customer.storeCredit}
-              shopSettings={data.shopSettings}
-              size="small"
-            />
-          </div>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <InlineStack gap="200" align="end">
-            <Button size="slim" onClick={() => handleViewCustomer(customer.id)}>
-              View
-            </Button>
-            <Popover
-              active={activePopover === customer.id}
-              activator={
-                <Button
-                  size="slim"
-                  icon={MenuHorizontalIcon}
-                  variant="tertiary"
-                  onClick={() => togglePopover(customer.id)}
-                  accessibilityLabel={`More actions for ${customer.email}`}
-                />
-              }
-              autofocusTarget="first-node"
-              onClose={() => setActivePopover(null)}
-            >
-              <ActionList
-                actionRole="menuitem"
-                sections={[
-                  {
-                    items: [
-                      {
-                        content: "Manage Store Credit",
-                        icon: CashDollarIcon,
-                        onAction: () => {
-                          handleViewCustomer(customer.id, 1);
-                          setActivePopover(null);
-                        }
-                      },
-                      {
-                        content: "Change Tier",
-                        icon: EditIcon,
-                        onAction: () => {
-                          handleManualTierAssignment(customer);
-                          setActivePopover(null);
-                        }
-                      },
-                      {
-                        content: "Recalculate Tier",
-                        icon: RefreshIcon,
-                        disabled: isProcessing,
-                        onAction: () => {
-                          handleCalculateSingle(customer.id);
-                          setActivePopover(null);
-                        }
-                      }
-                    ]
-                  }
-                ]}
-              />
-            </Popover>
-          </InlineStack>
-        </IndexTable.Cell>
-      </IndexTable.Row>
-    );
-  });
-
-  const isLoading = navigation.state === "loading" || navigation.state === "submitting" || isCalculating;
-
-  // Empty state markup
-  const emptyStateMarkup = (
-    <EmptyState
-      heading="No customers found"
-      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-      action={{ content: 'Sync from Shopify', onAction: handleSyncCustomers }}
-    >
-      <p>Sync your customers from Shopify to start managing loyalty tiers.</p>
-    </EmptyState>
-  );
+  // Customer count display helper (using deferred data pattern)
+  const getCustomerCountText = (customersData: any) => {
+    if (!customersData?.pagination) return '0';
+    const { currentPage, pageSize, totalItems } = customersData.pagination;
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalItems);
+    return start > totalItems ? `${totalItems}` : `${start} - ${end} of ${totalItems}`;
+  };
 
   // Toast markup
   const toastMarkup = toast.active ? (
@@ -1950,12 +2047,15 @@ export default function Customers() {
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="300" blockAlign="center">
                   <Text variant="headingLg" as="h2">Customers</Text>
-                  <Text variant="bodySm" tone="subdued" as="span">
-                    {((currentPage - 1) * pageSize) + 1 > data.pagination.totalItems ?
-                      data.pagination.totalItems :
-                      `${((currentPage - 1) * pageSize) + 1} - ${Math.min(currentPage * pageSize, data.pagination.totalItems)}`
-                    } of {data.pagination.totalItems}
-                </Text>
+                  <Suspense fallback={<Text variant="bodySm" tone="subdued" as="span">Loading...</Text>}>
+                    <Await resolve={data.customersData}>
+                      {(customersData) => (
+                        <Text variant="bodySm" tone="subdued" as="span">
+                          {getCustomerCountText(customersData)}
+                        </Text>
+                      )}
+                    </Await>
+                  </Suspense>
               </InlineStack>
 
               <InlineStack gap="200" blockAlign="center">
@@ -2005,63 +2105,27 @@ export default function Customers() {
           </BlockStack>
         </Box>
 
-        <Divider />
-
-        {/* Customer IndexTable */}
-        <Box>
-          {data.customers.length === 0 ? (
-            <Box padding="400">
-              {emptyStateMarkup}
-            </Box>
-          ) : (
-            <IndexTable
-              resourceName={resourceName}
-              itemCount={data.customers.length}
-              selectedItemsCount={
-                allResourcesSelected ? 'All' : selectedResources.length
-              }
-              onSelectionChange={handleSelectionChange}
-              bulkActions={bulkActions}
-              headings={[
-                { title: 'Customer' },
-                { title: 'Tier' },
-                { title: 'Store Credit', alignment: 'end' },
-                { title: 'Actions', alignment: 'end' },
-              ]}
-              loading={isLoading}
-            >
-              {rowMarkup}
-            </IndexTable>
-          )}
-        </Box>
-
-        {/* Bottom pagination */}
-        {data.pagination.totalPages > 1 && (
-          <>
-            <Divider />
-            <Box padding="400">
-              <InlineStack align="center">
-                <Button
-                  accessibilityLabel="Previous page"
-                  onClick={handlePreviousPage}
-                  disabled={!data.pagination.hasPrevPage}
-                >
-                  Previous
-                </Button>
-                <Text variant="bodySm" as="span">
-                  Page {currentPage} of {data.pagination.totalPages}
-                </Text>
-                <Button
-                  accessibilityLabel="Next page"
-                  onClick={handleNextPage}
-                  disabled={!data.pagination.hasNextPage}
-                >
-                  Next
-                </Button>
-              </InlineStack>
-            </Box>
-          </>
-        )}
+        {/* Customer Table - Deferred Loading */}
+        <Suspense fallback={<CustomersTableSkeleton />}>
+          <Await resolve={data.customersData}>
+            {(customersData) => (
+              <CustomersTableContent
+                customers={customersData.customers}
+                pagination={customersData.pagination}
+                shopSettings={data.shopSettings}
+                tiers={data.tiers}
+                isCalculating={isCalculating}
+                calculatingCustomerId={calculatingCustomerId}
+                handleViewCustomer={handleViewCustomer}
+                togglePopover={togglePopover}
+                activePopover={activePopover}
+                handleManualTierAssignment={handleManualTierAssignment}
+                handleCalculateSingle={handleCalculateSingle}
+                onSelectionChange={(resources) => setSelectedCustomers(resources)}
+              />
+            )}
+          </Await>
+        </Suspense>
       </Card>
 
         {/* Customer Detail Modal */}
@@ -2074,7 +2138,7 @@ export default function Customers() {
               setModalInitialTab(0);
             }}
             customerId={selectedCustomerId}
-            customerEmail={data.customers.find(c => c.id === selectedCustomerId)?.email || ""}
+            customerEmail=""
             initialTab={modalInitialTab}
           />
         )}
