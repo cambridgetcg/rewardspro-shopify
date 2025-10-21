@@ -722,7 +722,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               data: {
                 id: uuidv4(),
                 shop,
-                tierId,
+                tierId: tier.id,  // Use tier.id from database, not form data
                 shopifyProductId: product.id.replace('gid://shopify/Product/', ''),
                 shopifyVariantId: variant.id.replace('gid://shopify/ProductVariant/', ''),
                 productHandle: product.handle || sku,
@@ -881,7 +881,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               data: {
                 id: uuidv4(),
                 shop,
-                tierId,
+                tierId: tier.id,  // Use tier.id from database, not form data
                 shopifyProductId: result.productId.replace('gid://shopify/Product/', ''),
                 shopifyVariantId: result.variantId.replace('gid://shopify/ProductVariant/', ''),
                 productHandle: result.handle || sku,
