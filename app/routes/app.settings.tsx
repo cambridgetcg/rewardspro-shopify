@@ -23,6 +23,7 @@ import {
   Checkbox,
   Icon,
   Tabs,
+  ButtonGroup,
 } from "@shopify/polaris";
 import {
   RefreshIcon,
@@ -865,6 +866,9 @@ export default function SettingsPage() {
   // UI state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Billing state
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+
   // Check for unsaved changes
   useEffect(() => {
     const hasChanges =
@@ -1058,6 +1062,67 @@ export default function SettingsPage() {
       id: 'billing',
       content: 'Billing',
       panelID: 'billing-panel',
+    },
+  ];
+
+  // Plan cards configuration for billing tab
+  const planCards = [
+    {
+      id: "pro",
+      idAnnual: "pro-annual",
+      name: "Pro",
+      monthlyPrice: "$39",
+      annualPrice: "$336",
+      annualMonthlyEquivalent: "$28",
+      annualSavings: "Save $132/year",
+      description: "Everything you need to grow your loyalty program",
+      features: [
+        "500 orders/month",
+        "Batch processing cashback",
+        "Priority support",
+        "Advanced analytics",
+        "$10 per 100 extra orders"
+      ],
+      recommended: false,
+    },
+    {
+      id: "max",
+      idAnnual: "max-annual",
+      name: "Max",
+      monthlyPrice: "$149",
+      annualPrice: "$1,296",
+      annualMonthlyEquivalent: "$108",
+      annualSavings: "Save $492/year",
+      description: "For established businesses with advanced needs",
+      features: [
+        "2,000 orders/month",
+        "Sell tier memberships",
+        "White label email",
+        "Advanced analytics",
+        "Phone support",
+        "$5 per 100 extra orders"
+      ],
+      recommended: true,
+    },
+    {
+      id: "ultra",
+      idAnnual: "ultra-annual",
+      name: "Ultra",
+      monthlyPrice: "$499",
+      annualPrice: "$4,296",
+      annualMonthlyEquivalent: "$358",
+      annualSavings: "Save $1,692/year",
+      description: "Unlimited everything for growing enterprises",
+      features: [
+        "Unlimited orders",
+        "Unlimited emails",
+        "Full white label solution",
+        "Custom SMTP integration",
+        "A/B testing",
+        "Dedicated support",
+        "No overage charges"
+      ],
+      recommended: false,
     },
   ];
 
@@ -1520,6 +1585,185 @@ export default function SettingsPage() {
                             </Button>
                           </BlockStack>
                         )}
+                      </BlockStack>
+
+                      <Divider />
+
+                      {/* Plan Selection */}
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" as="h3">
+                          Available Plans
+                        </Text>
+
+                        {/* Billing Interval Toggle */}
+                        <InlineStack align="end" blockAlign="center">
+                          <ButtonGroup variant="segmented">
+                            <Button
+                              pressed={billingInterval === 'monthly'}
+                              onClick={() => setBillingInterval('monthly')}
+                              size="slim"
+                            >
+                              Monthly
+                            </Button>
+                            <Button
+                              pressed={billingInterval === 'annual'}
+                              onClick={() => setBillingInterval('annual')}
+                              size="slim"
+                            >
+                              Annual
+                            </Button>
+                          </ButtonGroup>
+                        </InlineStack>
+
+                        {/* Plan Cards */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                          gap: '16px',
+                        }}>
+                          {planCards.map((plan) => {
+                            const planIdToUse = billingInterval === 'annual' ? plan.idAnnual : plan.id;
+                            const isCurrentPlan = currentPlan === `RewardsPro ${plan.name}` ||
+                                                 currentPlan === `RewardsPro ${plan.name} Annual`;
+
+                            return (
+                              <Card key={plan.id}>
+                                <Box padding="600">
+                                  <BlockStack gap="400">
+                                    {/* Plan Header */}
+                                    <InlineStack align="space-between">
+                                      <Text as="h3" variant="headingLg">
+                                        {plan.name}
+                                      </Text>
+                                      {plan.recommended && (
+                                        <Badge tone="info">Recommended</Badge>
+                                      )}
+                                      {isCurrentPlan && (
+                                        <Badge tone="success">Current</Badge>
+                                      )}
+                                    </InlineStack>
+
+                                    {/* Price */}
+                                    <BlockStack gap="200">
+                                      {billingInterval === 'monthly' ? (
+                                        <InlineStack align="start" gap="100">
+                                          <Text as="p" variant="heading2xl">
+                                            {plan.monthlyPrice}
+                                          </Text>
+                                          <Text as="span" variant="bodyLg" tone="subdued">
+                                            /month
+                                          </Text>
+                                        </InlineStack>
+                                      ) : (
+                                        <BlockStack gap="100">
+                                          <InlineStack align="start" gap="100">
+                                            <Text as="p" variant="heading2xl">
+                                              {plan.annualMonthlyEquivalent}
+                                            </Text>
+                                            <Text as="span" variant="bodyLg" tone="subdued">
+                                              /month
+                                            </Text>
+                                          </InlineStack>
+                                          <Text as="p" variant="bodyMd" tone="subdued">
+                                            {plan.annualPrice}/year • {plan.annualSavings}
+                                          </Text>
+                                        </BlockStack>
+                                      )}
+                                    </BlockStack>
+
+                                    {/* Description */}
+                                    <Text as="p" variant="bodyMd" tone="subdued">
+                                      {plan.description}
+                                    </Text>
+
+                                    {/* Action Button */}
+                                    <Button
+                                      fullWidth
+                                      size="large"
+                                      variant={isCurrentPlan ? "secondary" : (plan.recommended ? "primary" : "primary")}
+                                      disabled={isCurrentPlan}
+                                      onClick={() => navigate(`/app/billing?plan=${planIdToUse}`)}
+                                    >
+                                      {isCurrentPlan ? "Current Plan" : `Upgrade to ${plan.name}`}
+                                    </Button>
+
+                                    <Divider />
+
+                                    {/* Features List */}
+                                    <BlockStack gap="300" align="start">
+                                      <Text as="p" variant="bodyMd" fontWeight="semibold" alignment="start">
+                                        What's included:
+                                      </Text>
+                                      <BlockStack gap="200" align="start">
+                                        {plan.features.map((feature, index) => (
+                                          <InlineStack key={index} gap="200" align="start" blockAlign="start">
+                                            <div style={{ flexShrink: 0 }}>
+                                              <Icon source={CheckCircleIcon} tone="success" />
+                                            </div>
+                                            <Text as="p" variant="bodyMd" alignment="start">{feature}</Text>
+                                          </InlineStack>
+                                        ))}
+                                      </BlockStack>
+                                    </BlockStack>
+                                  </BlockStack>
+                                </Box>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </BlockStack>
+
+                      <Divider />
+
+                      {/* FAQ Section */}
+                      <BlockStack gap="400">
+                        <Text variant="headingMd" as="h3">
+                          Frequently Asked Questions
+                        </Text>
+
+                        <BlockStack gap="300">
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              How does billing work?
+                            </Text>
+                            <Text as="p" variant="bodyMd" tone="subdued">
+                              All billing is handled through Shopify. Charges appear on your regular Shopify invoice—the same monthly invoice you already receive for your Shopify subscription. We never charge your card directly; all payments flow through Shopify's secure billing system.
+                            </Text>
+                          </BlockStack>
+
+                          <Divider />
+
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              What's the difference between monthly and annual billing?
+                            </Text>
+                            <Text as="p" variant="bodyMd" tone="subdued">
+                              Annual plans charge the yearly total up front (e.g., Pro Annual is $336/year instead of $39/month) and offer significant savings—up to 28% off. When you switch from monthly to annual or vice versa, Shopify automatically handles proration of your existing subscription. The new billing agreement starts immediately.
+                            </Text>
+                          </BlockStack>
+
+                          <Divider />
+
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              What are overage/usage charges?
+                            </Text>
+                            <Text as="p" variant="bodyMd" tone="subdued">
+                              Pro and Max plans include usage-based billing for orders beyond your monthly limit. Pro: $10 per 100 orders over 500 (capped at $50/month). Max: $5 per 100 orders over 2,000 (capped at $100/month). These charges appear as usage line items on your Shopify invoice. Ultra plan has unlimited orders with no overage charges.
+                            </Text>
+                          </BlockStack>
+
+                          <Divider />
+
+                          <BlockStack gap="200">
+                            <Text as="p" variant="bodyMd" fontWeight="semibold">
+                              Can I upgrade or downgrade my plan at any time?
+                            </Text>
+                            <Text as="p" variant="bodyMd" tone="subdued">
+                              Yes! Plan changes take effect immediately. Upgrades remove any "plan locked" state instantly and increase your order limit right away. Downgrades or returns to the free plan also apply instantly, though you may be locked again if your current usage exceeds the new limit.
+                            </Text>
+                          </BlockStack>
+                        </BlockStack>
                       </BlockStack>
                     </BlockStack>
                   )}
