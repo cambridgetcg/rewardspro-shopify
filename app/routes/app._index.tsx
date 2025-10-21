@@ -50,6 +50,7 @@ import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount } from "~/utils/order-count-strategies";
 import { parse as parseJsonC } from "jsonc-parser";
+import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
 // ============================================
 // CONSTANTS
@@ -809,6 +810,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>() as DashboardData;
   const navigate = useNavigate();
+  const { navigate: shopifyNavigate } = useShopifyNavigation();
   const [selectedTab, setSelectedTab] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -1340,7 +1342,7 @@ export default function Dashboard() {
                               title="Opportunity: Increase tier participation"
                               content={`Only ${Math.round((data.metrics.customersWithTiers / data.metrics.totalCustomers) * 100)}% of your customers are in a tier. Consider reviewing tier thresholds or running a campaign.`}
                               tone="info"
-                              action={{ content: "View customers", onAction: () => window.location.href = "/app/customers" }}
+                              action={{ content: "View customers", onAction: () => shopifyNavigate("/app/customers") }}
                             />
                           )}
 
@@ -1357,7 +1359,7 @@ export default function Dashboard() {
                               title="Many customers without tiers"
                               content={`${data.tierDistribution.find(t => t.name === "No Tier")?.percentage.toFixed(0)}% of customers aren't in a tier. Consider adjusting your tier requirements.`}
                               tone="warning"
-                              action={{ content: "Manage customers & tiers", onAction: () => window.location.href = "/app/customers" }}
+                              action={{ content: "Manage customers & tiers", onAction: () => shopifyNavigate("/app/customers") }}
                             />
                           )}
                         </BlockStack>
