@@ -34,6 +34,8 @@
     "migrate:widget-setup-dismissed": "node scripts/apply-widget-setup-dismissed-migration.mjs",
     "migrate:customer-account-block-dismissed": "node scripts/apply-customer-account-block-dismissed-migration.mjs",
     "migrate:currency-selected": "node scripts/apply-currency-selected-migration.mjs",
+    "migrate:tier-recalculation": "node scripts/apply-tier-recalculation-settings-migration.mjs",
+    "migrate:verify-tier-recalc": "node scripts/verify-tier-recalc-migration.mjs",
     "cleanup:tier-products": "node scripts/cleanup-orphaned-tier-products.mjs",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",

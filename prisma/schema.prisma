@@ -96,11 +96,17 @@ model ShopSettings {
 
   currencySelected        Boolean             @default(false)  // Has merchant selected cashback currency
 
+  // Tier Recalculation Settings
+  tierRecalculationFrequency  RecalculationFrequency @default(WEEKLY)  // How often to recalculate tiers
+  tierRecalculationEnabled    Boolean                @default(true)     // Enable/disable automatic recalculation
+  tierRecalculationLastRun    DateTime?                                  // Track last run for frequency logic
+
   // Metadata
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
 
   @@index([shop])
+  @@index([tierRecalculationEnabled, tierRecalculationLastRun])  // Index for cron job queries
 }
 
 model Tier {
@@ -1175,6 +1181,13 @@ enum Currency {
 enum CurrencyDisplayType {
   SYMBOL  // Currency Symbol (£)
   CODE    // Currency Code (GBP)
+}
+
+enum RecalculationFrequency {
+  DAILY      // Recalculate every day
+  WEEKLY     // Recalculate every week
+  MONTHLY    // Recalculate every month
+  QUARTERLY  // Recalculate every quarter (90 days)
 }
 
 enum EvaluationPeriod {

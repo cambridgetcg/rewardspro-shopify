@@ -49,6 +49,8 @@ type Currency =
 
 type CurrencyDisplayType = "SYMBOL" | "CODE";
 
+type RecalculationFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY";
+
 type ShopSettings = {
   id: string;
   shop: string;
@@ -57,6 +59,9 @@ type ShopSettings = {
   storeCurrency: Currency;
   currencyDisplayType: CurrencyDisplayType;
   timezone: string;
+  tierRecalculationFrequency: RecalculationFrequency;
+  tierRecalculationEnabled: boolean;
+  tierRecalculationLastRun: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -834,6 +839,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     }
 
+    // Handle manual tier recalculation
+    if (intent === "recalculate-tiers") {
+      try {
+        console.log(`[Settings Action] ${shop} triggering manual tier recalculation`);
+
+        // Import the tier management service
+        const { recalculateTiersForAllCustomers } = await import("~/services/tier-management.server");
+
+        // Trigger recalculation (runs in background)
+        const result = await recalculateTiersForAllCustomers(shop);
+
+        // Update last run timestamp
+        await db.shopSettings.update({
+          where: { shop },
+          data: {
+            tierRecalculationLastRun: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        console.log(`[Settings Action] Recalculation completed: ${result.processed} customers processed`);
+
+        return json({
+          success: true,
+          message: `Tier recalculation completed: ${result.upgraded} upgraded, ${result.downgraded} downgraded, ${result.unchanged} unchanged`,
+          result
+        });
+      } catch (error: any) {
+        console.error("[Settings Action] Error recalculating tiers:", error);
+        return json({
+          error: "Failed to recalculate tiers. Please try again."
+        }, { status: 500 });
+      }
+    }
+
     if (intent !== "update") {
       return json({ error: "Invalid action" }, { status: 400 });
     }
@@ -843,6 +883,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const storeUrl = formData.get("storeUrl") as string;
     const storeCurrency = formData.get("storeCurrency") as Currency;
     const currencyDisplayType = formData.get("currencyDisplayType") as CurrencyDisplayType;
+    const tierRecalculationEnabled = formData.get("tierRecalculationEnabled") === "true";
+    const tierRecalculationFrequency = formData.get("tierRecalculationFrequency") as "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY";
     // Timezone is now synced from Shopify and not editable
 
     // Validation
@@ -878,6 +920,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         storeUrl: storeUrl.trim(),
         storeCurrency,
         currencyDisplayType,
+        tierRecalculationEnabled,
+        tierRecalculationFrequency,
         // timezone is synced from Shopify, not updated here
         updatedAt: new Date(),
       },
@@ -930,6 +974,11 @@ export default function SettingsPage() {
   // Timezone is now read-only from Shopify
   const timezone = shopifyTimezone || settings.timezone;
 
+  // Tier recalculation state
+  const [tierRecalculationEnabled, setTierRecalculationEnabled] = useState(settings.tierRecalculationEnabled);
+  const [tierRecalculationFrequency, setTierRecalculationFrequency] = useState<RecalculationFrequency>(settings.tierRecalculationFrequency);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
   // Order sync state
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncRange, setSyncRange] = useState("365");
@@ -945,14 +994,16 @@ export default function SettingsPage() {
 
   // Check for unsaved changes
   useEffect(() => {
-    const hasChanges = 
+    const hasChanges =
       storeName !== settings.storeName ||
       storeUrl !== settings.storeUrl ||
       storeCurrency !== settings.storeCurrency ||
-      currencyDisplayType !== settings.currencyDisplayType;
-    
+      currencyDisplayType !== settings.currencyDisplayType ||
+      tierRecalculationEnabled !== settings.tierRecalculationEnabled ||
+      tierRecalculationFrequency !== settings.tierRecalculationFrequency;
+
     setHasUnsavedChanges(hasChanges);
-  }, [storeName, storeUrl, storeCurrency, currencyDisplayType, settings]);
+  }, [storeName, storeUrl, storeCurrency, currencyDisplayType, tierRecalculationEnabled, tierRecalculationFrequency, settings]);
 
   // Removed time display - timezone is now just shown as text
 
@@ -964,10 +1015,12 @@ export default function SettingsPage() {
     formData.append("storeUrl", storeUrl);
     formData.append("storeCurrency", storeCurrency);
     formData.append("currencyDisplayType", currencyDisplayType);
+    formData.append("tierRecalculationEnabled", String(tierRecalculationEnabled));
+    formData.append("tierRecalculationFrequency", tierRecalculationFrequency);
     // Don't submit timezone - it's synced from Shopify
 
     fetcher.submit(formData, { method: "post" });
-  }, [storeName, storeUrl, storeCurrency, currencyDisplayType, fetcher]);
+  }, [storeName, storeUrl, storeCurrency, currencyDisplayType, tierRecalculationEnabled, tierRecalculationFrequency, fetcher]);
 
   // Handle reset
   const handleReset = useCallback(() => {
@@ -975,6 +1028,8 @@ export default function SettingsPage() {
     setStoreUrl(settings.storeUrl);
     setStoreCurrency(settings.storeCurrency);
     setCurrencyDisplayType(settings.currencyDisplayType);
+    setTierRecalculationEnabled(settings.tierRecalculationEnabled);
+    setTierRecalculationFrequency(settings.tierRecalculationFrequency);
     // Timezone is read-only, no need to reset
   }, [settings]);
 
@@ -1023,6 +1078,42 @@ export default function SettingsPage() {
       );
     }
   }, [fetcher]);
+
+  // Handle manual tier recalculation
+  const handleManualRecalculation = useCallback(() => {
+    if (confirm("This will recalculate tiers for all customers in your store. This may take several minutes depending on the number of customers. Continue?")) {
+      setIsRecalculating(true);
+      fetcher.submit(
+        { intent: "recalculate-tiers" },
+        { method: "post" }
+      );
+    }
+  }, [fetcher]);
+
+  // Calculate next scheduled run based on frequency and last run
+  const calculateNextRun = useCallback((lastRun: string | null, frequency: RecalculationFrequency): string => {
+    if (!lastRun) return "Next daily cron run";
+
+    const lastRunDate = new Date(lastRun);
+    const nextRun = new Date(lastRunDate);
+
+    switch (frequency) {
+      case 'DAILY':
+        nextRun.setDate(nextRun.getDate() + 1);
+        break;
+      case 'WEEKLY':
+        nextRun.setDate(nextRun.getDate() + 7);
+        break;
+      case 'MONTHLY':
+        nextRun.setDate(nextRun.getDate() + 30);
+        break;
+      case 'QUARTERLY':
+        nextRun.setDate(nextRun.getDate() + 90);
+        break;
+    }
+
+    return nextRun.toLocaleDateString();
+  }, []);
 
   // Handle sync completion
   useEffect(() => {
@@ -1086,6 +1177,11 @@ export default function SettingsPage() {
       panelID: 'data-sync-panel',
     },
     {
+      id: 'tier-automation',
+      content: 'Tier Automation',
+      panelID: 'tier-automation-panel',
+    },
+    {
       id: 'billing',
       content: 'Billing',
       panelID: 'billing-panel',
@@ -1099,13 +1195,13 @@ export default function SettingsPage() {
   return (
     <Page
       title="Store Settings"
-      primaryAction={selectedTab !== 4 ? {
+      primaryAction={selectedTab !== 4 && selectedTab !== 5 ? {
         content: "Save Settings",
         onAction: handleSubmit,
         loading: isLoading,
         disabled: !hasUnsavedChanges,
       } : undefined}
-      secondaryActions={selectedTab !== 4 ? [
+      secondaryActions={selectedTab !== 4 && selectedTab !== 5 ? [
         {
           content: "Reset",
           onAction: handleReset,
@@ -1390,8 +1486,99 @@ export default function SettingsPage() {
                     </BlockStack>
                   )}
 
-                  {/* Billing Tab */}
+                  {/* Tier Automation Tab */}
                   {selectedTab === 4 && (
+                    <BlockStack gap="400">
+                      <Text as="h2" variant="headingMd">
+                        Automatic Tier Recalculation
+                      </Text>
+
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        Configure how often customer tiers are automatically recalculated.
+                        This helps ensure inactive customers are downgraded and active customers
+                        maintain their appropriate tier levels.
+                      </Text>
+
+                      <Divider />
+
+                      <FormLayout>
+                        <Checkbox
+                          label="Enable automatic tier recalculation"
+                          checked={tierRecalculationEnabled}
+                          onChange={setTierRecalculationEnabled}
+                          helpText="When enabled, tiers will be recalculated automatically based on your selected frequency"
+                        />
+
+                        {tierRecalculationEnabled && (
+                          <Select
+                            label="Recalculation Frequency"
+                            options={[
+                              { label: 'Daily', value: 'DAILY' },
+                              { label: 'Weekly (Recommended)', value: 'WEEKLY' },
+                              { label: 'Monthly', value: 'MONTHLY' },
+                              { label: 'Quarterly', value: 'QUARTERLY' },
+                            ]}
+                            value={tierRecalculationFrequency}
+                            onChange={(value) => setTierRecalculationFrequency(value as RecalculationFrequency)}
+                            helpText="How often to recalculate customer tiers based on their spending"
+                          />
+                        )}
+                      </FormLayout>
+
+                      <Divider />
+
+                      {/* Last Run Info */}
+                      {settings.tierRecalculationLastRun && (
+                        <BlockStack gap="200">
+                          <Text variant="bodySm" tone="subdued">
+                            Last automatic recalculation: {formatDate(settings.tierRecalculationLastRun)}
+                          </Text>
+                          <Text variant="bodySm" tone="subdued">
+                            Next scheduled run: {calculateNextRun(settings.tierRecalculationLastRun, tierRecalculationFrequency)}
+                          </Text>
+                        </BlockStack>
+                      )}
+
+                      {/* Manual Trigger */}
+                      <Card>
+                        <BlockStack gap="300">
+                          <Text variant="headingSm" as="h3">
+                            Manual Recalculation
+                          </Text>
+                          <Text variant="bodyMd">
+                            You can manually trigger a tier recalculation for all customers at any time.
+                          </Text>
+                          <Button
+                            onClick={handleManualRecalculation}
+                            loading={isRecalculating}
+                            icon={RefreshIcon}
+                          >
+                            Recalculate All Tiers Now
+                          </Button>
+                        </BlockStack>
+                      </Card>
+
+                      {/* Information Banner */}
+                      <Banner tone="info">
+                        <BlockStack gap="200">
+                          <Text variant="bodyMd" fontWeight="semibold">
+                            How automatic recalculation works:
+                          </Text>
+                          <Box>
+                            <ul style={{ marginLeft: '20px' }}>
+                              <li>Recalculation respects manual tier overrides (customers with manual assignments are skipped)</li>
+                              <li>Only evaluates customers based on their tier's evaluation period (ANNUAL or LIFETIME)</li>
+                              <li>Includes a grace period before downgrading inactive customers</li>
+                              <li>All tier changes are logged in the customer's tier history</li>
+                            </ul>
+                          </Box>
+                        </BlockStack>
+                      </Banner>
+                    </BlockStack>
+                  )}
+
+                  {/* Billing Tab */}
+                  {selectedTab === 5 && (
                     <BlockStack gap="600">
                       <CurrentPlanCard
                         activeSubscription={activeSubscription}
