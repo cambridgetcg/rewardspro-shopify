@@ -649,19 +649,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       orderCountStrategy = "TotalFallback";
     }
 
-    // Determine plan based on active subscription
-    let planLimit = 100; // Default for free plan
+    // Determine plan based on active subscription using shared plan constants
+    let planLimit = MANAGED_PLANS["RewardsPro Free"].ordersIncluded; // 100
     let planName = 'RewardsPro Free';
 
-    if (activeSubscription?.name === 'RewardsPro Pro') {
-      planLimit = 500;
-      planName = 'RewardsPro Pro';
-    } else if (activeSubscription?.name === 'RewardsPro Max') {
-      planLimit = 2000;
-      planName = 'RewardsPro Max';
-    } else if (activeSubscription?.name === 'RewardsPro Ultra') {
-      planLimit = 999999; // Effectively unlimited
-      planName = 'RewardsPro Ultra';
+    // Map subscription names to plan constants
+    if (activeSubscription?.name) {
+      const planConfig = MANAGED_PLANS[activeSubscription.name];
+      if (planConfig) {
+        planLimit = planConfig.ordersIncluded;
+        planName = activeSubscription.name;
+      }
     }
 
     const projectedOrders = calculateProjectedOrders(orderCount, daysRemaining);
@@ -1163,7 +1161,7 @@ export default function Dashboard() {
             currentPlan={data.currentPlan}
             monthlyOrderUsage={{
               orderCount: data.monthlyOrderUsage?.orderCount || 0,
-              planLimit: data.monthlyOrderUsage?.planLimit || 200,
+              planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
               projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
               currentMonth: data.currentMonth
             }}

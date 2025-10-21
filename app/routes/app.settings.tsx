@@ -417,16 +417,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       orderCountStrategy = "TotalFallback";
     }
 
-    // Determine plan based on active subscription
-    let planLimit = 200; // Default for free plan
+    // Determine plan based on active subscription using shared plan constants
+    let planLimit = MANAGED_PLANS["RewardsPro Free"].ordersIncluded; // 100
     let planName = 'RewardsPro Free';
 
-    if (activeSubscription?.name === 'RewardsPro Monthly') {
-      planLimit = 1000;
-      planName = 'RewardsPro Monthly';
-    } else if (activeSubscription?.name === 'RewardsPro Annual') {
-      planLimit = 1000; // 12,000/year = 1,000/month average
-      planName = 'RewardsPro Annual';
+    // Map subscription names to plan constants
+    if (activeSubscription?.name) {
+      const planConfig = MANAGED_PLANS[activeSubscription.name];
+      if (planConfig) {
+        planLimit = planConfig.ordersIncluded;
+        planName = activeSubscription.name;
+      }
     }
 
     const projectedOrders = calculateProjectedOrders(orderCount, daysRemaining);
@@ -1523,7 +1524,7 @@ export default function SettingsPage() {
                         currentPlan={currentPlan}
                         monthlyOrderUsage={{
                           orderCount: monthlyOrderUsage?.orderCount || 0,
-                          planLimit: monthlyOrderUsage?.planLimit || 200,
+                          planLimit: monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
                           projectedOrders: monthlyOrderUsage?.projectedOrders || 0,
                           currentMonth: currentMonth
                         }}
