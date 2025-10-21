@@ -19,6 +19,7 @@
       "routes/api.cron.webhook-reconciliation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.customer-account.loyalty": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.setup-customer-metafield": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.cron.tier-recalculation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.customer-subscriptions": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.app.scopes_update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.cron.tier-maintenance": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -149,6 +150,15 @@
         "parentId": "root",
         "file": "app/routes/api.setup-customer-metafield.tsx",
         "path": "api/setup-customer-metafield",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.cron.tier-recalculation": {
+        "id": "routes/api.cron.tier-recalculation",
+        "parentId": "root",
+        "file": "app/routes/api.cron.tier-recalculation.tsx",
+        "path": "api/cron/tier-recalculation",
         "config": {
           "runtime": "nodejs"
         }
@@ -633,6 +643,12 @@
         "parentId": "root",
         "file": "routes/api.setup-customer-metafield.tsx",
         "path": "api/setup-customer-metafield"
+      },
+      "routes/api.cron.tier-recalculation": {
+        "id": "routes/api.cron.tier-recalculation",
+        "parentId": "root",
+        "file": "routes/api.cron.tier-recalculation.tsx",
+        "path": "api/cron/tier-recalculation"
       },
       "routes/api.customer-subscriptions": {
         "id": "routes/api.customer-subscriptions",
