@@ -1195,13 +1195,13 @@ export default function SettingsPage() {
   return (
     <Page
       title="Store Settings"
-      primaryAction={selectedTab !== 4 && selectedTab !== 5 ? {
+      primaryAction={selectedTab !== 5 ? {
         content: "Save Settings",
         onAction: handleSubmit,
         loading: isLoading,
         disabled: !hasUnsavedChanges,
       } : undefined}
-      secondaryActions={selectedTab !== 4 && selectedTab !== 5 ? [
+      secondaryActions={selectedTab !== 5 ? [
         {
           content: "Reset",
           onAction: handleReset,
