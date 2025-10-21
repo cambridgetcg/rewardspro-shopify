@@ -1565,9 +1565,6 @@ function CustomersTableContent({
         </IndexTable.Cell>
         <IndexTable.Cell>
           <InlineStack gap="200" align="end">
-            <Button size="slim" onClick={() => handleViewCustomer(customer.id)}>
-              View
-            </Button>
             <Popover
               active={activePopover === customer.id}
               activator={
