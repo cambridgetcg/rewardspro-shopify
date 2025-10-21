@@ -35,6 +35,10 @@
     }
 
     async fetchAndRender() {
+      console.log('[MembershipWidget JS] ========== FETCH START ==========');
+      console.log('[MembershipWidget JS] Current URL:', window.location.href);
+      console.log('[MembershipWidget JS] Shop domain:', window.Shopify?.shop || 'unknown');
+
       try {
         // Check if we're in design mode (theme editor)
         const isDesignMode = this.root.dataset.designMode === 'true';
@@ -55,7 +59,13 @@
           };
         } else {
           const url = `${this.data.apiUrl}?shopifyCustomerId=${encodeURIComponent(this.data.shopifyCustomerId)}`;
-          console.log('[MembershipWidget JS] Fetching data from:', url);
+
+          console.log('[MembershipWidget JS] 📡 API Request Details:');
+          console.log('  - API URL (base):', this.data.apiUrl);
+          console.log('  - Shopify Customer ID:', this.data.shopifyCustomerId);
+          console.log('  - Full URL:', url);
+          console.log('  - Method: GET');
+          console.log('  - Credentials: same-origin');
 
           const response = await fetch(url, {
             method: 'GET',
@@ -65,16 +75,28 @@
             credentials: 'same-origin' // App proxy is same-origin
           });
 
-          console.log('[MembershipWidget JS] API response status:', response.status);
+          console.log('[MembershipWidget JS] 📥 API Response:');
+          console.log('  - Status:', response.status);
+          console.log('  - Status Text:', response.statusText);
+          console.log('  - OK:', response.ok);
+          console.log('  - Headers:', {
+            contentType: response.headers.get('content-type'),
+            cacheControl: response.headers.get('cache-control')
+          });
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.error('[MembershipWidget JS] API error:', response.status, errorText);
+            console.error('[MembershipWidget JS] ❌ API Error Details:');
+            console.error('  - Status:', response.status);
+            console.error('  - Status Text:', response.statusText);
+            console.error('  - Response Body:', errorText);
+            console.error('  - Full URL attempted:', url);
             this.showError('Unable to load membership data');
             return;
           }
 
           apiData = await response.json();
+          console.log('[MembershipWidget JS] ✅ API Data received:', apiData);
         }
 
         console.log('[MembershipWidget JS] API data received:', apiData);
@@ -102,14 +124,21 @@
           this.render();
           this.attachEventListeners();
           console.log('[MembershipWidget JS] ✅ Widget rendered successfully');
+          console.log('[MembershipWidget JS] ========== FETCH COMPLETE ==========');
         } else {
           console.warn('[MembershipWidget JS] ⚠️ No tier data in API response');
+          console.log('[MembershipWidget JS] ========== FETCH COMPLETE (Not Enrolled) ==========');
           this.showError('Not enrolled in membership program');
         }
 
       } catch (error) {
-        console.error('[MembershipWidget JS] ❌ Error fetching data:', error);
-        console.error('[MembershipWidget JS] Error stack:', error.stack);
+        console.error('[MembershipWidget JS] ========== FETCH FAILED ==========');
+        console.error('[MembershipWidget JS] ❌ Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 3)
+        });
+        console.error('[MembershipWidget JS] Full error:', error);
         this.showError('Failed to load membership data');
       }
     }
@@ -251,25 +280,40 @@
 
   // Initialize widget when DOM is ready
   function init() {
+    console.log('\n[MembershipWidget JS] ========== INITIALIZATION START ==========');
     console.log('[MembershipWidget JS] init() called');
     console.log('[MembershipWidget JS] document.readyState:', document.readyState);
+    console.log('[MembershipWidget JS] document.location:', window.location.href);
 
     const rootElement = document.getElementById('membership-widget-root');
     console.log('[MembershipWidget JS] Looking for #membership-widget-root');
-    console.log('[MembershipWidget JS] Found element:', rootElement);
+    console.log('[MembershipWidget JS] Found element:', !!rootElement);
 
     if (rootElement) {
       console.log('[MembershipWidget JS] ✅ Root element found, initializing widget');
+      console.log('[MembershipWidget JS] Root element dataset:', rootElement.dataset);
       try {
         new MembershipWidget(rootElement);
+        console.log('[MembershipWidget JS] ========== INITIALIZATION COMPLETE ==========\n');
       } catch (error) {
-        console.error('[MembershipWidget JS] ❌ Error initializing widget:', error);
-        console.error('[MembershipWidget JS] Error stack:', error.stack);
+        console.error('[MembershipWidget JS] ========== INITIALIZATION FAILED ==========');
+        console.error('[MembershipWidget JS] ❌ Error initializing widget:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5)
+        });
       }
     } else {
       console.warn('[MembershipWidget JS] ❌ Root element #membership-widget-root not found');
-      console.log('[MembershipWidget JS] Available elements with "membership":',
-        document.querySelectorAll('[id*="membership"], [class*="membership"]'));
+      console.log('[MembershipWidget JS] Available IDs:',
+        Array.from(document.querySelectorAll('[id]')).map(el => el.id).filter(id => id));
+      console.log('[MembershipWidget JS] Elements with "membership" in class or id:',
+        Array.from(document.querySelectorAll('[id*="membership"], [class*="membership"]')).map(el => ({
+          tag: el.tagName,
+          id: el.id,
+          class: el.className
+        })));
+      console.log('[MembershipWidget JS] ========== INITIALIZATION FAILED (No Root) ==========\n');
     }
   }
 

@@ -110,8 +110,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         let tierPurchaseMade = false;
         let tierPurchaseCustomerId: string | null = null;
 
+        console.log('========================================');
+        console.log('[OrderPaid] Walking through raw line items from webhook payload');
+        console.log('========================================');
+        order.line_items.forEach((item: any, index: number) => {
+          console.log(`[OrderPaid] Line Item #${index + 1}`, {
+            id: item.id,
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            sku: item.sku,
+            title: item.title,
+            quantity: item.quantity,
+            price: item.price,
+            fulfillment_status: item.fulfillment_status,
+          });
+        });
+
         for (const lineItem of order.line_items) {
           try {
+            console.log('----------------------------------------');
+            console.log('[OrderPaid] Processing line item', {
+              id: lineItem.id,
+              product_id: lineItem.product_id,
+              variant_id: lineItem.variant_id,
+              sku: lineItem.sku,
+              name: lineItem.name,
+              quantity: lineItem.quantity,
+            });
             const itemResult = await processLineItem(db, {
               shop: shop!,
               admin,
