@@ -1713,59 +1713,6 @@ export default function SettingsPage() {
                           })}
                         </div>
                       </BlockStack>
-
-                      <Divider />
-
-                      {/* FAQ Section */}
-                      <BlockStack gap="400">
-                        <Text variant="headingMd" as="h3">
-                          Frequently Asked Questions
-                        </Text>
-
-                        <BlockStack gap="300">
-                          <BlockStack gap="200">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              How does billing work?
-                            </Text>
-                            <Text as="p" variant="bodyMd" tone="subdued">
-                              All billing is handled through Shopify. Charges appear on your regular Shopify invoice—the same monthly invoice you already receive for your Shopify subscription. We never charge your card directly; all payments flow through Shopify's secure billing system.
-                            </Text>
-                          </BlockStack>
-
-                          <Divider />
-
-                          <BlockStack gap="200">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              What's the difference between monthly and annual billing?
-                            </Text>
-                            <Text as="p" variant="bodyMd" tone="subdued">
-                              Annual plans charge the yearly total up front (e.g., Pro Annual is $336/year instead of $39/month) and offer significant savings—up to 28% off. When you switch from monthly to annual or vice versa, Shopify automatically handles proration of your existing subscription. The new billing agreement starts immediately.
-                            </Text>
-                          </BlockStack>
-
-                          <Divider />
-
-                          <BlockStack gap="200">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              What are overage/usage charges?
-                            </Text>
-                            <Text as="p" variant="bodyMd" tone="subdued">
-                              Pro and Max plans include usage-based billing for orders beyond your monthly limit. Pro: $10 per 100 orders over 500 (capped at $50/month). Max: $5 per 100 orders over 2,000 (capped at $100/month). These charges appear as usage line items on your Shopify invoice. Ultra plan has unlimited orders with no overage charges.
-                            </Text>
-                          </BlockStack>
-
-                          <Divider />
-
-                          <BlockStack gap="200">
-                            <Text as="p" variant="bodyMd" fontWeight="semibold">
-                              Can I upgrade or downgrade my plan at any time?
-                            </Text>
-                            <Text as="p" variant="bodyMd" tone="subdued">
-                              Yes! Plan changes take effect immediately. Upgrades remove any "plan locked" state instantly and increase your order limit right away. Downgrades or returns to the free plan also apply instantly, though you may be locked again if your current usage exceeds the new limit.
-                            </Text>
-                          </BlockStack>
-                        </BlockStack>
-                      </BlockStack>
                     </BlockStack>
                   )}
                 </Box>
