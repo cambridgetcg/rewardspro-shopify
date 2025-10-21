@@ -158,7 +158,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 
     const currentPlan = getCurrentPlan(null, billingSubscription);
-    const canCreateProducts = hasFeature(currentPlan, 'purchasableTiers');
+    // TEMPORARILY ENABLED: Allow tier product creation on free plan for testing
+    const canCreateProducts = true; // hasFeature(currentPlan, 'purchasableTiers');
 
     // Fetch tiers, shop settings, and tier distribution
     const [tiers, shopSettings, customers] = await Promise.all([
@@ -456,7 +457,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         where: { shop }
       });
       const currentPlan = getCurrentPlan(null, billingSubscription);
-      const canCreateProducts = hasFeature(currentPlan, 'purchasableTiers');
+      // TEMPORARILY ENABLED: Allow tier product creation on free plan for testing
+      const canCreateProducts = true; // hasFeature(currentPlan, 'purchasableTiers');
 
       if (!canCreateProducts) {
         return json({
