@@ -1228,35 +1228,79 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         `;
 
-        const publishResponse = await admin.graphql(publishMutation, {
-          variables: {
-            input: {
-              id: productId,
-              productPublications: [
-                {
-                  publicationId: onlineStore.node.id,
-                  publishDate: new Date().toISOString()
-                }
-              ]
+        try {
+          const publishResponse = await admin.graphql(publishMutation, {
+            variables: {
+              input: {
+                id: productId,
+                productPublications: [
+                  {
+                    publicationId: onlineStore.node.id,
+                    publishDate: new Date().toISOString()
+                  }
+                ]
+              }
             }
+          });
+
+          const publishResult = await publishResponse.json() as any;
+
+          // Check for userErrors (these are actual validation/business logic errors)
+          if (publishResult.data?.productPublish?.userErrors?.length > 0) {
+            const errors = publishResult.data.productPublish.userErrors.map((e: any) => e.message).join(", ");
+            return json({
+              success: false,
+              error: `Failed to publish product: ${errors}`
+            }, { status: 400 });
           }
-        });
 
-        const publishResult = await publishResponse.json() as any;
+          return json({
+            success: true,
+            message: "Product published successfully to Online Store",
+            published: true
+          });
+        } catch (error: any) {
+          // GraphQL client throws when response has errors array, even if operation succeeded
+          // Check if we got a successful result despite the error
+          console.warn('[TierProducts] GraphQL error during publish, checking if operation succeeded:', error.message);
 
-        if (publishResult.data?.productPublish?.userErrors?.length > 0) {
-          const errors = publishResult.data.productPublish.userErrors.map((e: any) => e.message).join(", ");
+          // Try to extract the response from the error
+          let publishResult: any = null;
+          try {
+            // The error might have the response attached
+            if (error.response) {
+              publishResult = await error.response.json();
+            }
+          } catch (e) {
+            // Couldn't extract response, treat as real error
+          }
+
+          // Check if operation succeeded despite GraphQL errors
+          if (publishResult?.data?.productPublish?.product?.id) {
+            // Operation succeeded! Check for userErrors
+            if (publishResult.data.productPublish.userErrors?.length > 0) {
+              const errors = publishResult.data.productPublish.userErrors.map((e: any) => e.message).join(", ");
+              return json({
+                success: false,
+                error: `Failed to publish product: ${errors}`
+              }, { status: 400 });
+            }
+
+            // Success with non-fatal GraphQL errors
+            console.log('[TierProducts] Product published successfully despite GraphQL errors');
+            return json({
+              success: true,
+              message: "Product published successfully to Online Store",
+              published: true
+            });
+          }
+
+          // Real failure - operation did not succeed
           return json({
             success: false,
-            error: `Failed to publish product: ${errors}`
-          }, { status: 400 });
+            error: `Failed to publish product: ${error.message}`
+          }, { status: 500 });
         }
-
-        return json({
-          success: true,
-          message: "Product published successfully to Online Store",
-          published: true
-        });
       } else {
         // Unpublish the product
         const unpublishMutation = `#graphql
@@ -1275,34 +1319,78 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         `;
 
-        const unpublishResponse = await admin.graphql(unpublishMutation, {
-          variables: {
-            input: {
-              id: productId,
-              productPublications: [
-                {
-                  publicationId: onlineStore.node.id
-                }
-              ]
+        try {
+          const unpublishResponse = await admin.graphql(unpublishMutation, {
+            variables: {
+              input: {
+                id: productId,
+                productPublications: [
+                  {
+                    publicationId: onlineStore.node.id
+                  }
+                ]
+              }
             }
+          });
+
+          const unpublishResult = await unpublishResponse.json() as any;
+
+          // Check for userErrors (these are actual validation/business logic errors)
+          if (unpublishResult.data?.productUnpublish?.userErrors?.length > 0) {
+            const errors = unpublishResult.data.productUnpublish.userErrors.map((e: any) => e.message).join(", ");
+            return json({
+              success: false,
+              error: `Failed to unpublish product: ${errors}`
+            }, { status: 400 });
           }
-        });
 
-        const unpublishResult = await unpublishResponse.json() as any;
+          return json({
+            success: true,
+            message: "Product unpublished from Online Store",
+            published: false
+          });
+        } catch (error: any) {
+          // GraphQL client throws when response has errors array, even if operation succeeded
+          // Check if we got a successful result despite the error
+          console.warn('[TierProducts] GraphQL error during unpublish, checking if operation succeeded:', error.message);
 
-        if (unpublishResult.data?.productUnpublish?.userErrors?.length > 0) {
-          const errors = unpublishResult.data.productUnpublish.userErrors.map((e: any) => e.message).join(", ");
+          // Try to extract the response from the error
+          let unpublishResult: any = null;
+          try {
+            // The error might have the response attached
+            if (error.response) {
+              unpublishResult = await error.response.json();
+            }
+          } catch (e) {
+            // Couldn't extract response, treat as real error
+          }
+
+          // Check if operation succeeded despite GraphQL errors
+          if (unpublishResult?.data?.productUnpublish?.product?.id) {
+            // Operation succeeded! Check for userErrors
+            if (unpublishResult.data.productUnpublish.userErrors?.length > 0) {
+              const errors = unpublishResult.data.productUnpublish.userErrors.map((e: any) => e.message).join(", ");
+              return json({
+                success: false,
+                error: `Failed to unpublish product: ${errors}`
+              }, { status: 400 });
+            }
+
+            // Success with non-fatal GraphQL errors
+            console.log('[TierProducts] Product unpublished successfully despite GraphQL errors');
+            return json({
+              success: true,
+              message: "Product unpublished from Online Store",
+              published: false
+            });
+          }
+
+          // Real failure - operation did not succeed
           return json({
             success: false,
-            error: `Failed to unpublish product: ${errors}`
-          }, { status: 400 });
+            error: `Failed to unpublish product: ${error.message}`
+          }, { status: 500 });
         }
-
-        return json({
-          success: true,
-          message: "Product unpublished from Online Store",
-          published: false
-        });
       }
 
     } else if (intent === "delete-product") {
