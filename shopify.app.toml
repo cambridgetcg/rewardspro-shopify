@@ -54,7 +54,7 @@ redirect_urls = ["https://rewardspro-production.vercel.app/auth/callback", "http
 
 [app_proxy]
 url = "/api/proxy"
-subpath = "rewardspro"
+subpath = "rewardspromembership"
 prefix = "apps"
 
 [pos]
