@@ -1,12 +1,20 @@
 {% comment %}
-  App Embed Block: Membership Widget
-  This block displays membership tier and store credit information for logged-in customers.
+  App Embed Block: Rewards Widget
+  This block displays rewards tier and store credit information for logged-in customers.
 
-  Data Flow:
-  1. Pass Shopify customer ID directly (no metafield needed)
-  2. JavaScript fetches loyalty data from: /apps/rewardspro/loyalty?shopifyCustomerId={id}
-  3. API looks up customer by shopifyCustomerId + shop domain
-  4. API returns: balance, tier name, progress, etc.
+  Data Flow (Current - Backward Compatible):
+  1. Extract numeric customer ID from Shopify GID
+  2. Pass to widget via data attribute
+  3. Widget calls: /apps/rewardspro/loyalty?shopifyCustomerId={id}
+  4. API returns comprehensive member data
+
+  Future State (After Customer Accounts Migration):
+  1. Remove manual customer ID extraction
+  2. Widget calls: /apps/rewardspro/loyalty (no parameters)
+  3. Shopify App Proxy automatically adds logged_in_customer_id parameter
+  4. More secure, simpler implementation
+
+  Backend supports BOTH approaches during transition period.
 {% endcomment %}
 
 <!-- DEBUG: Membership Widget Start -->
@@ -33,9 +41,9 @@
     data-design-mode="true"
   >
     <div style="padding: 20px; background: #f0f0f0; border: 2px dashed #ccc; text-align: center;">
-      <strong>🌟 Preview: Membership Widget</strong>
+      <strong>🌟 Preview: Rewards Widget</strong>
       <br>
-      <small style="color: #666;">This is a placeholder. The actual widget will show for logged-in customers with membership data.</small>
+      <small style="color: #666;">This is a placeholder. The actual widget will show for logged-in customers with rewards data.</small>
       <br><br>
       <div style="background: white; padding: 10px; border-radius: 4px; display: inline-block;">
         <strong>Gold Member</strong>
@@ -52,12 +60,18 @@
     console.log('[MembershipWidget Liquid] Customer email:', '{{ customer.email }}');
   </script>
 
-  {% comment %} Extract numeric customer ID from GID {% endcomment %}
+  {% comment %}
+    BACKWARD COMPATIBILITY: Manual Customer ID Extraction
+    This extraction is temporary during the migration period.
+    Once all stores use Customer Accounts, we can remove this and rely
+    on Shopify's automatic logged_in_customer_id parameter.
+  {% endcomment %}
   {% assign customer_id_parts = customer.id | split: '/' %}
   {% assign shopify_customer_id = customer_id_parts | last %}
 
   <script>
     console.log('[MembershipWidget Liquid] Extracted Shopify Customer ID:', '{{ shopify_customer_id }}');
+    console.log('[MembershipWidget Liquid] NOTE: Manual extraction for backward compatibility');
   </script>
 
   {% comment %} Render widget for all logged-in customers {% endcomment %}
@@ -72,6 +86,7 @@
       data-shopify-customer-id="{{ shopify_customer_id | escape }}"
       data-customer-email="{{ customer.email | escape }}"
       data-shop-currency="{{ shop.currency | escape }}"
+      data-debug="{{ block.settings.debug_mode }}"
       style="background: rgba(255,0,0,0.1); padding: 10px; border: 2px solid red;"
     >
       {% comment %}
@@ -79,13 +94,13 @@
         JavaScript will fetch data from API and replace this
       {% endcomment %}
       <div style="padding: 20px; background: white; border: 2px dashed blue;">
-        <strong>🌟 Loading your membership...</strong>
+        <strong>🌟 Loading your rewards...</strong>
         <br>
         <small style="color: blue;">Widget container loaded. Fetching data from API...</small>
       </div>
       <noscript>
         <div class="membership-widget-fallback">
-          <p>Please enable JavaScript to view your membership information.</p>
+          <p>Please enable JavaScript to view your rewards information.</p>
         </div>
       </noscript>
     </div>
@@ -104,10 +119,18 @@
 
 {% schema %}
 {
-  "name": "Membership Widget",
+  "name": "Rewards Widget",
   "target": "body",
   "javascript": "membership-widget.js",
   "stylesheet": "membership-widget.css",
-  "settings": []
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "debug_mode",
+      "label": "Enable Debug Mode",
+      "default": false,
+      "info": "Shows detailed technical information in error messages. Enable this when troubleshooting issues. Can also be enabled by adding ?debug=true to the URL."
+    }
+  ]
 }
 {% endschema %}
