@@ -1,84 +1,46 @@
 {% comment %}
-  App Embed Block: Rewards Widget
-  This block displays rewards tier and store credit information for logged-in customers.
+  RewardsPro Membership Widget
 
-  Data Flow (Current - Backward Compatible):
-  1. Extract numeric customer ID from Shopify GID
-  2. Pass to widget via data attribute
-  3. Widget calls: /apps/rewardspromembership?shopifyCustomerId={id}
-  4. API returns comprehensive member data
+  App Proxy Configuration:
+  - Widget calls: /apps/rewardspromembership
+  - TOML config: url="/api/proxy", subpath="rewardspromembership", prefix="apps"
+  - Backend route: api.proxy.$.tsx handles /api/proxy/*
 
-  Future State (After Customer Accounts Migration):
-  1. Remove manual customer ID extraction
-  2. Widget calls: /apps/rewardspromembership (no parameters)
-  3. Shopify App Proxy automatically adds logged_in_customer_id parameter
-  4. More secure, simpler implementation
-
-  Backend supports BOTH approaches during transition period.
+  Request Flow:
+  1. Liquid extracts customer ID from Shopify GID
+  2. Widget JS calls /apps/rewardspromembership?shopifyCustomerId={id}
+  3. Shopify proxy forwards to https://rewardspro-production.vercel.app/api/proxy
+  4. Backend verifies HMAC, fetches data, returns JSON
 {% endcomment %}
 
-<!-- DEBUG: Membership Widget Start -->
-<script>
-  console.log('[MembershipWidget Liquid] Template loaded');
-  console.log('[MembershipWidget Liquid] Customer exists:', {{ customer | json }});
-  console.log('[MembershipWidget Liquid] Design mode:', {{ request.design_mode | json }});
-</script>
-
-{% comment %} Check if we're in theme editor design mode {% endcomment %}
 {% if request.design_mode %}
-  <script>
-    console.log('[MembershipWidget Liquid] 🎨 Design mode detected - rendering placeholder');
-  </script>
-
-  {% comment %} Render placeholder widget for theme editor preview {% endcomment %}
+  <!-- Theme Editor Preview Mode -->
   <div
     id="membership-widget-root"
     class="rewards-pro-membership-widget"
     data-api-url="/apps/rewardspromembership"
     data-shopify-customer-id="preview"
-    data-customer-email="customer@example.com"
+    data-customer-email="preview@example.com"
     data-shop-currency="{{ shop.currency }}"
     data-design-mode="true"
   >
-    <div style="padding: 20px; background: #f0f0f0; border: 2px dashed #ccc; text-align: center;">
-      <strong>🌟 Preview: Rewards Widget</strong>
+    <div style="padding: 20px; background: #f5f5f5; border: 2px dashed #999; border-radius: 8px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+      <strong style="font-size: 16px;">🌟 RewardsPro Widget Preview</strong>
       <br>
-      <small style="color: #666;">This is a placeholder. The actual widget will show for logged-in customers with rewards data.</small>
-      <br><br>
-      <div style="background: white; padding: 10px; border-radius: 4px; display: inline-block;">
-        <strong>Gold Member</strong>
-        <br>
-        <span>Store Credit: {{ 50.00 | money_with_currency }}</span>
+      <small style="color: #666;">The widget will display for logged-in customers with membership data.</small>
+      <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 4px; display: inline-block;">
+        <div style="font-weight: 600; color: #333;">Gold Member</div>
+        <div style="font-size: 14px; color: #666; margin-top: 4px;">Store Credit: {{ 50.00 | money_with_currency }}</div>
       </div>
     </div>
   </div>
 
 {% elsif customer %}
-  <script>
-    console.log('[MembershipWidget Liquid] Customer is logged in');
-    console.log('[MembershipWidget Liquid] Customer ID:', '{{ customer.id }}');
-    console.log('[MembershipWidget Liquid] Customer email:', '{{ customer.email }}');
-  </script>
-
-  {% comment %}
-    BACKWARD COMPATIBILITY: Manual Customer ID Extraction
-    This extraction is temporary during the migration period.
-    Once all stores use Customer Accounts, we can remove this and rely
-    on Shopify's automatic logged_in_customer_id parameter.
-  {% endcomment %}
+  {% comment %} Extract numeric customer ID from Shopify GID (e.g., gid://shopify/Customer/123 → 123) {% endcomment %}
   {% assign customer_id_parts = customer.id | split: '/' %}
   {% assign shopify_customer_id = customer_id_parts | last %}
 
-  <script>
-    console.log('[MembershipWidget Liquid] Extracted Shopify Customer ID:', '{{ shopify_customer_id }}');
-    console.log('[MembershipWidget Liquid] NOTE: Manual extraction for backward compatibility');
-  </script>
-
-  {% comment %} Render widget for all logged-in customers {% endcomment %}
   {% if shopify_customer_id %}
-    <script>
-      console.log('[MembershipWidget Liquid] ✅ Rendering widget container');
-    </script>
     <div
       id="membership-widget-root"
       class="rewards-pro-membership-widget"
@@ -87,39 +49,26 @@
       data-customer-email="{{ customer.email | escape }}"
       data-shop-currency="{{ shop.currency | escape }}"
       data-debug="{{ block.settings.debug_mode }}"
-      style="background: rgba(255,0,0,0.1); padding: 10px; border: 2px solid red;"
     >
-      {% comment %}
-        Fallback content for users with JavaScript disabled
-        JavaScript will fetch data from API and replace this
-      {% endcomment %}
-      <div style="padding: 20px; background: white; border: 2px dashed blue;">
-        <strong>🌟 Loading your rewards...</strong>
-        <br>
-        <small style="color: blue;">Widget container loaded. Fetching data from API...</small>
+      <!-- Fallback content while JavaScript loads -->
+      <div style="padding: 15px; text-align: center; color: #666; font-size: 14px;">
+        Loading your rewards...
       </div>
       <noscript>
-        <div class="membership-widget-fallback">
-          <p>Please enable JavaScript to view your rewards information.</p>
+        <div style="padding: 15px; text-align: center; color: #999; font-size: 13px;">
+          Please enable JavaScript to view your rewards.
         </div>
       </noscript>
     </div>
-  {% else %}
-    <script>
-      console.warn('[MembershipWidget Liquid] ❌ Could not extract Shopify customer ID');
-      console.log('[MembershipWidget Liquid] Customer ID format:', '{{ customer.id }}');
-    </script>
   {% endif %}
+
 {% else %}
-  <script>
-    console.warn('[MembershipWidget Liquid] ❌ No customer logged in - widget will not render');
-  </script>
+  <!-- Not logged in - widget won't render -->
 {% endif %}
-<!-- DEBUG: Membership Widget End -->
 
 {% schema %}
 {
-  "name": "Rewards Widget",
+  "name": "RewardsPro Widget",
   "target": "body",
   "javascript": "membership-widget.js",
   "stylesheet": "membership-widget.css",
@@ -129,7 +78,7 @@
       "id": "debug_mode",
       "label": "Enable Debug Mode",
       "default": false,
-      "info": "Shows detailed technical information in error messages. Enable this when troubleshooting issues. Can also be enabled by adding ?debug=true to the URL."
+      "info": "Shows detailed error information for troubleshooting"
     }
   ]
 }
