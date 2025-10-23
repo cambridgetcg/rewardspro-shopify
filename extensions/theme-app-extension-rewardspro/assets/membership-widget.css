@@ -1,246 +1,258 @@
 /**
- * Membership Widget Styles
- * Floating widget for displaying membership tier and store credit
+ * RewardsPro Membership Widget - Expandable UI Styles
  */
 
-.membership-widget {
-  position: fixed;
-  z-index: 999999;
+.rp-widget {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 100%;
   border-radius: 12px;
   background: #ffffff;
-  color: #1a1a1a;
-  max-width: 280px;
-  transition: all 0.3s ease;
-  overflow: hidden;
-  border: 1px solid #e0e0e0;
-}
-
-/* Widget position - Fixed bottom-right */
-.membership-widget--bottom-right {
-  bottom: 20px;
-  right: 20px;
-}
-
-/* Collapsed state */
-.membership-widget--collapsed {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+  border: 1px solid #e5e7eb;
 }
 
-/* Widget Header */
-.membership-widget__header {
+.rp-widget:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Header Button */
+.rp-header {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: #1a1a1a;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s ease;
-}
-
-.membership-widget__header:hover {
-  background: #2a2a2a;
-}
-
-.membership-widget__header:focus {
-  outline: 2px solid #666666;
-  outline-offset: -2px;
-}
-
-.membership-widget__tier {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.membership-widget__icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.membership-widget__tier-name {
-  text-transform: capitalize;
-}
-
-/* Toggle button */
-.membership-widget__toggle {
-  background: none;
   border: none;
-  color: #ffffff;
   cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
   transition: background 0.2s ease;
-  border-radius: 4px;
+  text-align: left;
 }
 
-.membership-widget__toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
+.rp-header:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a4291 100%);
 }
 
-.membership-widget__toggle:focus {
-  outline: 2px solid #666666;
+.rp-header:focus {
+  outline: 3px solid rgba(102, 126, 234, 0.4);
   outline-offset: 2px;
 }
 
-.membership-widget__toggle-icon {
-  transition: transform 0.3s ease;
+.rp-header-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.membership-widget__toggle-icon--expanded {
+.rp-icon {
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+/* Chevron Icon */
+.rp-chevron {
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.rp-expanded .rp-chevron {
   transform: rotate(180deg);
 }
 
-/* Widget Content */
-.membership-widget__content {
-  padding: 16px;
-  background: #ffffff;
-  animation: slideDown 0.3s ease;
+/* Content Area */
+.rp-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.4s ease;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.rp-expanded .rp-content {
+  max-height: 600px;
 }
 
-.membership-widget__balance {
+.rp-content-inner {
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 16px;
+  background: #ffffff;
+}
+
+/* Stat Cards */
+.rp-stat-card {
+  padding: 16px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.rp-stat-card:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.rp-stat-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: #ffffff;
+}
+
+.rp-stat-primary:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a4291 100%);
+}
+
+.rp-stat-primary .rp-stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.rp-stat-primary .rp-stat-value {
+  color: #ffffff;
+}
+
+/* Stat Labels & Values */
+.rp-stat-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  font-weight: 500;
   margin-bottom: 8px;
 }
 
-.membership-widget__label {
-  font-size: 12px;
-  color: #666666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 500;
-}
-
-.membership-widget__amount {
-  font-size: 24px;
+.rp-stat-value {
+  font-size: 32px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #111827;
   letter-spacing: -0.5px;
+  line-height: 1;
 }
 
-.membership-widget__hint {
-  font-size: 12px;
-  color: #666666;
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border-radius: 6px;
-  text-align: center;
-  border: 1px solid #e0e0e0;
+.rp-stat-value-sm {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.2;
 }
 
-/* Fallback for no-JS users */
-.membership-widget-fallback {
-  padding: 16px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333333;
+/* Stats Grid */
+.rp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-/* Mobile responsiveness - Always show widget */
-@media (max-width: 768px) {
-  .membership-widget {
-    max-width: calc(100vw - 40px);
-    font-size: 13px;
-    left: 20px;
-    right: 20px;
-    bottom: 20px;
+/* Collapsed State - Hide content */
+.rp-collapsed .rp-content {
+  max-height: 0;
+  padding: 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .rp-header {
+    padding: 14px 16px;
+    font-size: 15px;
   }
 
-  .membership-widget__amount {
-    font-size: 20px;
+  .rp-content-inner {
+    padding: 16px;
+    gap: 12px;
   }
 
-  .membership-widget__header {
-    padding: 10px 14px;
+  .rp-stat-card {
+    padding: 12px;
   }
 
-  .membership-widget__content {
-    padding: 14px;
+  .rp-stat-value {
+    font-size: 28px;
   }
 
-  .membership-widget__tier {
-    font-size: 14px;
-  }
-
-  .membership-widget__icon {
+  .rp-stat-value-sm {
     font-size: 16px;
   }
+
+  .rp-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .rp-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rp-chevron {
+    width: 14px;
+    height: 14px;
+  }
 }
 
-/* Dark mode support */
+/* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
-  .membership-widget {
-    background: #1a1a1a;
-    color: #ffffff;
-    border: 1px solid #333333;
+  .rp-widget {
+    background: #1f2937;
+    border-color: #374151;
   }
 
-  .membership-widget__header {
-    background: #0a0a0a;
+  .rp-content-inner {
+    background: #1f2937;
   }
 
-  .membership-widget__header:hover {
-    background: #1a1a1a;
+  .rp-stat-card {
+    background: #111827;
+    border-color: #374151;
   }
 
-  .membership-widget__content {
-    background: #1a1a1a;
+  .rp-stat-card:hover {
+    background: #1a202e;
+    border-color: #4b5563;
   }
 
-  .membership-widget__amount {
-    color: #ffffff;
+  .rp-stat-label {
+    color: #9ca3af;
   }
 
-  .membership-widget__hint {
-    background: #0a0a0a;
-    color: #cccccc;
-    border-color: #333333;
-  }
-
-  .membership-widget-fallback {
-    background: #1a1a1a;
-    border-color: #333333;
-    color: #ffffff;
+  .rp-stat-value,
+  .rp-stat-value-sm {
+    color: #f9fafb;
   }
 }
 
-/* Accessibility: Reduced motion */
+/* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-  .membership-widget,
-  .membership-widget__toggle-icon,
-  .membership-widget__content {
+  .rp-widget,
+  .rp-header,
+  .rp-chevron,
+  .rp-content,
+  .rp-stat-card {
     transition: none;
     animation: none;
   }
 }
 
-/* Print styles */
+/* Print Styles */
 @media print {
-  .membership-widget {
-    display: none;
+  .rp-widget {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .rp-header {
+    background: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .rp-expanded .rp-content {
+    max-height: none;
   }
 }
