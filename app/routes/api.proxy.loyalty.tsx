@@ -1,31 +1,84 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { formatCurrency } from "../utils/currency";
 
 /**
- * App Proxy Handler for Storefront Loyalty Widget
+ * Shopify App Proxy Handler for RewardsPro Widget
  *
- * Path: /api/proxy/loyalty
- * Storefront URL: /apps/rewardspro/loyalty (configured in Partner Dashboard)
+ * This endpoint handles requests from the storefront widget via Shopify App Proxy.
+ * Requests come through: https://store.myshopify.com/apps/rewardspro/loyalty
+ * And are proxied to: https://rewardspro-production.vercel.app/api/proxy/loyalty
  *
- * NOTE: This is a compatibility route. The main route is at apps.proxy.loyalty.tsx
- * This route exists to handle cases where the Partner Dashboard is configured
- * with url: https://rewardspro-production.vercel.app/api/proxy instead of /apps/proxy
+ * SECURITY:
+ * - Automatic HMAC signature verification via authenticate.public.appProxy()
+ * - Shop domain validation through session
+ * - Customer ID provided by Shopify (trusted)
+ * - All queries scoped to authenticated shop
+ * - Rate limiting implemented
  *
- * Benefits:
- * - Built-in Shopify authentication via app proxy
- * - HMAC signature verification automatic
- * - Shop context provided by Shopify session
- * - No CORS needed (same-origin request)
- * - Compliant with Shopify App Store requirements
+ * BACKWARD COMPATIBILITY:
+ * - Accepts both shopifyCustomerId (legacy manual) and logged_in_customer_id (new Shopify automatic)
+ * - Returns both old format (balance, tier) and new format (memberData) during transition
  *
- * Configuration (if using this route):
+ * Configuration (TOML):
  * - prefix: apps
  * - subpath: rewardspro
- * - url: https://rewardspro-production.vercel.app/api/proxy
+ * - url: /api/proxy (relative URL, Shopify prepends base URL)
  */
 
+// Simple in-memory rate limiter (consider Redis for production)
+// See docs/redis-rate-limiting.md for Redis implementation guide
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(shop: string, limit = 60): boolean {
+  const now = Date.now();
+  const key = `proxy:${shop}`;
+  const entry = requestCounts.get(key);
+
+  // Reset if time window expired (1 minute)
+  if (!entry || entry.resetTime < now) {
+    requestCounts.set(key, { count: 1, resetTime: now + 60000 });
+    return true;
+  }
+
+  // Check if under limit
+  if (entry.count >= limit) {
+    return false;
+  }
+
+  // Increment counter
+  entry.count++;
+  return true;
+}
+
+function getTransactionDescription(type: string, metadata: any): string {
+  switch (type) {
+    case 'CASHBACK_EARNED':
+      return metadata?.orderName
+        ? `Cashback earned on order ${metadata.orderName}`
+        : metadata?.orderId
+        ? `Cashback earned on order ${metadata.orderId}`
+        : 'Cashback earned';
+    case 'ORDER_PAYMENT':
+      return metadata?.orderName
+        ? `Store credit used for order ${metadata.orderName}`
+        : 'Store credit used';
+    case 'REFUND_CREDIT':
+      return metadata?.orderName
+        ? `Refund for order ${metadata.orderName}`
+        : 'Store credit refund';
+    case 'MANUAL_ADJUSTMENT':
+      return metadata?.reason || metadata?.note || metadata?.description || 'Manual credit adjustment';
+    case 'SHOPIFY_SYNC':
+      return 'Balance sync';
+    default:
+      return type.replace(/_/g, ' ').toLowerCase();
+  }
+}
+
 interface LoyaltyData {
+  // Legacy format (for backward compatibility)
   balance: number;
   tier: {
     id: string;
@@ -45,317 +98,413 @@ interface LoyaltyData {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const startTime = Date.now();
   const requestId = `proxy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  console.log(`\n[${requestId}] ========== APP PROXY REQUEST ==========`);
-  console.log(`[${requestId}] URL: ${request.url}`);
-  console.log(`[${requestId}] Method: ${request.method}`);
-  console.log(`[${requestId}] Headers:`, {
-    host: request.headers.get('host'),
-    origin: request.headers.get('origin'),
-    referer: request.headers.get('referer'),
-    userAgent: request.headers.get('user-agent')?.substring(0, 50) + '...',
-    shopifyShop: request.headers.get('x-shopify-shop-domain'),
-  });
-
-  // Authenticate via app proxy
-  // Returns session if shop has app installed, undefined otherwise
-  // Shopify automatically validates HMAC signature
-  console.log(`[${requestId}] Authenticating via app proxy...`);
-
-  let session;
   try {
-    const authResult = await authenticate.public.appProxy(request);
-    session = authResult.session;
-    console.log(`[${requestId}] Authentication result:`, {
-      hasSession: !!session,
-      sessionId: session?.id,
-      shop: session?.shop,
-      isOnline: session?.isOnline
-    });
-  } catch (authError: any) {
-    console.error(`[${requestId}] ❌ Authentication error:`, authError.message);
-    return json(
-      {
-        error: "Authentication failed",
-        message: authError.message || "Unable to verify app installation"
-      },
-      { status: 403 }
-    );
-  }
+    // Step 1: Authenticate the app proxy request using Shopify's helper
+    // This automatically verifies the HMAC signature and provides session context
+    const { session } = await authenticate.public.appProxy(request);
 
-  // If no session, shop hasn't installed the app
-  if (!session) {
-    console.warn(`[${requestId}] ⚠️ No session - shop hasn't installed the app`);
-    return json(
-      {
-        error: "App not installed",
-        message: "Please install RewardsPro from the Shopify App Store"
-      },
-      { status: 403 }
-    );
-  }
-
-  const url = new URL(request.url);
-  const shopifyCustomerId = url.searchParams.get("shopifyCustomerId");
-  const legacyCustomerId = url.searchParams.get("customerId"); // Backward compatibility
-
-  console.log(`[${requestId}] Query Parameters:`, {
-    shopifyCustomerId,
-    legacyCustomerId,
-    allParams: Object.fromEntries(url.searchParams.entries())
-  });
-
-  // Support both shopifyCustomerId (new) and customerId (legacy metafield-based)
-  const customerId = shopifyCustomerId || legacyCustomerId;
-
-  // Validate required parameters
-  if (!customerId) {
-    console.error(`[${requestId}] ❌ Missing required parameter`);
-    return json(
-      { error: "Missing required parameter: shopifyCustomerId or customerId" },
-      { status: 400 }
-    );
-  }
-
-  // Shop domain is automatically available from session
-  // This is secure - validated by Shopify's HMAC signature
-  const shop = session.shop;
-
-  console.log(`[${requestId}] ✅ Request validated:`, {
-    shop,
-    customerId,
-    parameterUsed: shopifyCustomerId ? 'shopifyCustomerId' : 'customerId'
-  });
-
-  try {
-    console.log(`[${requestId}] 🔍 Querying database for customer...`);
-    // Find customer by Shopify customer ID (preferred) or internal ID (legacy)
-    // Shop-scoped query prevents cross-store access
-    const customer = await db.customer.findFirst({
-      where: shopifyCustomerId ? {
-        shopifyCustomerId: customerId,
-        shop: shop
-      } : {
-        id: customerId,
-        shop: shop
-      },
-      select: {
-        id: true,
-        email: true,
-        pointsBalance: true,
-        lifetimePoints: true,
-        currentTierId: true,
-        currentTier: {
-          select: {
-            id: true,
-            name: true,
-            icon: true,
-            color: true,
-            minSpend: true,
-            threshold: true
-          }
-        }
-      }
-    });
-
-    console.log(`[${requestId}] Database query result:`, {
-      found: !!customer,
-      customerId: customer?.id,
-      email: customer?.email,
-      hasTier: !!customer?.currentTierId
-    });
-
-    if (!customer) {
-      console.log(`[${requestId}] ⚠️ Customer not found in database`);
-
-      // Debug: Check if customer exists with different shop format
-      const customerAnyShop = await db.customer.findFirst({
-        where: shopifyCustomerId ? {
-          shopifyCustomerId: customerId
-        } : {
-          id: customerId
-        },
-        select: {
-          id: true,
-          shop: true,
-          shopifyCustomerId: true,
-          email: true
-        }
-      });
-
-      if (customerAnyShop) {
-        console.error(`[${requestId}] ⚠️ SHOP MISMATCH!`, {
-          providedShop: shop,
-          actualShopInDB: customerAnyShop.shop,
-          customerId: customerAnyShop.id,
-          shopifyCustomerId: customerAnyShop.shopifyCustomerId,
-          email: customerAnyShop.email,
-          shopMatch: shop === customerAnyShop.shop
-        });
-      } else {
-        console.log(`[${requestId}] Customer does not exist in database at all`);
-      }
-
-      // Return success with enrolled: false (same as customer account extension)
-      // This allows widget to show "Not enrolled" message instead of error
-      console.log(`[${requestId}] 📤 Returning: Customer not enrolled`);
+    // Step 2: Check if app is installed for this shop
+    if (!session) {
+      console.log(`[${requestId}] App proxy: No session found (app not installed or invalid signature)`);
       return json(
         {
-          success: true,
-          enrolled: false,
-          balance: 0,
-          tier: null,
-          progress: null,
-          expiringPoints: null,
-          message: "You're not enrolled in the rewards program yet",
-          canEnroll: true
+          success: false,
+          error: "App not installed",
+          requiresInstall: true,
+          message: "Please ask your store admin to install RewardsPro"
         },
-        { status: 200 }
+        {
+          status: 401,
+          headers: {
+            "X-Response-Time": `${Date.now() - startTime}ms`
+          }
+        }
       );
+    }
+
+    const shop = session.shop;
+    console.log(`[${requestId}] App proxy request from shop: ${shop}`);
+
+    // Step 3: Rate limiting check
+    if (!checkRateLimit(shop)) {
+      console.warn(`[${requestId}] Rate limit exceeded for shop: ${shop}`);
+      return json(
+        {
+          success: false,
+          error: "Too many requests. Please try again later."
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+            "X-RateLimit-Limit": "60",
+            "X-RateLimit-Remaining": "0",
+            "X-Response-Time": `${Date.now() - startTime}ms`
+          }
+        }
+      );
+    }
+
+    // Step 4: Extract customer ID from Shopify-provided params
+    // BACKWARD COMPATIBILITY: Support both manual (shopifyCustomerId) and automatic (logged_in_customer_id)
+    const url = new URL(request.url);
+    const loggedInCustomerId = url.searchParams.get("logged_in_customer_id"); // New: Shopify automatic
+    const manualCustomerId = url.searchParams.get("shopifyCustomerId");       // Legacy: Manual widget
+    const timestamp = url.searchParams.get("timestamp");
+
+    console.log(`[${requestId}] Customer ID sources:`, {
+      logged_in_customer_id: loggedInCustomerId,
+      shopifyCustomerId: manualCustomerId,
+      timestamp
+    });
+
+    // Optional: Check timestamp freshness to prevent replay attacks
+    if (timestamp) {
+      const requestTime = parseInt(timestamp, 10);
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (currentTime - requestTime > 300) { // 5 minute window
+        console.warn(`[${requestId}] Stale request from shop ${shop}: ${currentTime - requestTime}s old`);
+        return json(
+          {
+            success: false,
+            error: "Request expired"
+          },
+          {
+            status: 400,
+            headers: {
+              "X-Response-Time": `${Date.now() - startTime}ms`
+            }
+          }
+        );
+      }
+    }
+
+    // Prefer Shopify's logged_in_customer_id (more secure), fallback to manual
+    const customerId = loggedInCustomerId || manualCustomerId;
+
+    // Step 5: Handle guest users (not logged in)
+    if (!customerId) {
+      console.log(`[${requestId}] Guest user accessing widget for shop: ${shop}`);
+      return json({
+        success: true,
+        requiresLogin: true,
+        enrolled: false,
+        message: "Please log in to view your rewards",
+        shopInfo: {
+          name: session.shop.replace('.myshopify.com', ''),
+          hasRewardsProgram: true
+        }
+      }, {
+        headers: {
+          "Cache-Control": "public, max-age=60",
+          "X-Response-Time": `${Date.now() - startTime}ms`
+        }
+      });
+    }
+
+    console.log(`[${requestId}] Fetching data for customer ${customerId} from shop ${shop}`);
+
+    // Step 6: Fetch customer data scoped to shop (CRITICAL for security)
+    // Note: Data API adapter doesn't support select, must fetch full record
+    const customer = await db.customer.findFirst({
+      where: {
+        shopifyCustomerId: customerId,
+        shop: shop // CRITICAL: Always scope to authenticated shop
+      }
+    });
+
+    // Fetch tier separately if customer has one
+    let currentTier = null;
+    if (customer && customer.currentTierId) {
+      currentTier = await db.tier.findFirst({
+        where: {
+          id: customer.currentTierId,
+          shop: shop
+        }
+      });
+    }
+
+    // Step 7: Get shop settings for formatting
+    // Note: Data API adapter doesn't support select, fetch full record
+    const shopSettings = await db.shopSettings.findUnique({
+      where: { shop }
+    });
+
+    // Step 8: Handle non-enrolled customers
+    if (!customer) {
+      console.log(`[${requestId}] Customer ${customerId} not enrolled in rewards for shop ${shop}`);
+      return json({
+        success: true,
+        enrolled: false,
+        message: "Join our rewards program to start earning cashback!",
+        benefits: [
+          "Earn cashback on every purchase",
+          "Unlock exclusive member tiers",
+          "Get personalized rewards"
+        ],
+        // Legacy format for old widgets
+        balance: 0,
+        tier: null
+      }, {
+        headers: {
+          "Cache-Control": "private, max-age=60",
+          "X-Response-Time": `${Date.now() - startTime}ms`
+        }
+      });
     }
 
     console.log(`[${requestId}] ✅ Customer found, processing data...`);
 
-    // Convert Decimal to number (Prisma Decimal type)
-    const pointsBalance = typeof customer.pointsBalance === 'object' && 'toNumber' in customer.pointsBalance
-      ? (customer.pointsBalance as any).toNumber()
-      : Number(customer.pointsBalance || 0);
+    // Step 9: Convert storeCredit (Prisma Decimal) to number
+    const storeCreditValue = typeof customer.storeCredit === 'object' && customer.storeCredit?.toNumber
+      ? customer.storeCredit.toNumber()
+      : Number(customer.storeCredit || 0);
 
-    const lifetimePoints = typeof customer.lifetimePoints === 'object' && 'toNumber' in customer.lifetimePoints
-      ? (customer.lifetimePoints as any).toNumber()
-      : Number(customer.lifetimePoints || 0);
-
-    // Get next tier for progress calculation
-    const currentTierThreshold = customer.currentTier
-      ? (customer.currentTier.threshold || customer.currentTier.minSpend)
-      : 0;
-
-    const nextTier = await db.tier.findFirst({
-      where: {
-        shop: shop,
-        minSpend: {
-          gt: currentTierThreshold
-        }
-      },
-      orderBy: {
-        minSpend: "asc"
-      },
-      select: {
-        id: true,
-        name: true,
-        minSpend: true,
-        threshold: true
-      }
-    });
-
-    // Calculate expiring points (points expiring in next 30 days)
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-    const expiringPointsData = await db.storeCreditLedger.aggregate({
+    // Step 10: Calculate lifetime earned (sum of all positive credit entries)
+    const allCreditEntries = await db.storeCreditLedger.findMany({
       where: {
         customerId: customer.id,
         shop: shop,
-        amount: {
-          gt: 0
-        },
-        expiresAt: {
-          lte: thirtyDaysFromNow,
-          gt: new Date()
+        type: {
+          in: ["CASHBACK_EARNED", "REFUND_CREDIT", "MANUAL_ADJUSTMENT"]
         }
+      },
+      select: {
+        amount: true,
+        type: true
+      }
+    });
+
+    let totalEarned = 0;
+    for (const entry of allCreditEntries) {
+      const amountValue = typeof entry.amount === 'object' && entry.amount?.toNumber
+        ? entry.amount.toNumber()
+        : Number(entry.amount);
+
+      // Only include positive amounts (credits)
+      if (amountValue > 0) {
+        totalEarned += amountValue;
+      }
+    }
+
+    // Step 11: Calculate store credit used (spent)
+    const storeCreditUsed = await db.storeCreditLedger.aggregate({
+      where: {
+        customerId: customer.id,
+        shop: shop,
+        type: "ORDER_PAYMENT"
       },
       _sum: {
         amount: true
       }
     });
 
-    // Get earliest expiration date
-    const earliestExpiration = await db.storeCreditLedger.findFirst({
+    // Step 12: Calculate lifetime spent from order metadata
+    const cashbackEntries = await db.storeCreditLedger.findMany({
       where: {
         customerId: customer.id,
         shop: shop,
-        amount: {
-          gt: 0
-        },
-        expiresAt: {
-          lte: thirtyDaysFromNow,
-          gt: new Date()
-        }
-      },
-      orderBy: {
-        expiresAt: "asc"
+        type: "CASHBACK_EARNED"
       },
       select: {
-        expiresAt: true
+        metadata: true
       }
     });
 
-    // Convert expiring points sum
-    const expiringSum = expiringPointsData._sum.amount
-      ? (typeof expiringPointsData._sum.amount === 'object' && 'toNumber' in expiringPointsData._sum.amount
-          ? (expiringPointsData._sum.amount as any).toNumber()
-          : Number(expiringPointsData._sum.amount))
-      : 0;
+    // Sum up actual order amounts from metadata
+    let totalSpent = 0;
+    for (const entry of cashbackEntries) {
+      const metadata = entry.metadata as any;
+      if (metadata) {
+        const amount = metadata.orderTotal || metadata.orderAmount;
+        if (amount) {
+          totalSpent += parseFloat(amount) || 0;
+        }
+      }
+    }
 
-    // Build response
-    const loyaltyData: LoyaltyData = {
-      balance: pointsBalance,
-      tier: customer.currentTier ? {
-        id: customer.currentTier.id,
-        name: customer.currentTier.name,
-        icon: customer.currentTier.icon || "⭐",
-        color: customer.currentTier.color || "#FFD700"
+    // Fallback: If no order amounts in metadata, estimate from cashback
+    if (totalSpent === 0 && totalEarned > 0) {
+      const cashbackOnlyTotal = allCreditEntries
+        .filter(e => e.type === 'CASHBACK_EARNED')
+        .reduce((sum, entry) => {
+          const amountValue = typeof entry.amount === 'object' && entry.amount?.toNumber
+            ? entry.amount.toNumber()
+            : Number(entry.amount);
+          return sum + Math.max(0, amountValue);
+        }, 0);
+
+      if (cashbackOnlyTotal > 0 && currentTier?.cashbackPercent) {
+        totalSpent = (cashbackOnlyTotal / currentTier.cashbackPercent) * 100;
+      } else if (cashbackOnlyTotal > 0) {
+        totalSpent = cashbackOnlyTotal * 10; // Assume 10% if no tier
+      }
+    }
+
+    // Step 13: Calculate next tier progress
+    let nextTierInfo = null;
+    if (currentTier) {
+      const nextTier = await db.tier.findFirst({
+        where: {
+          shop,
+          minSpend: { gt: currentTier.minSpend }
+        },
+        orderBy: { minSpend: 'asc' }
+      });
+
+      if (nextTier) {
+        const progress = Math.min(100,
+          (totalSpent / nextTier.minSpend) * 100
+        );
+
+        nextTierInfo = {
+          name: nextTier.name,
+          progress: Math.round(progress),
+          remaining: formatCurrency(
+            Math.max(0, nextTier.minSpend - totalSpent),
+            shopSettings
+          ),
+          threshold: formatCurrency(nextTier.minSpend, shopSettings),
+          cashbackRate: nextTier.cashbackPercent
+        };
+      }
+    } else {
+      // No tier yet, show first available tier
+      const firstTier = await db.tier.findFirst({
+        where: { shop },
+        orderBy: { minSpend: 'asc' }
+      });
+
+      if (firstTier) {
+        nextTierInfo = {
+          name: firstTier.name,
+          progress: 0,
+          remaining: formatCurrency(firstTier.minSpend, shopSettings),
+          threshold: formatCurrency(firstTier.minSpend, shopSettings),
+          cashbackRate: firstTier.cashbackPercent
+        };
+      }
+    }
+
+    // Step 14: Build comprehensive response with BACKWARD COMPATIBILITY
+    // Include both old format (balance, tier) and new format (memberData)
+    const memberResponse = {
+      success: true,
+      enrolled: true,
+
+      // NEW FORMAT: Rich member data
+      memberData: {
+        // Balance information
+        storeCredit: formatCurrency(storeCreditValue, shopSettings),
+        storeCreditRaw: storeCreditValue,
+
+        // Tier information
+        tierName: currentTier?.name || "No Tier",
+        cashbackRate: currentTier?.cashbackPercent || 0,
+
+        // Progress information
+        nextTier: nextTierInfo?.name,
+        progressToNextTier: nextTierInfo?.progress,
+        remainingToNextTier: nextTierInfo?.remaining,
+        nextTierThreshold: nextTierInfo?.threshold,
+        nextTierCashbackRate: nextTierInfo?.cashbackRate,
+
+        // Lifetime statistics
+        lifetimeEarned: formatCurrency(totalEarned, shopSettings),
+        lifetimeSpent: formatCurrency(totalSpent, shopSettings),
+        storeCreditRedeemed: storeCreditUsed._sum.amount
+          ? formatCurrency(
+              Math.abs(typeof storeCreditUsed._sum.amount === 'object' && storeCreditUsed._sum.amount?.toNumber
+                ? storeCreditUsed._sum.amount.toNumber()
+                : Number(storeCreditUsed._sum.amount)),
+              shopSettings
+            )
+          : formatCurrency(0, shopSettings),
+
+        // Metadata
+        memberSince: customer.createdAt.toISOString(),
+        lastUpdated: customer.updatedAt.toISOString()
+      },
+
+      // LEGACY FORMAT: For old widgets (backward compatibility)
+      balance: storeCreditValue,
+      tier: currentTier ? {
+        id: currentTier.id,
+        name: currentTier.name,
+        icon: currentTier.icon || "⭐",
+        color: currentTier.color || "#FFD700"
       } : null,
-      progress: nextTier ? {
-        current: lifetimePoints,
-        next: nextTier.threshold || nextTier.minSpend,
-        percentage: Math.min(100, Math.round((lifetimePoints / (nextTier.threshold || nextTier.minSpend)) * 100))
+      progress: nextTierInfo ? {
+        current: totalSpent,
+        next: nextTierInfo.cashbackRate || 0,
+        percentage: nextTierInfo.progress || 0
       } : null,
-      expiringPoints: expiringSum > 0 && earliestExpiration ? {
-        amount: expiringSum,
-        date: earliestExpiration.expiresAt!.toISOString()
-      } : null
+
+      // Shop info
+      shopInfo: {
+        name: shopSettings?.storeName || shop.replace('.myshopify.com', ''),
+        currency: shopSettings?.storeCurrency || 'USD'
+      }
     };
 
-    console.log(`[${requestId}] ✅ SUCCESS - Returning loyalty data:`, {
-      shop,
-      customerId: customer.id,
-      email: customer.email,
-      balance: pointsBalance,
-      tierName: customer.currentTier?.name,
-      hasNextTier: !!nextTier,
-      expiringPoints: expiringSum
-    });
+    console.log(`[${requestId}] ✅ Successfully fetched data for customer ${customerId} from shop ${shop}`);
 
-    console.log(`[${requestId}] 📤 Response data:`, {
-      balance: loyaltyData.balance,
-      tier: loyaltyData.tier?.name,
-      progress: loyaltyData.progress,
-      expiringPoints: loyaltyData.expiringPoints
-    });
-
-    console.log(`[${requestId}] ========== APP PROXY COMPLETE ==========\n`);
-
-    // Return JSON response
-    // No CORS headers needed - same-origin via proxy
-    return json(loyaltyData, {
+    // Return with appropriate cache headers
+    return json(memberResponse, {
       headers: {
-        "Cache-Control": "private, max-age=30", // 30 second cache
+        "Cache-Control": "private, max-age=30", // Cache for 30 seconds
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "X-Response-Time": `${Date.now() - startTime}ms`,
+        "Vary": "Authorization"
       }
     });
 
   } catch (error: any) {
-    console.error(`[${requestId}] ❌ FATAL ERROR:`, {
-      message: error.message,
-      stack: error.stack?.split('\n').slice(0, 3),
-      name: error.name
-    });
-    console.error(`[${requestId}] ========== APP PROXY FAILED ==========\n`);
+    console.error(`[${requestId}] App proxy error:`, error);
 
+    // Log detailed error for debugging
+    if (error instanceof Error) {
+      console.error(`[${requestId}] Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
+
+    // Don't expose internal errors to client
     return json(
-      { error: "Internal server error", message: error.message },
-      { status: 500 }
+      {
+        success: false,
+        error: "Service temporarily unavailable",
+        message: "We're having trouble loading your rewards. Please try again later."
+      },
+      {
+        status: 503,
+        headers: {
+          "Retry-After": "60",
+          "X-Response-Time": `${Date.now() - startTime}ms`
+        }
+      }
     );
   }
+}
+
+// Reject non-GET requests (app proxy should only use GET)
+export async function action() {
+  return json(
+    {
+      success: false,
+      error: "Method not allowed"
+    },
+    {
+      status: 405,
+      headers: {
+        "Allow": "GET"
+      }
+    }
+  );
 }

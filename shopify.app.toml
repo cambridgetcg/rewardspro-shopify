@@ -53,7 +53,7 @@ scopes = "read_customers,write_customers,read_orders,read_all_orders,write_store
 redirect_urls = ["https://rewardspro-production.vercel.app/auth/callback", "https://rewardspro-production.vercel.app/auth/shopify/callback", "https://rewardspro-production.vercel.app/api/auth/callback"]
 
 [app_proxy]
-url = "https://rewardspro-production.vercel.app/apps/proxy"
+url = "/api/proxy"
 subpath = "rewardspro"
 prefix = "apps"
 
