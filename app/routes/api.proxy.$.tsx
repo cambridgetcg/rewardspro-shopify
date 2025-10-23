@@ -8,7 +8,7 @@ import { formatCurrency } from "../utils/currency";
  *
  * This endpoint handles requests from the storefront widget via Shopify App Proxy.
  * Requests come through: https://store.myshopify.com/apps/rewardspromembership/loyalty
- * And are proxied to: https://rewardspro-production.vercel.app/app/proxy/loyalty
+ * And are proxied to: https://rewardspro-production.vercel.app/api/proxy/loyalty
  *
  * SECURITY:
  * - Automatic HMAC signature verification via authenticate.public.appProxy()
@@ -24,11 +24,11 @@ import { formatCurrency } from "../utils/currency";
  * Configuration (TOML):
  * - prefix: apps
  * - subpath: rewardspromembership
- * - url: /app/proxy (splat route handles /app/proxy/* paths)
+ * - url: /api/proxy (splat route handles /api/proxy/* paths)
  *
  * Remix Routing:
- * - File: app.proxy.$.tsx (splat route)
- * - Matches: /app/proxy/* (any path after /app/proxy)
+ * - File: api.proxy.$.tsx (splat route)
+ * - Matches: /api/proxy/* (any path after /api/proxy)
  */
 
 // Simple in-memory rate limiter (consider Redis for production)
