@@ -386,7 +386,7 @@
 
     extractData() {
       const data = {
-        apiUrl: this.root.dataset.apiUrl || '/apps/rewardspromembership/loyalty',
+        apiUrl: this.root.dataset.apiUrl || '/apps/rewardspromembership',
         shopifyCustomerId: this.root.dataset.shopifyCustomerId,
         customerEmail: this.root.dataset.customerEmail,
         shopCurrency: this.root.dataset.shopCurrency || 'USD',

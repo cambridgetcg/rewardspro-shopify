@@ -5,12 +5,12 @@
   Data Flow (Current - Backward Compatible):
   1. Extract numeric customer ID from Shopify GID
   2. Pass to widget via data attribute
-  3. Widget calls: /apps/rewardspromembership/loyalty?shopifyCustomerId={id}
+  3. Widget calls: /apps/rewardspromembership?shopifyCustomerId={id}
   4. API returns comprehensive member data
 
   Future State (After Customer Accounts Migration):
   1. Remove manual customer ID extraction
-  2. Widget calls: /apps/rewardspromembership/loyalty (no parameters)
+  2. Widget calls: /apps/rewardspromembership (no parameters)
   3. Shopify App Proxy automatically adds logged_in_customer_id parameter
   4. More secure, simpler implementation
 
@@ -34,7 +34,7 @@
   <div
     id="membership-widget-root"
     class="rewards-pro-membership-widget"
-    data-api-url="/apps/rewardspromembership/loyalty"
+    data-api-url="/apps/rewardspromembership"
     data-shopify-customer-id="preview"
     data-customer-email="customer@example.com"
     data-shop-currency="{{ shop.currency }}"
@@ -82,7 +82,7 @@
     <div
       id="membership-widget-root"
       class="rewards-pro-membership-widget"
-      data-api-url="/apps/rewardspromembership/loyalty"
+      data-api-url="/apps/rewardspromembership"
       data-shopify-customer-id="{{ shopify_customer_id | escape }}"
       data-customer-email="{{ customer.email | escape }}"
       data-shop-currency="{{ shop.currency | escape }}"

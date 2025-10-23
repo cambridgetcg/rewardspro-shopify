@@ -7,8 +7,8 @@ import { formatCurrency } from "../utils/currency";
  * Shopify App Proxy Handler for RewardsPro Widget
  *
  * This endpoint handles requests from the storefront widget via Shopify App Proxy.
- * Requests come through: https://store.myshopify.com/apps/rewardspromembership/loyalty
- * And are proxied to: https://rewardspro-production.vercel.app/api/proxy/loyalty
+ * Requests come through: https://store.myshopify.com/apps/rewardspromembership
+ * And are proxied to: https://rewardspro-production.vercel.app/api/proxy
  *
  * SECURITY:
  * - Automatic HMAC signature verification via authenticate.public.appProxy()
