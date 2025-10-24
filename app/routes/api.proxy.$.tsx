@@ -26,16 +26,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   
   // Membership endpoint
   if (proxyPath === "membership") {
+    console.log('[Proxy API] 🔵 Membership endpoint called');
+    console.log('[Proxy API] 📍 Full URL:', request.url);
+    console.log('[Proxy API] 🔍 All Query Params:', Object.fromEntries(url.searchParams));
+
     // Extract customer ID from various possible parameters
     const customerId = url.searchParams.get("logged_in_customer_id") ||
-                      url.searchParams.get("customer_id") || 
+                      url.searchParams.get("customer_id") ||
                       url.searchParams.get("customerId") ||
                       url.searchParams.get("cid");
-    
+
     const shop = url.searchParams.get("shop");
+
+    console.log('[Proxy API] 🏪 Shop:', shop);
+    console.log('[Proxy API] 👤 Customer ID:', customerId);
     
     // Handle non-logged-in users
     if (!customerId || customerId === "" || customerId === "null" || customerId === "undefined") {
+      console.log('[Proxy API] 🔐 No customer ID - guest user');
       return json({
         success: false,
         requiresLogin: true,
@@ -61,6 +69,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     
     // Validate shop parameter
     if (!shop) {
+      console.error('[Proxy API] ❌ Missing shop parameter');
       return json({
         success: false,
         error: "Missing shop parameter",
@@ -70,6 +79,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     }
     
     try {
+      console.log('[Proxy API] 🔍 Querying database for customer...');
+      console.log('[Proxy API] 📊 Query params:', {
+        shopDomain: shop,
+        shopifyCustomerId: customerId
+      });
+
       // Find or create customer
       let customer = await prisma.customer.findUnique({
         where: {
@@ -86,21 +101,46 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           }
         }
       });
+
+      console.log('[Proxy API] 📥 Customer found:', customer ? 'YES' : 'NO');
+      if (customer) {
+        console.log('[Proxy API] 👤 Customer details:', {
+          id: customer.id,
+          shopifyCustomerId: customer.shopifyCustomerId,
+          email: customer.email,
+          storeCredit: customer.storeCredit,
+          totalEarned: customer.totalEarned,
+          membershipHistoryCount: customer.membershipHistory?.length || 0
+        });
+      }
       
       // Create new customer if doesn't exist
       if (!customer) {
+        console.log('[Proxy API] ➕ Customer not found, creating new customer...');
+
         // Get or create default tier
         let defaultTier = await prisma.tier.findFirst({
           where: {
             shopDomain: shop,
             isActive: true
           },
-          orderBy: { 
-            minSpend: 'asc' 
+          orderBy: {
+            minSpend: 'asc'
           }
         });
+
+        console.log('[Proxy API] 🎖️ Default tier found:', defaultTier ? 'YES' : 'NO');
+        if (defaultTier) {
+          console.log('[Proxy API] 🎖️ Tier details:', {
+            id: defaultTier.id,
+            name: defaultTier.name,
+            minSpend: defaultTier.minSpend,
+            cashbackPercent: defaultTier.cashbackPercent
+          });
+        }
         
         if (!defaultTier) {
+          console.log('[Proxy API] ➕ No tier found, creating Bronze tier...');
           defaultTier = await prisma.tier.create({
             data: {
               shopDomain: shop,
@@ -111,9 +151,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
               evaluationPeriod: "ANNUAL"
             }
           });
+          console.log('[Proxy API] ✅ Bronze tier created:', defaultTier.id);
         }
         
         // Create customer with membership
+        console.log('[Proxy API] ➕ Creating customer with tier:', defaultTier.id);
         customer = await prisma.customer.create({
           data: {
             shopDomain: shop,
@@ -137,14 +179,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             }
           }
         });
+        console.log('[Proxy API] ✅ Customer created successfully:', customer.id);
       }
       
       // Get current tier
       const currentMembership = customer.membershipHistory[0];
       const currentTier = currentMembership?.tier;
-      
-      // Return customer data
-      return json({
+
+      console.log('[Proxy API] 🎖️ Current membership:', {
+        hasMembership: !!currentMembership,
+        tierName: currentTier?.name,
+        tierCashback: currentTier?.cashbackPercent
+      });
+
+      const responseData = {
         success: true,
         customer: {
           id: customer.id,
@@ -168,10 +216,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             cashbackPercent: 1
           }
         }
-      }, { headers });
+      };
+
+      console.log('[Proxy API] ✅ Returning response:', JSON.stringify(responseData, null, 2));
+
+      return json(responseData, { headers });
       
     } catch (error) {
-      console.error("Database error:", error);
+      console.error('[Proxy API] ❌ Database error:', error);
+      console.error('[Proxy API] ❌ Error stack:', error.stack);
       
       // Return error with fallback data
       return json({

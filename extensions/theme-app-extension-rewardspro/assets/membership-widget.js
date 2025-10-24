@@ -135,7 +135,16 @@
     async fetchCustomerData(attempt = 1) {
       try {
         const url = '/apps/rewardspro/membership';
-        
+
+        console.log('[RewardsPro Widget] 🔵 Fetching customer data...');
+        console.log('[RewardsPro Widget] 📍 Request URL:', url);
+        console.log('[RewardsPro Widget] 👤 Context:', {
+          isLoggedIn: this.context?.isLoggedIn,
+          customerId: this.context?.customerId,
+          shopDomain: this.context?.shopDomain,
+          customerEmail: this.context?.customerEmail
+        });
+
         const response = await fetch(url, {
           method: 'GET',
           credentials: 'same-origin',
@@ -145,10 +154,15 @@
           }
         });
 
+        console.log('[RewardsPro Widget] 📥 Response status:', response.status, response.statusText);
+
         const contentType = response.headers.get('content-type');
         const isJson = contentType && contentType.includes('application/json');
+
+        console.log('[RewardsPro Widget] 📄 Content-Type:', contentType);
         
         if (!isJson) {
+          console.warn('[RewardsPro Widget] ⚠️ Non-JSON response received');
           this.showLoginPrompt();
           this.dataLoaded = true;
           return;
@@ -157,29 +171,37 @@
         let data;
         try {
           data = await response.json();
+          console.log('[RewardsPro Widget] ✅ Data received:', JSON.stringify(data, null, 2));
         } catch (jsonError) {
+          console.error('[RewardsPro Widget] ❌ Failed to parse JSON:', jsonError);
           this.showLoginPrompt();
           this.dataLoaded = true;
           return;
         }
         
         if (data.requiresLogin === true) {
+          console.log('[RewardsPro Widget] 🔐 Login required');
           this.showLoginPrompt();
           this.dataLoaded = true;
           return;
         }
-        
+
         if (data.error && (
           data.error.toLowerCase().includes('not logged in') ||
           data.error.toLowerCase().includes('missing customer') ||
           data.error.toLowerCase().includes('auth')
         )) {
+          console.log('[RewardsPro Widget] 🔐 Auth error:', data.error);
           this.showLoginPrompt();
           this.dataLoaded = true;
           return;
         }
-        
+
         if (data.success) {
+          console.log('[RewardsPro Widget] ✅ Success! Updating widget with data');
+          console.log('[RewardsPro Widget] 💰 Balance:', data.balance);
+          console.log('[RewardsPro Widget] 🎖️ Membership:', data.membership);
+          console.log('[RewardsPro Widget] 👤 Customer:', data.customer);
           this.updateWidgetData(data);
           return;
         }
@@ -187,19 +209,25 @@
         throw new Error(data.error || `HTTP ${response.status}`);
         
       } catch (error) {
-        if (!this.context?.isLoggedIn || 
-            error.message.includes('404') || 
+        console.error('[RewardsPro Widget] ❌ Fetch error:', error);
+        console.error('[RewardsPro Widget] 🔄 Attempt:', attempt, '/', this.retryAttempts);
+
+        if (!this.context?.isLoggedIn ||
+            error.message.includes('404') ||
             error.message.includes('401')) {
+          console.log('[RewardsPro Widget] 🔐 Auth issue detected, showing login prompt');
           this.showLoginPrompt();
           this.dataLoaded = true;
           return;
         }
-        
+
         if (attempt < this.retryAttempts) {
+          console.log('[RewardsPro Widget] 🔄 Retrying in', this.retryDelay, 'ms...');
           setTimeout(() => {
             this.fetchCustomerData(attempt + 1);
           }, this.retryDelay);
         } else {
+          console.error('[RewardsPro Widget] ❌ All retry attempts exhausted');
           this.showLoginPrompt();
           this.dataLoaded = true;
         }
