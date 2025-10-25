@@ -39,6 +39,8 @@
     "cleanup:tier-products": "node scripts/cleanup-orphaned-tier-products.mjs",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "db:seed-test": "tsx scripts/seed-test-data.ts",
+    "db:clear-test": "tsx scripts/clear-test-data.ts",
     "db:studio": "prisma studio",
     "tunnel:setup": "./scripts/setup-aurora-tunnel.sh",
     "lambda:build": "cd lambda && npm install --production",
