@@ -127,24 +127,17 @@ async function createCustomers(tiers: any[], logs: string[]) {
       try {
         const customer = await prisma.customer.create({
           data: {
-            shopDomain: CONFIG.shopDomain,
+            shop: CONFIG.shopDomain,
             shopifyCustomerId,
             email,
             firstName,
             lastName,
             storeCredit: Math.round(storeCredit * 100) / 100,
-            totalEarned: Math.round(totalEarned * 100) / 100,
-            annualSpending: Math.round(annualSpending * 100) / 100,
-            lifetimeSpending: Math.round(annualSpending * randomFloat(1, 1.5) * 100) / 100,
+            totalCashbackEarned: Math.round(totalEarned * 100) / 100,
+            totalSpent: Math.round(annualSpending * 100) / 100,
+            netSpent: Math.round(annualSpending * 100) / 100,
             createdAt: memberSince,
-            membershipHistory: {
-              create: {
-                tierId: distribution.tier.id,
-                isActive: true,
-                assignmentType: annualSpending >= distribution.minSpend ? "AUTOMATIC" : "MANUAL",
-                startDate: memberSince
-              }
-            }
+            currentTierId: distribution.tier.id
           }
         });
 
@@ -200,20 +193,36 @@ async function createOrders(customers: any[], logs: string[]) {
       const shopifyOrderId = `gid://shopify/Order/${orderNumber++}`;
 
       try {
+        const subtotal = Math.round(orderAmount * 100) / 100;
+        const tax = Math.round(subtotal * 0.08 * 100) / 100; // 8% tax
+        const shipping = Math.round(randomFloat(5, 15) * 100) / 100;
+        const total = Math.round((subtotal + tax + shipping) * 100) / 100;
+
         const order = await prisma.order.create({
           data: {
-            shopDomain: CONFIG.shopDomain,
+            shop: CONFIG.shopDomain,
             customerId: customer.id,
             shopifyOrderId,
-            orderNumber: `#${orderNumber}`,
-            totalAmount: Math.round(orderAmount * 100) / 100,
-            cashbackEarned: Math.round(cashbackEarned * 100) / 100,
+            shopifyOrderNumber: `#${orderNumber}`,
+            shopifyOrderName: `#${orderNumber}`,
+            email: customer.email,
+            currency: "USD",
+            subtotalPrice: subtotal,
+            totalDiscounts: 0,
+            totalShipping: shipping,
+            totalTax: tax,
+            totalPrice: total,
+            netAmount: total,
+            financialStatus: randomFloat(0, 1) > 0.05 ? "PAID" : "PENDING",
+            fulfillmentStatus: "fulfilled",
+            cashbackEligible: true,
             cashbackPercent: customer.tier.cashbackPercent,
-            tierIdAtPurchase: customer.tier.id,
-            status: randomFloat(0, 1) > 0.05 ? "COMPLETED" : "PENDING",
-            isPaid: true,
-            isProcessed: true,
-            createdAt: orderDate,
+            cashbackAmount: Math.round(cashbackEarned * 100) / 100,
+            cashbackProcessed: true,
+            tierIdAtOrder: customer.tier.id,
+            tierNameAtOrder: customer.tier.name,
+            shopifyCreatedAt: orderDate,
+            shopifyUpdatedAt: orderDate,
             processedAt: new Date(orderDate.getTime() + 1000 * 60 * 60)
           }
         });
@@ -246,8 +255,8 @@ function generateStats(customers: any[], orders: any[], logs: string[]) {
       return customer?.tier.name === tierConfig.name;
     });
 
-    const totalRevenue = tierOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const totalCashback = tierOrders.reduce((sum, o) => sum + o.cashbackEarned, 0);
+    const totalRevenue = tierOrders.reduce((sum, o) => sum + Number(o.totalPrice), 0);
+    const totalCashback = tierOrders.reduce((sum, o) => sum + Number(o.cashbackAmount || 0), 0);
 
     return {
       tier: tierConfig.name,
@@ -268,9 +277,9 @@ function generateStats(customers: any[], orders: any[], logs: string[]) {
     logs.push(`  Avg Order Value: $${(stat.revenue / stat.orders).toFixed(2)}`);
   });
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const totalCashback = orders.reduce((sum, o) => sum + o.cashbackEarned, 0);
-  const totalStoreCredit = customers.reduce((sum, c) => sum + c.storeCredit, 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + Number(o.totalPrice), 0);
+  const totalCashback = orders.reduce((sum, o) => sum + Number(o.cashbackAmount || 0), 0);
+  const totalStoreCredit = customers.reduce((sum, c) => sum + Number(c.storeCredit), 0);
 
   logs.push("");
   logs.push("=".repeat(50));

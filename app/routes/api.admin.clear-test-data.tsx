@@ -18,11 +18,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Count existing records
     const customerCount = await prisma.customer.count({
-      where: { shopDomain: CONFIG.shopDomain }
+      where: { shop: CONFIG.shopDomain }
     });
 
     const orderCount = await prisma.order.count({
-      where: { shopDomain: CONFIG.shopDomain }
+      where: { shop: CONFIG.shopDomain }
     });
 
     const tierCount = await prisma.tier.count({
@@ -58,33 +58,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (orderCount > 0) {
       logs.push(`📦 Deleting ${orderCount} orders...`);
       const result = await prisma.order.deleteMany({
-        where: { shopDomain: CONFIG.shopDomain }
+        where: { shop: CONFIG.shopDomain }
       });
       deletedOrders = result.count;
       logs.push(`  ✓ Deleted ${deletedOrders} orders`);
     }
 
-    // 2. Delete membership history
-    const membershipHistoryCount = await prisma.membershipHistory.count({
-      where: { customer: { shopDomain: CONFIG.shopDomain } }
-    });
-
-    let deletedHistory = 0;
-    if (membershipHistoryCount > 0) {
-      logs.push(`🎖️  Deleting ${membershipHistoryCount} membership history records...`);
-      const result = await prisma.membershipHistory.deleteMany({
-        where: { customer: { shopDomain: CONFIG.shopDomain } }
-      });
-      deletedHistory = result.count;
-      logs.push(`  ✓ Deleted ${deletedHistory} membership history records`);
-    }
-
-    // 3. Delete customers
+    // 2. Delete customers (cascades to membership history)
     let deletedCustomers = 0;
     if (customerCount > 0) {
       logs.push(`👥 Deleting ${customerCount} customers...`);
       const result = await prisma.customer.deleteMany({
-        where: { shopDomain: CONFIG.shopDomain }
+        where: { shop: CONFIG.shopDomain }
       });
       deletedCustomers = result.count;
       logs.push(`  ✓ Deleted ${deletedCustomers} customers`);
@@ -110,7 +95,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       summary: {
         customersDeleted: deletedCustomers,
         ordersDeleted: deletedOrders,
-        membershipHistoryDeleted: deletedHistory,
         tiersDeleted: deletedTiers
       }
     });
