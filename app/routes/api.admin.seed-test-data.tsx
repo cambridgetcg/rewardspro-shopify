@@ -139,6 +139,7 @@ async function createCustomers(tiers: any[], logs: string[]) {
             totalSpent: Math.round(annualSpending * 100) / 100,
             netSpent: Math.round(annualSpending * 100) / 100,
             createdAt: memberSince,
+            updatedAt: memberSince,
             currentTierId: distribution.tier.id
           }
         });
