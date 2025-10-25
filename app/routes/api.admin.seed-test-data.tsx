@@ -54,7 +54,7 @@ async function ensureTiersExist(logs: string[]) {
   logs.push("📊 Setting up membership tiers...");
 
   const existingTiers = await prisma.tier.findMany({
-    where: { shopDomain: CONFIG.shopDomain }
+    where: { shop: CONFIG.shopDomain }
   });
 
   if (existingTiers.length > 0) {
@@ -68,11 +68,11 @@ async function ensureTiersExist(logs: string[]) {
   for (const tierConfig of CONFIG.tiers) {
     const tier = await prisma.tier.create({
       data: {
-        shopDomain: CONFIG.shopDomain,
+        id: `${tierConfig.name.toLowerCase()}-${Date.now()}`,
+        shop: CONFIG.shopDomain,
         name: tierConfig.name,
         minSpend: tierConfig.minSpend,
         cashbackPercent: tierConfig.cashbackPercent,
-        isActive: true,
         evaluationPeriod: "ANNUAL"
       }
     });

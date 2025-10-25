@@ -26,7 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
 
     const tierCount = await prisma.tier.count({
-      where: { shopDomain: CONFIG.shopDomain }
+      where: { shop: CONFIG.shopDomain }
     });
 
     logs.push("Current database state:");
@@ -95,7 +95,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (tierCount > 0) {
       logs.push(`📊 Deleting ${tierCount} tiers...`);
       const result = await prisma.tier.deleteMany({
-        where: { shopDomain: CONFIG.shopDomain }
+        where: { shop: CONFIG.shopDomain }
       });
       deletedTiers = result.count;
       logs.push(`  ✓ Deleted ${deletedTiers} tiers`);
