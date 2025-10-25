@@ -3,6 +3,7 @@
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import { randomUUID } from "crypto";
 
 // Configuration
 const CONFIG = {
@@ -127,6 +128,7 @@ async function createCustomers(tiers: any[], logs: string[]) {
       try {
         const customer = await prisma.customer.create({
           data: {
+            id: randomUUID(),
             shop: CONFIG.shopDomain,
             shopifyCustomerId,
             email,
