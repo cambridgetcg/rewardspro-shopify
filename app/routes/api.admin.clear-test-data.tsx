@@ -64,7 +64,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
       logs.push(`  ✓ Deleted ${deletedOrders} orders`);
     }
 
-    // 2. Delete customers (cascades to membership history)
+    // 2. Delete store credit ledger entries
+    const ledgerCount = await prisma.storeCreditLedger.count({
+      where: { customer: { shop: CONFIG.shopDomain } }
+    });
+
+    let deletedLedgers = 0;
+    if (ledgerCount > 0) {
+      logs.push(`💰 Deleting ${ledgerCount} store credit ledger entries...`);
+      const result = await prisma.storeCreditLedger.deleteMany({
+        where: { customer: { shop: CONFIG.shopDomain } }
+      });
+      deletedLedgers = result.count;
+      logs.push(`  ✓ Deleted ${deletedLedgers} ledger entries`);
+    }
+
+    // 3. Delete customers (cascades to membership history)
     let deletedCustomers = 0;
     if (customerCount > 0) {
       logs.push(`👥 Deleting ${customerCount} customers...`);

@@ -203,6 +203,7 @@ async function createOrders(customers: any[], logs: string[]) {
 
         const order = await prisma.order.create({
           data: {
+            id: randomUUID(),
             shop: CONFIG.shopDomain,
             customerId: customer.id,
             shopifyOrderId,
