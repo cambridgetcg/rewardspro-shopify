@@ -66,14 +66,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // 2. Delete store credit ledger entries
     const ledgerCount = await prisma.storeCreditLedger.count({
-      where: { customer: { shop: CONFIG.shopDomain } }
+      where: { shop: CONFIG.shopDomain }
     });
 
     let deletedLedgers = 0;
     if (ledgerCount > 0) {
       logs.push(`💰 Deleting ${ledgerCount} store credit ledger entries...`);
       const result = await prisma.storeCreditLedger.deleteMany({
-        where: { customer: { shop: CONFIG.shopDomain } }
+        where: { shop: CONFIG.shopDomain }
       });
       deletedLedgers = result.count;
       logs.push(`  ✓ Deleted ${deletedLedgers} ledger entries`);
