@@ -227,6 +227,8 @@ async function createOrders(customers: any[], logs: string[]) {
             tierNameAtOrder: customer.tier.name,
             shopifyCreatedAt: orderDate,
             shopifyUpdatedAt: orderDate,
+            createdAt: orderDate,
+            updatedAt: orderDate,
             processedAt: new Date(orderDate.getTime() + 1000 * 60 * 60)
           }
         });
