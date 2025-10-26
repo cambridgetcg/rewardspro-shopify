@@ -143,16 +143,6 @@
   letter-spacing: -0.5px;
 }
 
-.membership-widget__hint {
-  font-size: 12px;
-  color: #666666;
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border-radius: 6px;
-  text-align: center;
-  border: 1px solid #e0e0e0;
-}
-
 /* Mobile responsiveness - Always show widget */
 @media (max-width: 768px) {
   .membership-widget {
@@ -202,12 +192,6 @@
 
   .membership-widget__amount {
     color: #ffffff;
-  }
-
-  .membership-widget__hint {
-    background: #0a0a0a;
-    color: #cccccc;
-    border-color: #333333;
   }
 }
 

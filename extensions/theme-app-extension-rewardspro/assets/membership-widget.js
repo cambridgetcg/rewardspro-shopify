@@ -441,9 +441,6 @@
                 <span class="membership-widget__label">Store Credit</span>
                 <span class="membership-widget__amount">${formattedBalance}</span>
               </div>
-              ${this.data.balance > 0 ? `
-                <div class="membership-widget__hint">Available to use at checkout</div>
-              ` : ''}
             </div>
           ` : ''}
         </div>
