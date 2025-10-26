@@ -1,13 +1,33 @@
 <!-- Membership Widget Block -->
-<div id="membership-widget-root"
-     data-tier-name="{{ block.settings.tier_name | default: 'Rewards' }}"
-     data-balance="{{ block.settings.balance | default: '$0.00' }}"
-     {% if block.settings.show_cta %}
-       data-message="{{ block.settings.message }}"
-       data-cta-text="{{ block.settings.cta_text }}"
-       data-cta-url="{{ block.settings.cta_url }}"
-     {% endif %}>
-</div>
+{% comment %}
+  Automatic State Detection:
+  - If customer is NOT logged in -> Show CTA (prompt to sign in)
+  - If customer IS logged in -> Show member info
+  - Settings can override this behavior
+{% endcomment %}
+
+{% if customer %}
+  {% comment %} Customer is logged in - show member state {% endcomment %}
+  <div id="membership-widget-root"
+       data-logged-in="true"
+       data-customer-id="{{ customer.id }}"
+       data-customer-email="{{ customer.email }}"
+       data-shop-domain="{{ shop.permanent_domain }}"
+       data-shop-currency="{{ shop.currency }}"
+       data-tier-name="{{ block.settings.tier_name | default: 'Rewards' }}"
+       data-balance="{{ block.settings.balance | default: '$0.00' }}">
+  </div>
+{% else %}
+  {% comment %} Customer is NOT logged in - show CTA state {% endcomment %}
+  <div id="membership-widget-root"
+       data-logged-in="false"
+       data-shop-domain="{{ shop.permanent_domain }}"
+       data-shop-currency="{{ shop.currency }}"
+       data-message="{{ block.settings.guest_message | default: 'Sign in to view your rewards and store credit' }}"
+       data-cta-text="{{ block.settings.guest_cta_text | default: 'Sign In' }}"
+       data-cta-url="{{ block.settings.guest_cta_url | default: '/account/login' }}">
+  </div>
+{% endif %}
 
 {% schema %}
 {
@@ -16,6 +36,14 @@
   "stylesheet": "membership-widget.css",
   "javascript": "membership-widget.js",
   "settings": [
+    {
+      "type": "header",
+      "content": "Logged-In Member Settings"
+    },
+    {
+      "type": "paragraph",
+      "content": "These settings apply when a customer is signed in"
+    },
     {
       "type": "text",
       "id": "tier_name",
@@ -32,35 +60,32 @@
     },
     {
       "type": "header",
-      "content": "Call-to-Action Settings"
+      "content": "Guest User Settings"
     },
     {
-      "type": "checkbox",
-      "id": "show_cta",
-      "label": "Show call-to-action",
-      "default": false,
-      "info": "Show a message and button instead of balance (for non-members)"
+      "type": "paragraph",
+      "content": "These settings apply when a customer is NOT signed in (automatically detected)"
     },
     {
       "type": "text",
-      "id": "message",
-      "label": "CTA Message",
+      "id": "guest_message",
+      "label": "Guest Message",
       "default": "Sign in to view your rewards and store credit",
-      "info": "Message shown when CTA is enabled"
+      "info": "Message shown to non-logged-in visitors"
     },
     {
       "type": "text",
-      "id": "cta_text",
-      "label": "Button Text",
+      "id": "guest_cta_text",
+      "label": "Guest Button Text",
       "default": "Sign In",
-      "info": "Text on the call-to-action button"
+      "info": "Text on the sign-in button for guests"
     },
     {
       "type": "text",
-      "id": "cta_url",
-      "label": "Button URL",
+      "id": "guest_cta_url",
+      "label": "Guest Button URL",
       "default": "/account/login",
-      "info": "URL the button links to"
+      "info": "URL the sign-in button links to"
     }
   ]
 }

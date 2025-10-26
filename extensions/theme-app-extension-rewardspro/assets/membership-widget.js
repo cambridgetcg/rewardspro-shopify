@@ -10,10 +10,28 @@
     constructor(rootElement) {
       this.root = rootElement;
 
+      // Detect login state
+      this.isLoggedIn = this.root.dataset.loggedIn === 'true';
+
+      // Get shop information
+      this.shopData = {
+        domain: this.root.dataset.shopDomain || '',
+        currency: this.root.dataset.shopCurrency || 'USD'
+      };
+
+      // Get customer information (if logged in)
+      this.customerData = this.isLoggedIn ? {
+        id: this.root.dataset.customerId || '',
+        email: this.root.dataset.customerEmail || ''
+      } : null;
+
       // Get configuration from data attributes
       this.config = {
-        tierName: this.root.dataset.tierName || 'Member',
+        // Member state config
+        tierName: this.root.dataset.tierName || 'Rewards',
         balance: this.root.dataset.balance || '$0.00',
+
+        // Guest state config
         message: this.root.dataset.message || '',
         ctaText: this.root.dataset.ctaText || '',
         ctaUrl: this.root.dataset.ctaUrl || ''
@@ -23,6 +41,14 @@
       this.state = {
         isExpanded: this.getStoredState()
       };
+
+      // Log detection for debugging
+      console.log('[Widget] Initialized:', {
+        isLoggedIn: this.isLoggedIn,
+        shop: this.shopData,
+        customer: this.customerData,
+        config: this.config
+      });
 
       // Render the widget
       this.render();
@@ -46,15 +72,15 @@
     }
 
     render() {
-      const expandedClass = this.state.isExpanded ? 'membership-widget--expanded' : 'membership-widget--collapsed';
-
-      // If we have a CTA, show the unauthenticated state
-      if (this.config.ctaText && this.config.ctaUrl) {
+      // Automatically choose state based on login status
+      if (!this.isLoggedIn) {
+        // Guest user - always show CTA
         this.renderUnauthenticated();
         return;
       }
 
-      // Otherwise show the member state
+      // Logged-in user - show member info
+      const expandedClass = this.state.isExpanded ? 'membership-widget--expanded' : 'membership-widget--collapsed';
       this.root.innerHTML = `
         <div class="membership-widget membership-widget--bottom-right ${expandedClass}" role="complementary" aria-label="Rewards Information">
           <div class="membership-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
