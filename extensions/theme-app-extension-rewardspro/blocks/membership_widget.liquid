@@ -5,8 +5,7 @@
        data-shopify-customer-id="{{ customer.id }}"
      {% endif %}
      data-shop-currency="{{ shop.currency }}"
-     data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}"
-     data-position="{{ block.settings.position }}">
+     data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}">
 </div>
 
 {% schema %}
@@ -15,21 +14,6 @@
   "target": "body",
   "stylesheet": "membership-widget.css",
   "javascript": "membership-widget.js",
-  "settings": [
-    {
-      "type": "header",
-      "content": "Display Options"
-    },
-    {
-      "type": "select",
-      "id": "position",
-      "label": "Position",
-      "options": [
-        {"value": "bottom-right", "label": "Bottom Right"},
-        {"value": "bottom-left", "label": "Bottom Left"}
-      ],
-      "default": "bottom-right"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}

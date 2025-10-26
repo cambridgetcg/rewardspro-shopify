@@ -19,15 +19,10 @@
   border: 1px solid #e0e0e0;
 }
 
-/* Widget positions */
+/* Widget position */
 .membership-widget--bottom-right {
   bottom: 20px;
   right: 20px;
-}
-
-.membership-widget--bottom-left {
-  bottom: 20px;
-  left: 20px;
 }
 
 /* Collapsed state */

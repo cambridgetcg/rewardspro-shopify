@@ -379,7 +379,6 @@
         apiUrl: this.root.dataset.apiUrl || '/apps/rewardspromembership',
         shopifyCustomerId: this.root.dataset.shopifyCustomerId,
         shopCurrency: this.root.dataset.shopCurrency || 'USD',
-        position: this.root.dataset.position || 'bottom-right',
         // Will be populated from API
         tier: null,
         balance: 0,
@@ -418,13 +417,12 @@
 
     render() {
       const expandedClass = this.state.isExpanded ? 'membership-widget--expanded' : 'membership-widget--collapsed';
-      const positionClass = `membership-widget--${this.data.position}`;
 
       // Use pre-formatted balance if available, otherwise format manually
       const formattedBalance = this.data.balanceFormatted || this.formatCurrency(this.data.balance);
 
       this.root.innerHTML = `
-        <div class="membership-widget ${positionClass} ${expandedClass}" role="complementary" aria-label="Rewards Information">
+        <div class="membership-widget membership-widget--bottom-right ${expandedClass}" role="complementary" aria-label="Rewards Information">
           <div class="membership-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
             <div class="membership-widget__tier">
               <span class="membership-widget__tier-name">Rewards</span>
