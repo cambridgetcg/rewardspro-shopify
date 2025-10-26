@@ -110,6 +110,46 @@
   animation: slideDown 0.3s ease;
 }
 
+/* Unauthenticated state */
+.membership-widget--unauthenticated .membership-widget__header {
+  cursor: default;
+  pointer-events: none;
+}
+
+.membership-widget--unauthenticated .membership-widget__content {
+  animation: none;
+}
+
+.membership-widget__message {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #666666;
+  margin-bottom: 12px;
+}
+
+.membership-widget__cta {
+  display: inline-block;
+  width: 100%;
+  padding: 10px 16px;
+  background: #1a1a1a;
+  color: #ffffff;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.membership-widget__cta:hover {
+  background: #2a2a2a;
+}
+
+.membership-widget__cta:focus {
+  outline: 2px solid #666666;
+  outline-offset: 2px;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -192,6 +232,19 @@
 
   .membership-widget__amount {
     color: #ffffff;
+  }
+
+  .membership-widget__message {
+    color: #cccccc;
+  }
+
+  .membership-widget__cta {
+    background: #ffffff;
+    color: #1a1a1a;
+  }
+
+  .membership-widget__cta:hover {
+    background: #eeeeee;
   }
 }
 

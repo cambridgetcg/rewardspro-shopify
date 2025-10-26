@@ -208,14 +208,20 @@
         // Handle guest users (not logged in)
         if (apiData.success && apiData.requiresLogin) {
           console.log('[MembershipWidget JS] ℹ️ Guest user - not logged in');
-          this.showInfo(apiData.message || 'Please log in to view your rewards');
+          this.renderUnauthenticated({
+            isGuest: true,
+            message: apiData.message
+          });
           return;
         }
 
         // Handle non-enrolled customers
         if (apiData.success && apiData.enrolled === false) {
           console.log('[MembershipWidget JS] ℹ️ Customer not enrolled in rewards program');
-          this.showInfo(apiData.message || 'Join our rewards program to start earning!');
+          this.renderUnauthenticated({
+            isGuest: false,
+            message: apiData.message
+          });
           return;
         }
 
@@ -253,7 +259,10 @@
         } else {
           console.warn('[MembershipWidget JS] ⚠️ No tier data in API response');
           console.log('[MembershipWidget JS] ========== FETCH COMPLETE (Not Enrolled) ==========');
-          this.showInfo('Not enrolled in rewards program');
+          this.renderUnauthenticated({
+            isGuest: false,
+            message: 'Join to start earning rewards and store credit!'
+          });
         }
 
       } catch (error) {
@@ -345,7 +354,43 @@
       this.attachEventListeners();
     }
 
+    renderUnauthenticated(options = {}) {
+      const {
+        isGuest = false,
+        message = '',
+        ctaText = '',
+        ctaUrl = ''
+      } = options;
+
+      // Determine the appropriate message and CTA based on user state
+      const displayMessage = message || (isGuest
+        ? 'Sign in to view your rewards and store credit'
+        : 'Join to start earning rewards and store credit!');
+
+      const displayCtaText = ctaText || (isGuest ? 'Sign In' : 'Learn More');
+      const displayCtaUrl = ctaUrl || (isGuest ? '/account/login' : '/pages/rewards');
+
+      this.root.innerHTML = `
+        <div class="membership-widget membership-widget--bottom-right membership-widget--unauthenticated" role="complementary" aria-label="Rewards Program">
+          <div class="membership-widget__header">
+            <div class="membership-widget__tier">
+              <span class="membership-widget__tier-name">Rewards Program</span>
+            </div>
+          </div>
+          <div class="membership-widget__content">
+            <div class="membership-widget__message">
+              ${this.escapeHtml(displayMessage)}
+            </div>
+            <a href="${this.escapeHtml(displayCtaUrl)}" class="membership-widget__cta">
+              ${this.escapeHtml(displayCtaText)}
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
     showInfo(message) {
+      // Fallback for generic info messages (errors, etc.)
       // Always expand widget to show info message
       this.state.isExpanded = true;
       this.saveState();
