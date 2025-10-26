@@ -32,8 +32,15 @@
       console.log('[MembershipWidget JS] Initial state:', this.state);
       console.log('[MembershipWidget JS] Debug mode:', this.state.showDebugInfo);
 
-      if (this.data.shopifyCustomerId) {
-        console.log('[MembershipWidget JS] ✅ Shopify customer ID found, fetching data from API');
+      // Check if we're in design mode (theme editor)
+      const isDesignMode = this.root.dataset.designMode === 'true';
+
+      if (this.data.shopifyCustomerId || isDesignMode) {
+        if (isDesignMode) {
+          console.log('[MembershipWidget JS] 🎨 Design mode detected, will use mock data');
+        } else {
+          console.log('[MembershipWidget JS] ✅ Shopify customer ID found, fetching data from API');
+        }
         this.fetchAndRender();
       } else {
         console.warn('[MembershipWidget JS] ❌ No Shopify customer ID found, widget will not render');
