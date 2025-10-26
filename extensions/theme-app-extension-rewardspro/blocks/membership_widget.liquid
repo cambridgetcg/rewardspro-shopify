@@ -1,11 +1,12 @@
 <!-- Membership Widget Block -->
 <div id="membership-widget-root"
-     data-api-url="/apps/rewardspromembership"
-     {% if customer %}
-       data-shopify-customer-id="{{ customer.id }}"
-     {% endif %}
-     data-shop-currency="{{ shop.currency }}"
-     data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}">
+     data-tier-name="{{ block.settings.tier_name | default: 'Rewards' }}"
+     data-balance="{{ block.settings.balance | default: '$0.00' }}"
+     {% if block.settings.show_cta %}
+       data-message="{{ block.settings.message }}"
+       data-cta-text="{{ block.settings.cta_text }}"
+       data-cta-url="{{ block.settings.cta_url }}"
+     {% endif %}>
 </div>
 
 {% schema %}
@@ -14,6 +15,53 @@
   "target": "body",
   "stylesheet": "membership-widget.css",
   "javascript": "membership-widget.js",
-  "settings": []
+  "settings": [
+    {
+      "type": "text",
+      "id": "tier_name",
+      "label": "Tier Name",
+      "default": "Rewards",
+      "info": "The name displayed in the header (e.g., 'Rewards', 'Gold Member')"
+    },
+    {
+      "type": "text",
+      "id": "balance",
+      "label": "Balance Amount",
+      "default": "$0.00",
+      "info": "The store credit balance to display (e.g., '$25.00')"
+    },
+    {
+      "type": "header",
+      "content": "Call-to-Action Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_cta",
+      "label": "Show call-to-action",
+      "default": false,
+      "info": "Show a message and button instead of balance (for non-members)"
+    },
+    {
+      "type": "text",
+      "id": "message",
+      "label": "CTA Message",
+      "default": "Sign in to view your rewards and store credit",
+      "info": "Message shown when CTA is enabled"
+    },
+    {
+      "type": "text",
+      "id": "cta_text",
+      "label": "Button Text",
+      "default": "Sign In",
+      "info": "Text on the call-to-action button"
+    },
+    {
+      "type": "text",
+      "id": "cta_url",
+      "label": "Button URL",
+      "default": "/account/login",
+      "info": "URL the button links to"
+    }
+  ]
 }
 {% endschema %}
