@@ -30,6 +30,14 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.membership-widget--collapsed .membership-widget__content {
+  display: none;
+}
+
+.membership-widget--collapsed .membership-widget__toggle {
+  display: none;
+}
+
 /* Widget Header */
 .membership-widget__header {
   display: flex;
