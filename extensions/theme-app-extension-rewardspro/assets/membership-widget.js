@@ -30,6 +30,12 @@
       // Check if we're in design mode (theme editor)
       const isDesignMode = this.root.dataset.designMode === 'true';
 
+      console.log('[MembershipWidget JS] ========== DESIGN MODE CHECK ==========');
+      console.log('[MembershipWidget JS] data-design-mode attribute:', this.root.dataset.designMode);
+      console.log('[MembershipWidget JS] isDesignMode (boolean):', isDesignMode);
+      console.log('[MembershipWidget JS] Shopify customer ID:', this.data.shopifyCustomerId || 'NONE');
+      console.log('[MembershipWidget JS] Will fetch:', !!(this.data.shopifyCustomerId || isDesignMode));
+
       if (this.data.shopifyCustomerId || isDesignMode) {
         if (isDesignMode) {
           console.log('[MembershipWidget JS] 🎨 Design mode detected, will use mock data');
@@ -51,6 +57,11 @@
       try {
         // Check if we're in design mode (theme editor)
         const isDesignMode = this.root.dataset.designMode === 'true';
+
+        console.log('[MembershipWidget JS] ========== DATA SOURCE DECISION ==========');
+        console.log('[MembershipWidget JS] data-design-mode:', this.root.dataset.designMode);
+        console.log('[MembershipWidget JS] isDesignMode:', isDesignMode);
+        console.log('[MembershipWidget JS] Decision: Using', isDesignMode ? 'MOCK DATA' : 'API CALL');
 
         let apiData;
 
@@ -203,7 +214,16 @@
 
           apiData = await response.json();
           console.log('[MembershipWidget JS] ✅ API Data received:', apiData);
+          console.log('[MembershipWidget JS] API Response Analysis:');
+          console.log('  - success:', apiData.success);
+          console.log('  - enrolled:', apiData.enrolled);
+          console.log('  - requiresLogin:', apiData.requiresLogin);
+          console.log('  - balance:', apiData.balance);
+          console.log('  - memberData:', apiData.memberData);
         }
+
+        console.log('[MembershipWidget JS] ========== API DATA PROCESSING ==========');
+        console.log('[MembershipWidget JS] Full apiData object:', JSON.stringify(apiData, null, 2));
 
         // Handle guest users (not logged in)
         if (apiData.success && apiData.requiresLogin) {
