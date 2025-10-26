@@ -3,10 +3,10 @@
      data-api-url="/apps/rewardspromembership"
      {% if customer %}
        data-shopify-customer-id="{{ customer.id }}"
-       data-customer-email="{{ customer.email }}"
      {% endif %}
      data-shop-currency="{{ shop.currency }}"
-     data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}">
+     data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}"
+     data-position="{{ block.settings.position }}">
 </div>
 
 {% schema %}

@@ -19,10 +19,15 @@
   border: 1px solid #e0e0e0;
 }
 
-/* Widget position - Fixed bottom-right */
+/* Widget positions */
 .membership-widget--bottom-right {
   bottom: 20px;
   right: 20px;
+}
+
+.membership-widget--bottom-left {
+  bottom: 20px;
+  left: 20px;
 }
 
 /* Collapsed state */
@@ -66,11 +71,6 @@
   gap: 8px;
   font-weight: 600;
   font-size: 15px;
-}
-
-.membership-widget__icon {
-  font-size: 18px;
-  line-height: 1;
 }
 
 .membership-widget__tier-name {
@@ -158,16 +158,6 @@
   border: 1px solid #e0e0e0;
 }
 
-/* Fallback for no-JS users */
-.membership-widget-fallback {
-  padding: 16px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333333;
-}
-
 /* Mobile responsiveness - Always show widget */
 @media (max-width: 768px) {
   .membership-widget {
@@ -192,10 +182,6 @@
 
   .membership-widget__tier {
     font-size: 14px;
-  }
-
-  .membership-widget__icon {
-    font-size: 16px;
   }
 }
 
@@ -227,12 +213,6 @@
     background: #0a0a0a;
     color: #cccccc;
     border-color: #333333;
-  }
-
-  .membership-widget-fallback {
-    background: #1a1a1a;
-    border-color: #333333;
-    color: #ffffff;
   }
 }
 

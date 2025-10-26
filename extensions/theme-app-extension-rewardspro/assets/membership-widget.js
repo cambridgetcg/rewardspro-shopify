@@ -16,11 +16,6 @@
 
       this.root = rootElement;
       this.data = this.extractData();
-      this.debugInfo = {
-        errors: [],
-        requests: [],
-        timestamp: new Date().toISOString()
-      };
 
       console.log('[MembershipWidget JS] Extracted data:', this.data);
 
@@ -67,16 +62,12 @@
             enrolled: true,
             balance: 50.00,
             tier: {
-              id: 'mock-tier',
-              name: 'Gold',
-              icon: '⭐',
-              color: '#FFD700'
+              name: 'Gold'
             },
             memberData: {
               storeCredit: '$50.00',
               storeCreditRaw: 50.00,
-              tierName: 'Gold',
-              cashbackRate: 5
+              tierName: 'Gold'
             }
           };
         } else {
@@ -105,8 +96,6 @@
           console.log('  - Shop Domain:', requestInfo.shopDomain);
           console.log('  - Page URL:', requestInfo.pageUrl);
           console.log('  - Timestamp:', requestInfo.timestamp);
-
-          this.debugInfo.requests.push(requestInfo);
 
           const requestStartTime = Date.now();
           const response = await fetch(url, {
@@ -199,8 +188,6 @@
               timestamp: new Date().toISOString()
             };
 
-            this.debugInfo.errors.push(errorDetails);
-
             console.error('[MembershipWidget JS] ❌ API Error Details:');
             console.error('  - Status:', response.status);
             console.error('  - Status Text:', response.statusText);
@@ -238,7 +225,6 @@
           this.data.tier = apiData.memberData.tierName;
           this.data.balance = apiData.memberData.storeCreditRaw;
           this.data.balanceFormatted = apiData.memberData.storeCredit;
-          this.data.cashbackRate = apiData.memberData.cashbackRate;
           console.log('[MembershipWidget JS] ✅ Using new memberData format');
         }
         // OLD FORMAT: Fallback to legacy format
@@ -255,7 +241,6 @@
           tier: this.data.tier,
           balance: this.data.balance,
           balanceFormatted: this.data.balanceFormatted,
-          cashbackRate: this.data.cashbackRate,
           currency: this.data.currency
         });
 
@@ -281,8 +266,6 @@
           pageUrl: window.location.href,
           shopDomain: window.Shopify?.shop || 'unknown'
         };
-
-        this.debugInfo.errors.push(errorDetails);
 
         console.error('[MembershipWidget JS] ========== FETCH FAILED ==========');
         console.error('[MembershipWidget JS] ❌ Error Type:', errorDetails.type);
@@ -395,8 +378,8 @@
       const data = {
         apiUrl: this.root.dataset.apiUrl || '/apps/rewardspromembership',
         shopifyCustomerId: this.root.dataset.shopifyCustomerId,
-        customerEmail: this.root.dataset.customerEmail,
         shopCurrency: this.root.dataset.shopCurrency || 'USD',
+        position: this.root.dataset.position || 'bottom-right',
         // Will be populated from API
         tier: null,
         balance: 0,
@@ -435,12 +418,13 @@
 
     render() {
       const expandedClass = this.state.isExpanded ? 'membership-widget--expanded' : 'membership-widget--collapsed';
+      const positionClass = `membership-widget--${this.data.position}`;
 
       // Use pre-formatted balance if available, otherwise format manually
       const formattedBalance = this.data.balanceFormatted || this.formatCurrency(this.data.balance);
 
       this.root.innerHTML = `
-        <div class="membership-widget membership-widget--bottom-right ${expandedClass}" role="complementary" aria-label="Rewards Information">
+        <div class="membership-widget ${positionClass} ${expandedClass}" role="complementary" aria-label="Rewards Information">
           <div class="membership-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
             <div class="membership-widget__tier">
               <span class="membership-widget__tier-name">Rewards</span>
