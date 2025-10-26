@@ -1,6 +1,5 @@
 <!-- extensions/rewardspro-widget/blocks/rewards-widget.liquid -->
-{% if block.settings.enabled %}
-  <div id="rewardspro-widget-{{ block.id }}" 
+<div id="rewardspro-widget-{{ block.id }}" 
        class="rewardspro-widget rp-position-{{ block.settings.position }}"
        data-rewards-widget
        data-block-id="{{ block.id }}">
@@ -86,8 +85,7 @@
     })();
   </script>
 
-  {% if block.settings.inline_critical_css %}
-    <style>
+  <style>
       #rewardspro-widget-{{ block.id }} {
         position: fixed;
         z-index: 999999;
@@ -406,8 +404,6 @@
         }
       }
     </style>
-  {% endif %}
-{% endif %}
 
 {% schema %}
 {
@@ -416,23 +412,6 @@
   "stylesheet": "membership-widget.css",
   "javascript": "membership-widget.js",
   "settings": [
-    {
-      "type": "header",
-      "content": "Widget Settings"
-    },
-    {
-      "type": "checkbox",
-      "id": "enabled",
-      "label": "Enable Widget",
-      "default": true
-    },
-    {
-      "type": "checkbox",
-      "id": "inline_critical_css",
-      "label": "Inline Critical CSS",
-      "default": true,
-      "info": "Includes critical styles inline for faster rendering"
-    },
     {
       "type": "header",
       "content": "Display Options"
