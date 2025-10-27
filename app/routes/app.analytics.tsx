@@ -1160,6 +1160,108 @@ export default function AnalyticsPage() {
                         </EmptyState>
                       )}
                     </BlockStack>
+
+                    <Divider />
+
+                    {/* Program Impact */}
+                    <BlockStack gap="400">
+                      <Text variant="headingMd" as="h2">
+                        Program Impact
+                      </Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">
+                        Track reward redemption and sales influenced by your loyalty program
+                      </Text>
+
+                      {/* Metrics Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                        gap: '16px',
+                        marginBottom: '20px'
+                      }}>
+                        {/* Reward Usage Rate */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Current Reward Usage Rate
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                78.3%
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="success">+5.2%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  vs last month
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+
+                        {/* Total Influenced Sales */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Total Influenced Sales
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                {formatAmount(585420)}
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="info">Cumulative</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  since launch
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                      </div>
+
+                      {/* Historical Data Table */}
+                      <DataTable
+                        columnContentTypes={['text', 'numeric', 'numeric', 'numeric', 'numeric']}
+                        headings={[
+                          'Month',
+                          'Monthly Reward Usage',
+                          'Cumulative Usage Rate',
+                          'Monthly Influenced Sales',
+                          'Cumulative Sales',
+                        ]}
+                        rows={(() => {
+                          // Mock data for 12 months
+                          const monthlyData = [
+                            { month: 'Nov', monthlyUsage: '12.5%', cumulativeUsage: '12.5%', monthlySales: 25340, cumulativeSales: 25340 },
+                            { month: 'Dec', monthlyUsage: '15.2%', cumulativeUsage: '18.0%', monthlySales: 42680, cumulativeSales: 68020 },
+                            { month: 'Jan', monthlyUsage: '18.7%', cumulativeUsage: '24.3%', monthlySales: 56900, cumulativeSales: 124920 },
+                            { month: 'Feb', monthlyUsage: '22.3%', cumulativeUsage: '31.1%', monthlySales: 69850, cumulativeSales: 194770 },
+                            { month: 'Mar', monthlyUsage: '26.5%', cumulativeUsage: '38.4%', monthlySales: 77230, cumulativeSales: 272000 },
+                            { month: 'Apr', monthlyUsage: '31.2%', cumulativeUsage: '45.8%', monthlySales: 82560, cumulativeSales: 354560 },
+                            { month: 'May', monthlyUsage: '35.8%', cumulativeUsage: '52.3%', monthlySales: 67340, cumulativeSales: 421900 },
+                            { month: 'Jun', monthlyUsage: '41.5%', cumulativeUsage: '58.7%', monthlySales: 52890, cumulativeSales: 474790 },
+                            { month: 'Jul', monthlyUsage: '47.2%', cumulativeUsage: '64.2%', monthlySales: 37120, cumulativeSales: 511910 },
+                            { month: 'Aug', monthlyUsage: '53.8%', cumulativeUsage: '69.5%', monthlySales: 26340, cumulativeSales: 538250 },
+                            { month: 'Sep', monthlyUsage: '60.4%', cumulativeUsage: '74.1%', monthlySales: 19850, cumulativeSales: 558100 },
+                            { month: 'Oct', monthlyUsage: '67.9%', cumulativeUsage: '78.3%', monthlySales: 27320, cumulativeSales: 585420 },
+                          ];
+
+                          return monthlyData.map(row => [
+                            row.month,
+                            row.monthlyUsage,
+                            row.cumulativeUsage,
+                            formatAmount(row.monthlySales),
+                            formatAmount(row.cumulativeSales),
+                          ]);
+                        })()}
+                      />
+
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        Reward usage rate shows the percentage of earned rewards that customers have redeemed.
+                        Influenced sales include all orders from customers who are active loyalty program participants.
+                      </Text>
+                    </BlockStack>
                   </BlockStack>
                 </Box>
               )}
