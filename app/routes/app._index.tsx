@@ -49,7 +49,7 @@ import {
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount, countOrdersDirectDataAPI, countOrdersEpochComparison } from "~/utils/order-count-strategies";
-import { getMonthlyOrderCount, withAuroraFallback } from "~/services/shopifyql.service";
+import { getMonthlyOrderCount, getDashboardMetrics, withAuroraFallback, type DashboardMetrics } from "~/services/shopifyql.service";
 import { parse as parseJsonC } from "jsonc-parser";
 import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
@@ -145,6 +145,15 @@ interface DashboardData {
     customersWithCredit: number;
     customersWithTiers: number;
   };
+  // ShopifyQL-powered metrics (Shopify native data)
+  shopifyMetrics: {
+    totalRevenue: number;
+    totalOrders: number;
+    averageOrderValue: number;
+    shopifyCustomers: number;
+    conversionRate: number;
+    source: 'shopifyql' | 'cache' | 'unavailable';
+  } | null;
   tierDistribution: Array<{
     id: string;
     name: string;
@@ -466,6 +475,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // Fetch all data in parallel for performance
+    // Fetch ShopifyQL metrics (Shopify native data) - independent of Aurora queries
+    let shopifyMetrics: DashboardData['shopifyMetrics'] = null;
+    try {
+      console.log('[Dashboard] Fetching ShopifyQL metrics...');
+      const metrics = await getDashboardMetrics(admin, '-1m', true, 10);
+      shopifyMetrics = {
+        totalRevenue: metrics.totalRevenue,
+        totalOrders: metrics.totalOrders,
+        averageOrderValue: metrics.averageOrderValue,
+        shopifyCustomers: metrics.totalCustomers,
+        conversionRate: metrics.conversionRate,
+        source: metrics.source,
+      };
+      console.log(`[Dashboard] ⚡ ShopifyQL metrics loaded (${metrics.source})`);
+    } catch (error) {
+      console.warn('[Dashboard] ShopifyQL metrics unavailable, continuing without them:', error);
+      shopifyMetrics = {
+        totalRevenue: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        shopifyCustomers: 0,
+        conversionRate: 0,
+        source: 'unavailable',
+      };
+    }
+
     // Note: shopSettings already fetched above, so we fetch only remaining data here
     const perfStart = Date.now();
 
@@ -821,6 +856,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         customersWithCredit,
         customersWithTiers,
       },
+      shopifyMetrics,
       tierDistribution,
       recentTransactions: formattedTransactions,
       topCustomers,
@@ -1247,34 +1283,76 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* Key Metrics Overview */}
+        {/* RewardsPro Metrics Overview */}
         <Layout.Section>
-          <StatsOverview
-            stats={[
-              {
-                label: "Total Customers",
-                value: data.metrics.totalCustomers.toString(),
-                icon: PersonIcon,
-              },
-              {
-                label: "Total Store Credit",
-                value: formatAmount(data.metrics.totalStoreCredit),
-                icon: CashDollarIcon,
-              },
-              {
-                label: "Active Tiers",
-                value: data.metrics.activeTiers.toString(),
-                icon: RewardIcon,
-              },
-              {
-                label: "Average Credit",
-                value: formatAmount(data.metrics.averageCredit),
-                icon: ChartVerticalIcon,
-              },
-            ]}
-            loading={isRefreshing}
-          />
+          <BlockStack gap="400">
+            <Text variant="headingMd" as="h2">RewardsPro Metrics</Text>
+            <StatsOverview
+              stats={[
+                {
+                  label: "Total Customers",
+                  value: data.metrics.totalCustomers.toString(),
+                  icon: PersonIcon,
+                },
+                {
+                  label: "Total Store Credit",
+                  value: formatAmount(data.metrics.totalStoreCredit),
+                  icon: CashDollarIcon,
+                },
+                {
+                  label: "Active Tiers",
+                  value: data.metrics.activeTiers.toString(),
+                  icon: RewardIcon,
+                },
+                {
+                  label: "Average Credit",
+                  value: formatAmount(data.metrics.averageCredit),
+                  icon: ChartVerticalIcon,
+                },
+              ]}
+              loading={isRefreshing}
+            />
+          </BlockStack>
         </Layout.Section>
+
+        {/* Shopify Analytics - Native Data powered by ShopifyQL */}
+        {data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' && (
+          <Layout.Section>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="headingMd" as="h2">Shopify Analytics (Last Month)</Text>
+                <Text variant="bodySm" tone="subdued">
+                  Powered by ShopifyQL {data.shopifyMetrics.source === 'cache' && '(cached)'}
+                </Text>
+              </InlineStack>
+              <StatsOverview
+                stats={[
+                  {
+                    label: "Total Revenue Impact",
+                    value: formatAmount(data.shopifyMetrics.totalRevenue),
+                    icon: CashDollarIcon,
+                  },
+                  {
+                    label: "Active Shopify Customers",
+                    value: data.shopifyMetrics.shopifyCustomers.toString(),
+                    icon: PersonIcon,
+                  },
+                  {
+                    label: "Avg Order Value",
+                    value: formatAmount(data.shopifyMetrics.averageOrderValue),
+                    icon: ChartVerticalIcon,
+                  },
+                  {
+                    label: "Conversion Rate",
+                    value: `${data.shopifyMetrics.conversionRate.toFixed(1)}%`,
+                    icon: RewardIcon,
+                  },
+                ]}
+                loading={isRefreshing}
+              />
+            </BlockStack>
+          </Layout.Section>
+        )}
 
         {/* Plan Details Card - Using shared component */}
         <Layout.Section>

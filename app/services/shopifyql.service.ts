@@ -396,6 +396,97 @@ export async function getMonthlyTrends(
 }
 
 // ============================================
+// DASHBOARD METRICS QUERIES
+// ============================================
+
+export interface DashboardMetrics {
+  totalRevenue: number;
+  totalOrders: number;
+  averageOrderValue: number;
+  totalCustomers: number;
+  conversionRate: number; // orders per customer
+  source: 'shopifyql' | 'cache';
+  cachedAt?: Date;
+}
+
+/**
+ * Get comprehensive dashboard metrics in one query
+ * Combines revenue, orders, and customer data for dashboard cards
+ */
+export async function getDashboardMetrics(
+  admin: AdminApiContext['admin'],
+  sinceClause: string = '-1m',
+  useCacheIfAvailable: boolean = true,
+  cacheTTL: number = 10
+): Promise<DashboardMetrics> {
+  const cacheKey = `dashboard_metrics_${sinceClause}`;
+
+  // Check cache first
+  if (useCacheIfAvailable) {
+    const cached = cache.get<DashboardMetrics>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  try {
+    // Query for sales metrics (revenue, order count, AOV)
+    const salesQuery = `FROM sales SHOW total_sales, count() SINCE ${sinceClause}`;
+    const salesResult = await executeShopifyQLQuery(admin, salesQuery);
+
+    if (!salesResult.tableData || !salesResult.tableData.rows || salesResult.tableData.rows.length === 0) {
+      throw new Error('No sales data returned from ShopifyQL');
+    }
+
+    const salesRow = salesResult.tableData.rows[0];
+    const totalRevenue = parseFloat(salesRow.total_sales || '0');
+    const totalOrders = parseInt(salesRow.count || salesRow['count()'] || '0', 10);
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Query for customer count
+    const customersQuery = `FROM customers SHOW count() SINCE ${sinceClause}`;
+    const customersResult = await executeShopifyQLQuery(admin, customersQuery);
+
+    if (!customersResult.tableData || !customersResult.tableData.rows || customersResult.tableData.rows.length === 0) {
+      throw new Error('No customer data returned from ShopifyQL');
+    }
+
+    const customersRow = customersResult.tableData.rows[0];
+    const totalCustomers = parseInt(customersRow.count || customersRow['count()'] || '0', 10);
+
+    // Calculate conversion rate (orders per customer)
+    const conversionRate = totalCustomers > 0 ? (totalOrders / totalCustomers) * 100 : 0;
+
+    const metrics: DashboardMetrics = {
+      totalRevenue,
+      totalOrders,
+      averageOrderValue,
+      totalCustomers,
+      conversionRate,
+      source: 'shopifyql',
+      cachedAt: new Date(),
+    };
+
+    // Cache the result
+    cache.set(cacheKey, metrics, cacheTTL);
+
+    console.log(`[ShopifyQL] Dashboard metrics:`, {
+      totalRevenue: `$${totalRevenue.toFixed(2)}`,
+      totalOrders,
+      averageOrderValue: `$${averageOrderValue.toFixed(2)}`,
+      totalCustomers,
+      conversionRate: `${conversionRate.toFixed(2)}%`,
+    });
+
+    return metrics;
+
+  } catch (error) {
+    console.error('[ShopifyQL] Failed to get dashboard metrics:', error);
+    throw error;
+  }
+}
+
+// ============================================
 // CACHE UTILITIES
 // ============================================
 
