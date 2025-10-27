@@ -1,6 +1,6 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useLoaderData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
 import {
   Page,
@@ -657,6 +657,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
+// ============================================
+// ACTION - Handle feature toggles
+// ============================================
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  const formData = await request.formData();
+  const action = formData.get("action");
+
+  if (action === "toggle-feature") {
+    const feature = formData.get("feature") as string;
+    const enabled = formData.get("enabled") === "true";
+
+    const updateData: any = {};
+    updateData[feature] = enabled;
+
+    await db.shopSettings.update({
+      where: { shop },
+      data: updateData,
+    });
+
+    return json({ success: true });
+  }
+
+  return json({ success: false });
+};
 
 // ============================================
 // DASHBOARD COMPONENT
@@ -666,6 +694,7 @@ export default function Dashboard() {
   const data = useLoaderData<typeof loader>() as DashboardData;
   const navigate = useNavigate();
   const { navigate: shopifyNavigate } = useShopifyNavigation();
+  const fetcher = useFetcher();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Currency selection state
@@ -706,6 +735,16 @@ export default function Dashboard() {
       setIsSavingCurrency(false);
     }
   }, [selectedCurrency]);
+
+  // Handle feature toggle
+  const handleToggleFeature = useCallback((feature: string, currentValue: boolean) => {
+    const formData = new FormData();
+    formData.append("action", "toggle-feature");
+    formData.append("feature", feature);
+    formData.append("enabled", (!currentValue).toString());
+
+    fetcher.submit(formData, { method: "post" });
+  }, [fetcher]);
 
   // Auto-refresh when window regains focus (user returns from theme editor)
   // This implements the recommended UX flow from Shopify's developer guide
@@ -1469,166 +1508,6 @@ export default function Dashboard() {
                 </div>
               </BlockStack>
 
-              {/* Feature Toggles */}
-              <BlockStack gap="300">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="headingSm" as="h3" fontWeight="semibold">
-                    Feature Toggles
-                  </Text>
-                  <Button size="slim" onClick={() => navigate('/app/settings/features')}>
-                    Configure
-                  </Button>
-                </InlineStack>
-
-                {/* Advanced Analytics */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopSettings?.advancedAnalyticsEnabled ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopSettings?.advancedAnalyticsEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Advanced Analytics
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.advancedAnalyticsEnabled ? 'success' : 'warning'}>
-                      {data.shopSettings?.advancedAnalyticsEnabled ? 'ENABLED' : 'DISABLED'}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Automatic Cashback Processing */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopSettings?.autoCashbackProcessingEnabled ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopSettings?.autoCashbackProcessingEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Automatic Cashback Processing
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.autoCashbackProcessingEnabled ? 'success' : 'warning'}>
-                      {data.shopSettings?.autoCashbackProcessingEnabled ? 'ENABLED' : 'DISABLED'}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Email Marketing Campaign */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopSettings?.emailMarketingEnabled ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.emailMarketingEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopSettings?.emailMarketingEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Email Marketing Campaign
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.emailMarketingEnabled ? 'success' : 'warning'}>
-                      {data.shopSettings?.emailMarketingEnabled ? 'ENABLED' : 'DISABLED'}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Tier Products Module */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.tierProductsEnabled ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopSettings?.tierProductsEnabled ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.tierProductsEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.tierProductsEnabled ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopSettings?.tierProductsEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Tier Products Module
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.tierProductsEnabled ? 'success' : 'warning'}>
-                      {data.shopSettings?.tierProductsEnabled ? 'ENABLED' : 'DISABLED'}
-                    </Badge>
-                  </div>
-                </div>
-              </BlockStack>
-
               {/* Overall System Status */}
               <Box paddingBlockStart="400" paddingBlockEnd="200">
                 <InlineStack align="center" blockAlign="center" gap="200">
@@ -1728,6 +1607,112 @@ export default function Dashboard() {
                   </InlineStack>
                 </InlineStack>
               </Box>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Feature Toggles */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="headingMd" as="h2">Feature Toggles</Text>
+                <Text variant="bodySm" tone="subdued" as="span">
+                  Control which features are active
+                </Text>
+              </InlineStack>
+
+              <Text variant="bodyMd" tone="subdued" as="p">
+                Enable or disable specific features for your store. Changes take effect immediately.
+              </Text>
+
+              <BlockStack gap="300">
+                {/* Advanced Analytics */}
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="bodyMd" as="span" fontWeight="medium">
+                      Advanced Analytics
+                    </Text>
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      Detailed analytics charts and ROI calculations
+                    </Text>
+                  </BlockStack>
+                  <Button
+                    size="slim"
+                    tone={data.shopSettings?.advancedAnalyticsEnabled ? 'success' : undefined}
+                    onClick={() => handleToggleFeature('advancedAnalyticsEnabled', data.shopSettings?.advancedAnalyticsEnabled ?? true)}
+                    loading={fetcher.state === "submitting"}
+                  >
+                    {data.shopSettings?.advancedAnalyticsEnabled ? 'Enabled' : 'Disabled'}
+                  </Button>
+                </InlineStack>
+
+                <Divider />
+
+                {/* Automatic Cashback Processing */}
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="bodyMd" as="span" fontWeight="medium">
+                      Automatic Cashback Processing
+                    </Text>
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      Automatically credit cashback for completed orders
+                    </Text>
+                  </BlockStack>
+                  <Button
+                    size="slim"
+                    tone={data.shopSettings?.autoCashbackProcessingEnabled ? 'success' : undefined}
+                    onClick={() => handleToggleFeature('autoCashbackProcessingEnabled', data.shopSettings?.autoCashbackProcessingEnabled ?? true)}
+                    loading={fetcher.state === "submitting"}
+                  >
+                    {data.shopSettings?.autoCashbackProcessingEnabled ? 'Enabled' : 'Disabled'}
+                  </Button>
+                </InlineStack>
+
+                <Divider />
+
+                {/* Email Marketing Campaign */}
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="bodyMd" as="span" fontWeight="medium">
+                      Email Marketing Campaigns
+                    </Text>
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      Automated email campaigns and communications
+                    </Text>
+                  </BlockStack>
+                  <Button
+                    size="slim"
+                    tone={data.shopSettings?.emailMarketingEnabled ? 'success' : undefined}
+                    onClick={() => handleToggleFeature('emailMarketingEnabled', data.shopSettings?.emailMarketingEnabled ?? false)}
+                    loading={fetcher.state === "submitting"}
+                  >
+                    {data.shopSettings?.emailMarketingEnabled ? 'Enabled' : 'Disabled'}
+                  </Button>
+                </InlineStack>
+
+                <Divider />
+
+                {/* Tier Products Module */}
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="bodyMd" as="span" fontWeight="medium">
+                      Tier Products Module
+                    </Text>
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      Allow customers to purchase tier access
+                    </Text>
+                  </BlockStack>
+                  <Button
+                    size="slim"
+                    tone={data.shopSettings?.tierProductsEnabled ? 'success' : undefined}
+                    onClick={() => handleToggleFeature('tierProductsEnabled', data.shopSettings?.tierProductsEnabled ?? true)}
+                    loading={fetcher.state === "submitting"}
+                  >
+                    {data.shopSettings?.tierProductsEnabled ? 'Enabled' : 'Disabled'}
+                  </Button>
+                </InlineStack>
+              </BlockStack>
             </BlockStack>
           </Card>
         </Layout.Section>
