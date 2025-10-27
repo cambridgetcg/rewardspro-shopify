@@ -1652,7 +1652,7 @@ export default function Dashboard() {
                   <Text variant="headingSm" as="h3" fontWeight="bold">
                     {(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced)
                       ? '✓ All Systems Operational'
-                      : '⚠ Action Required'}
+                      : 'Setup in Progress'}
                   </Text>
                 </InlineStack>
               </Box>
