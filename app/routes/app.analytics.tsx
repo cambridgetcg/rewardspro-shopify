@@ -1083,17 +1083,17 @@ export default function AnalyticsPage() {
                               position: 'relative',
                               background: '#fafbfb'
                             }}>
-                              <svg width="100%" height="100%" style={{ overflow: 'visible' }}>
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
                                 {/* Grid lines */}
                                 {[0, 1, 2, 3, 4, 5, 6].map(i => (
                                   <line
                                     key={i}
                                     x1="0"
-                                    y1={`${(i / 6) * 100}%`}
-                                    x2="100%"
-                                    y2={`${(i / 6) * 100}%`}
+                                    y1={(i / 6) * 100}
+                                    x2="100"
+                                    y2={(i / 6) * 100}
                                     stroke="#e5e7eb"
-                                    strokeWidth="1"
+                                    strokeWidth="0.3"
                                   />
                                 ))}
 
@@ -1118,9 +1118,10 @@ export default function AnalyticsPage() {
                                       points={points}
                                       fill="none"
                                       stroke={color}
-                                      strokeWidth="3"
+                                      strokeWidth="0.8"
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
+                                      vectorEffect="non-scaling-stroke"
                                     />
                                   );
                                 })}
@@ -1134,18 +1135,19 @@ export default function AnalyticsPage() {
                                   return data.monthlyTierTrends.map((month, monthIndex) => {
                                     const tierData = month.tiers.find(t => t.tierName === tier.name);
                                     const value = tierData?.orderFrequency || 0;
-                                    const x = `${(monthIndex / (data.monthlyTierTrends.length - 1)) * 100}%`;
-                                    const y = `${100 - (value / 6) * 100}%`;
+                                    const x = (monthIndex / (data.monthlyTierTrends.length - 1)) * 100;
+                                    const y = 100 - (value / 6) * 100;
 
                                     return (
                                       <circle
                                         key={`${tier.id}-${monthIndex}`}
                                         cx={x}
                                         cy={y}
-                                        r="4"
+                                        r="1.2"
                                         fill={color}
                                         stroke="white"
-                                        strokeWidth="2"
+                                        strokeWidth="0.4"
+                                        vectorEffect="non-scaling-stroke"
                                       />
                                     );
                                   });

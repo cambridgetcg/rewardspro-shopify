@@ -133,6 +133,7 @@ interface DashboardData {
     customersInitialSynced?: boolean;
     customersSyncInProgress?: boolean;
     currencySelected?: boolean;
+    tierRecalculationEnabled?: boolean;
   } | null;
   // Billing data
   currentPlan: any | null;
@@ -206,6 +207,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         widgetSetupDismissed: true,
         customerAccountBlockDismissed: true,
         customerAccountBlockIsActive: true,
+        tierRecalculationEnabled: true,
       }
     });
 
@@ -647,6 +649,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         customersInitialSynced: shopSettings.customersInitialSynced,
         customersSyncInProgress: shopSettings.customersSyncInProgress,
         currencySelected: shopSettings.currencySelected,
+        tierRecalculationEnabled: shopSettings.tierRecalculationEnabled,
       } : null,
       // Billing data
       currentPlan: serializedPlan,
@@ -1273,6 +1276,33 @@ export default function Dashboard() {
                   <div style={{ marginLeft: 'auto' }}>
                     <Badge tone={data.activeSubscription ? 'success' : 'warning'}>
                       {data.activeSubscription ? data.activeSubscription.name.toUpperCase() : 'FREE PLAN'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Tier Automation */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopSettings?.tierRecalculationEnabled ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#22c55e' : '#eab308',
+                    boxShadow: `0 0 8px ${data.shopSettings?.tierRecalculationEnabled ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Tier Automation
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.tierRecalculationEnabled ? 'success' : 'warning'}>
+                      {data.shopSettings?.tierRecalculationEnabled ? 'ENABLED' : 'DISABLED'}
                     </Badge>
                   </div>
                 </div>
