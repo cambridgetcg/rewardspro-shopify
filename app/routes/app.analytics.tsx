@@ -205,7 +205,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         // Generate last 6 months
         for (let i = 5; i >= 0; i--) {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          const monthName = date.toLocaleDateString('en-US', { month: 'short' }); // Use 3-letter month names per Polaris guidelines
 
           // Base values for each tier (6 months ago)
           const baseOrderFreqs = [1.12, 2.08, 3.21, 4.67];
@@ -1099,8 +1099,9 @@ export default function AnalyticsPage() {
 
                                 {/* Tier lines */}
                                 {data.tierPerformance.map((tier, tierIndex) => {
-                                  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
-                                  const color = colors[tierIndex] || '#6b7280';
+                                  // Shopify Polaris color palette
+                                  const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
+                                  const color = colors[tierIndex] || '#5C6AC4';
 
                                   // Get this tier's data points
                                   const points = data.monthlyTierTrends.map((month, monthIndex) => {
@@ -1126,8 +1127,9 @@ export default function AnalyticsPage() {
 
                                 {/* Data point circles */}
                                 {data.tierPerformance.map((tier, tierIndex) => {
-                                  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
-                                  const color = colors[tierIndex] || '#6b7280';
+                                  // Shopify Polaris color palette (same as lines above)
+                                  const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
+                                  const color = colors[tierIndex] || '#5C6AC4';
 
                                   return data.monthlyTierTrends.map((month, monthIndex) => {
                                     const tierData = month.tiers.find(t => t.tierName === tier.name);
@@ -1164,13 +1166,14 @@ export default function AnalyticsPage() {
                           {/* Legend */}
                           <InlineStack gap="400" blockAlign="center" wrap={true}>
                             {data.tierPerformance.map((tier, index) => {
-                              const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
+                              // Shopify Polaris color palette (matches chart lines)
+                              const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
                               return (
                                 <InlineStack key={tier.id} gap="200" blockAlign="center">
                                   <div style={{
                                     width: '20px',
                                     height: '3px',
-                                    backgroundColor: colors[index] || '#6b7280',
+                                    backgroundColor: colors[index] || '#5C6AC4',
                                     borderRadius: '2px'
                                   }} />
                                   <TierBadge
@@ -1187,16 +1190,151 @@ export default function AnalyticsPage() {
                       </Box>
                     </Card>
 
-                    {/* More chart styles coming soon */}
+                    {/* Style B: Vertical Bar Chart - Current Month Tier Comparison */}
                     <Card>
                       <Box padding="400">
-                        <BlockStack gap="300">
-                          <InlineStack align="space-between" blockAlign="center">
-                            <Text variant="headingSm" as="h3">Additional Visualization Styles</Text>
-                            <Badge tone="attention">Coming Soon</Badge>
+                        <BlockStack gap="400">
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <Text variant="headingSm" as="h3">Style B: Current Month Tier Comparison</Text>
+                              <Badge tone="success">Vertical Bars</Badge>
+                            </InlineStack>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Compare order frequency across tiers for the current month
+                            </Text>
+                          </BlockStack>
+
+                          {/* Bar Chart */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            justifyContent: 'space-around',
+                            height: '250px',
+                            padding: '20px 0',
+                            borderBottom: '2px solid #e5e7eb',
+                            gap: '8px'
+                          }}>
+                            {sortTiersByPriority(data.tierPerformance).map((tier, index) => {
+                              const maxValue = Math.max(...data.tierPerformance.map(t => t.monthlyOrderFrequency));
+                              const heightPercent = (tier.monthlyOrderFrequency / maxValue) * 100;
+
+                              return (
+                                <div key={tier.id} style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '8px'
+                                }}>
+                                  {/* Value label above bar */}
+                                  <Text variant="bodySm" fontWeight="semibold" as="span">
+                                    {tier.monthlyOrderFrequency.toFixed(1)}
+                                  </Text>
+
+                                  {/* Bar */}
+                                  <div style={{
+                                    width: '100%',
+                                    maxWidth: '80px',
+                                    height: `${heightPercent}%`,
+                                    backgroundColor: '#5C6AC4', // Shopify Polaris indigo
+                                    borderRadius: '4px 4px 0 0',
+                                    minHeight: '30px',
+                                    transition: 'all 0.3s ease'
+                                  }} />
+
+                                  {/* Tier label */}
+                                  <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                                    <TierBadge
+                                      tierName={tier.name}
+                                      size="small"
+                                      showIcon={false}
+                                      cashbackPercent={tier.cashbackPercent}
+                                    />
+                                    <Text variant="bodySm" tone="subdued" as="p" alignment="center">
+                                      {tier.members} members
+                                    </Text>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Chart footer */}
+                          <InlineStack align="space-between">
+                            <Text variant="bodySm" tone="subdued" as="span">
+                              Monthly Order Frequency (orders/customer/month)
+                            </Text>
+                            <Text variant="bodySm" tone="subdued" as="span">
+                              Current month
+                            </Text>
                           </InlineStack>
-                          <Text variant="bodyMd" tone="subdued" as="p">
-                            More chart styles will be added: Grouped Bar Charts, Revenue Trends, and Gross Profit Analysis
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Style C: Horizontal Bar Chart - Monthly Growth */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <Text variant="headingSm" as="h3">Style C: Revenue Per Order by Tier</Text>
+                              <Badge tone="info">Horizontal Bars</Badge>
+                            </InlineStack>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Current month revenue per order across all tiers
+                            </Text>
+                          </BlockStack>
+
+                          <BlockStack gap="300">
+                            {sortTiersByPriority(data.tierPerformance).map((tier) => {
+                              const maxRevenue = Math.max(...data.tierPerformance.map(t => t.revenuePerOrder));
+                              const widthPercent = (tier.revenuePerOrder / maxRevenue) * 100;
+
+                              return (
+                                <BlockStack key={tier.id} gap="200">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <InlineStack gap="200" blockAlign="center">
+                                      <div style={{ minWidth: '120px' }}>
+                                        <TierBadge
+                                          tierName={tier.name}
+                                          size="small"
+                                          showIcon={false}
+                                          cashbackPercent={tier.cashbackPercent}
+                                        />
+                                      </div>
+                                      <Text variant="bodySm" tone="subdued" as="span">
+                                        {tier.members} members
+                                      </Text>
+                                    </InlineStack>
+                                    <Text variant="bodyMd" fontWeight="semibold" as="span">
+                                      {formatAmount(tier.revenuePerOrder)}
+                                    </Text>
+                                  </InlineStack>
+
+                                  {/* Horizontal bar with 2:1 bar-to-gap ratio per Polaris */}
+                                  <div style={{
+                                    height: '28px', // Bar thickness
+                                    backgroundColor: '#f1f1f1',
+                                    borderRadius: '4px',
+                                    overflow: 'hidden',
+                                    marginBottom: '14px' // Gap (half of bar thickness for 2:1 ratio)
+                                  }}>
+                                    <div style={{
+                                      height: '100%',
+                                      width: `${widthPercent}%`,
+                                      backgroundColor: '#5C6AC4', // Shopify Polaris indigo
+                                      transition: 'width 0.5s ease',
+                                      borderRadius: '4px'
+                                    }} />
+                                  </div>
+                                </BlockStack>
+                              );
+                            })}
+                          </BlockStack>
+
+                          <Text variant="bodySm" tone="subdued" as="p">
+                            Revenue per order (current month average)
                           </Text>
                         </BlockStack>
                       </Box>
