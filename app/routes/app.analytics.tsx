@@ -53,7 +53,7 @@ interface AnalyticsData {
   // Overview metrics - NEW STRUCTURE
   monthlyOrderFrequency: number; // Orders per customer per month
   revenuePerOrder: number; // Average revenue per order
-  grossProfitPerCustomerPerMonth: number; // Gross profit per customer per month
+  grossProfitPerCustomerPerMonth: number; // Monthly gross profit per customer
 
   // Tier analytics - SIMPLIFIED
   tierPerformance: {
@@ -171,7 +171,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Overview metrics with placeholder values (weighted average across all tiers)
       monthlyOrderFrequency: 2.83, // Average orders per customer per month
       revenuePerOrder: 142.75, // Average revenue per order
-      grossProfitPerCustomerPerMonth: 121.48, // Gross profit per customer per month
+      grossProfitPerCustomerPerMonth: 121.48, // Monthly gross profit per customer
 
       // Tier performance with realistic mock data (current month)
       // Distribution: ~1000 members across tiers (more in lower tiers, fewer in higher)
@@ -183,7 +183,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const orderFrequencies = [1.47, 2.64, 3.89, 5.28];
         // Realistic revenue per order (increases with tier) - CURRENT month values
         const revenuePerOrders = [87.23, 118.45, 176.82, 263.17];
-        // Realistic gross profit per customer per month - CURRENT month values
+        // Realistic monthly gross profit per customer - CURRENT month values
         const grossProfits = [38.47, 93.82, 206.34, 417.19];
 
         return {
@@ -997,7 +997,7 @@ export default function AnalyticsPage() {
                             'Members',
                             'Monthly Order Frequency',
                             'Revenue/Order',
-                            'Gross Profit/Customer/Month',
+                            'Monthly Gross Profit/Customer',
                           ]}
                           rows={sortTiersByPriority(data.tierPerformance).map(tier => [
                             <TierBadge
