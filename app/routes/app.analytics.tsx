@@ -50,45 +50,36 @@ import { formatCurrency } from "../utils/currency";
 // ============================================
 
 interface AnalyticsData {
-  // Overview metrics
-  revenueImpact: number;
-  activeMembers: number;
-  totalMembers: number;
-  avgOrderValue: number;
-  conversionRate: number;
-  totalStoreCredit: number;
-  creditUtilization: number;
-  
-  
-  // Trends (last 30 days)
+  // Overview metrics - NEW STRUCTURE
+  monthlyOrderFrequency: number; // Orders per customer per month
+  revenuePerOrder: number; // Average revenue per order
+  grossProfitPerCustomerPerMonth: number; // Gross profit per customer per month
+
+  // Tier analytics - SIMPLIFIED
+  tierPerformance: {
+    id: string;
+    name: string;
+    members: number;
+    cashbackPercent: number;
+    monthlyOrderFrequency: number;
+    revenuePerOrder: number;
+    grossProfitPerCustomerPerMonth: number;
+  }[];
+
+  // Placeholder for future implementation
   trends: {
     revenue: TrendData[];
     members: TrendData[];
     orders: TrendData[];
     credit: TrendData[];
   };
-  
-  // Tier analytics
-  tierPerformance: {
-    id: string;
-    name: string;
-    members: number;
-    revenue: number;
-    avgSpend: number;
-    retention: number;
-    creditBalance: number;
-    cashbackPercent: number;
-    upgradeRate?: number;
-  }[];
-  
-  // Insights
+
   insights: {
     opportunities: Insight[];
     warnings: Insight[];
     successes: Insight[];
   };
-  
-  // Financial breakdown
+
   financial: {
     directRevenue: number;
     creditIssued: number;
@@ -153,243 +144,84 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = session.shop;
 
-  // Get date range from URL parameters
-  const url = new URL(request.url);
-  const dateRange = url.searchParams.get('range') || '30days';
-
   try {
-    // Calculate date range based on selection
-    let startDate: Date | null = null;
-    let endDate: Date = new Date();
-    const now = new Date();
-
-    switch (dateRange) {
-      case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        break;
-      case '7days':
-        startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30days':
-        startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'quarter':
-        startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'year':
-        startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      case 'all':
-        startDate = null; // No start date filter for all time
-        break;
-      default:
-        startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    }
-
-    // Build date filter for orders
-    const dateFilter = startDate ? {
-      shopifyCreatedAt: {
-        gte: startDate,
-        lte: endDate
-      }
-    } : {}; // No date filter for all time
-
-    // Fetch all necessary data with Orders included
-    const [
-      shopSettings,
-      customers,
-      tiers,
-      orders,
-      allOrders, // For customer metrics calculation
-      recentTransactions,
-      allTransactions,
-    ] = await Promise.all([
+    // Fetch minimal data for UI structure
+    const [shopSettings, tiers] = await Promise.all([
       db.shopSettings.findUnique({ where: { shop } }),
-      db.customer.findMany({
-        where: { shop },
-        include: {
-          currentTier: true,
-          orders: {
-            select: {
-              id: true,
-              shopifyCreatedAt: true,
-              netAmount: true,
-            },
-            orderBy: { shopifyCreatedAt: 'desc' },
-            take: 1 // Just to get last order date
-          }
-        },
-      }),
       db.tier.findMany({
         where: { shop },
         orderBy: { minSpend: 'asc' },
       }),
-      // Fetch orders for the selected date range
-      db.order.findMany({
-        where: {
-          shop,
-          financialStatus: 'PAID',
-          ...dateFilter
-        },
-        include: {
-          customer: {
-            select: {
-              id: true,
-              currentTierId: true,
-            }
-          }
-        }
-      }),
-      // Fetch all orders for customer spending calculation (no date filter)
-      db.order.findMany({
-        where: {
-          shop,
-          financialStatus: 'PAID',
-        },
-        select: {
-          customerId: true,
-          netAmount: true,
-          cashbackAmount: true,
-          shopifyCreatedAt: true,
-        }
-      }),
-      db.storeCreditLedger.findMany({
-        where: {
-          shop,
-          ...(startDate ? { createdAt: { gte: startDate } } : {})
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100, // Limit recent transactions
-      }),
-      db.storeCreditLedger.findMany({
-        where: {
-          shop,
-          ...(startDate ? { createdAt: { gte: startDate } } : {})
-        },
-        select: {
-          type: true,
-          amount: true,
-          createdAt: true,
-          customerId: true,
-        },
-      }),
     ]);
 
-    // Calculate customer spending from orders (since totalSpent field isn't updated)
-    const customerSpendingMap = new Map<string, { totalSpent: number, orderCount: number, lastOrderDate: Date | null }>();
-    allOrders.forEach(order => {
-      const existing = customerSpendingMap.get(order.customerId) || { totalSpent: 0, orderCount: 0, lastOrderDate: null };
-      existing.totalSpent += parseFloat(order.netAmount?.toString() || '0');
-      existing.orderCount += 1;
-      if (!existing.lastOrderDate || new Date(order.shopifyCreatedAt) > existing.lastOrderDate) {
-        existing.lastOrderDate = new Date(order.shopifyCreatedAt);
-      }
-      customerSpendingMap.set(order.customerId, existing);
-    });
-
-    // Calculate metrics from actual orders
-    const totalRevenue = orders.reduce((sum, order) =>
-      sum + parseFloat(order.netAmount?.toString() || '0'), 0
-    );
-
-    const totalCashbackFromOrders = orders.reduce((sum, order) =>
-      sum + parseFloat(order.cashbackAmount?.toString() || '0'), 0
-    );
-
-    const orderCount = orders.length;
-    const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
-
-    // Calculate active members (customers with orders in period or store credit)
-    const customersWithOrdersInPeriod = new Set(orders.map(o => o.customerId));
-    const activeMembers = customers.filter(c =>
-      customersWithOrdersInPeriod.has(c.id) ||
-      (c.storeCredit && parseFloat(c.storeCredit.toString()) > 0)
-    ).length;
-
-    const totalMembers = customers.length;
-    const conversionRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
-
-    const totalStoreCredit = customers.reduce((sum, c) =>
-      sum + (c.storeCredit ? parseFloat(c.storeCredit.toString()) : 0), 0
-    );
-
-    // Calculate credit metrics from ledger (keep this as is)
-    const totalCreditIssued = allTransactions
-      .filter(t => t.type === 'CASHBACK_EARNED' || t.type === 'MANUAL_ADJUSTMENT')
-      .reduce((sum, t) => sum + Math.max(0, t.amount ? parseFloat(t.amount.toString()) : 0), 0);
-
-    const totalCreditRedeemed = allTransactions
-      .filter(t => t.type === 'ORDER_PAYMENT')
-      .reduce((sum, t) => sum + Math.abs(t.amount ? parseFloat(t.amount.toString()) : 0), 0);
-
-    const creditUtilization = totalCreditIssued > 0
-      ? (totalCreditRedeemed / totalCreditIssued) * 100
-      : 0;
-
-    // Use actual revenue instead of estimation
-    const revenueImpact = Math.round(totalRevenue * 100) / 100;
-    const avgOrderValueRounded = Math.round(avgOrderValue * 100) / 100;
-    // Generate trend data from actual orders
-    const trends = generateTrendDataFromOrders(orders, customers, allTransactions, startDate);
-
-    // Calculate tier performance with actual order data
-    const tierPerformance = calculateTierPerformanceFromOrders(tiers, orders, customers, allTransactions);
-
-    // Generate insights
-    const insights = generateInsights(
-      customers,
-      tiers,
-      creditUtilization,
-      conversionRate,
-      tierPerformance
-    );
-
-    // Calculate financial breakdown with actual revenue
-    const financial = {
-      directRevenue: Math.round(totalRevenue * 100) / 100,
-      creditIssued: Math.round(totalCreditIssued * 100) / 100,
-      creditRedeemed: Math.round(totalCreditRedeemed * 100) / 100,
-      netValue: Math.round((totalRevenue - totalCreditIssued) * 100) / 100,
-      roi: totalCreditIssued > 0 ? Math.round(((totalRevenue - totalCreditIssued) / totalCreditIssued) * 100 * 100) / 100 : 0,
-      costBreakdown: {
-        creditCost: Math.round(totalCreditIssued * 100) / 100,
-        operationalCost: Math.round(totalCreditIssued * 0.1 * 100) / 100, // Assume 10% operational cost
-      },
-    };
-
-    // Calculate customer segments using order history
-    const segments = calculateCustomerSegmentsFromOrders(customers, allOrders, customerSpendingMap);
-
-    // Calculate comparison vs previous period
-    // For real comparison, we'd need to fetch orders from previous period
-    const previousPeriodRevenue = totalRevenue * 0.85; // Placeholder - should query previous period
-    const comparison = {
-      period: dateRange === 'year' ? 'year' as const : 'month' as const,
-      current: Math.round(totalRevenue * 100) / 100,
-      previous: Math.round(previousPeriodRevenue * 100) / 100,
-      change: previousPeriodRevenue > 0 ? Math.round(((totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100 * 100) / 100 : 0,
-    };
-
+    // PLACEHOLDER DATA - Will be replaced with real data fetching later
     const analyticsData: AnalyticsData = {
-      revenueImpact,
-      activeMembers,
-      totalMembers,
-      avgOrderValue: avgOrderValueRounded,
-      conversionRate,
-      totalStoreCredit,
-      creditUtilization,
-      trends,
-      tierPerformance,
-      insights,
-      financial,
-      segments,
-      comparison,
+      // Overview metrics with placeholder values
+      monthlyOrderFrequency: 2.5, // Average orders per customer per month
+      revenuePerOrder: 125.50, // Average revenue per order
+      grossProfitPerCustomerPerMonth: 75.25, // Gross profit per customer per month
+
+      // Tier performance with placeholder data
+      tierPerformance: tiers.map((tier, index) => ({
+        id: tier.id,
+        name: tier.name,
+        members: (index + 1) * 10, // Mock member counts
+        cashbackPercent: tier.cashbackPercent,
+        monthlyOrderFrequency: 2.0 + (index * 0.5), // Mock frequency
+        revenuePerOrder: 100 + (index * 25), // Mock revenue per order
+        grossProfitPerCustomerPerMonth: 60 + (index * 15), // Mock gross profit
+      })),
+
+      // Placeholder trend data (empty for now)
+      trends: {
+        revenue: [],
+        members: [],
+        orders: [],
+        credit: [],
+      },
+
+      // Placeholder insights
+      insights: {
+        opportunities: [],
+        warnings: [],
+        successes: [],
+      },
+
+      // Placeholder financial data
+      financial: {
+        directRevenue: 0,
+        creditIssued: 0,
+        creditRedeemed: 0,
+        netValue: 0,
+        roi: 0,
+        costBreakdown: {
+          creditCost: 0,
+          operationalCost: 0,
+        },
+      },
+
+      // Placeholder segments
+      segments: {
+        vip: { count: 0, revenue: 0, avgCredit: 0 },
+        atRisk: { count: 0, revenue: 0, churnRisk: 0 },
+        new: { count: 0, revenue: 0, activationRate: 0 },
+        dormant: { count: 0, lastRevenue: 0, daysSinceLastOrder: 0 },
+      },
+
+      // Placeholder comparison
+      comparison: {
+        period: 'month' as const,
+        current: 0,
+        previous: 0,
+        change: 0,
+      },
+
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
       } : null,
     };
-    
+
     return json(analyticsData);
   } catch (error) {
     console.error("Analytics loader error:", error);
@@ -1069,108 +901,6 @@ export default function AnalyticsPage() {
       subtitle="Track your loyalty program performance"
     >
       <Layout>
-        {/* Date Range Selector */}
-        <Layout.Section>
-          <Card>
-            <Box padding="400">
-              <BlockStack gap="400">
-                <ButtonGroup>
-                  <Button
-                    pressed={selectedDateRange === 'today'}
-                    onClick={() => handleDateRangeSelect('today')}
-                  >
-                    Today
-                  </Button>
-                  <Button
-                    pressed={selectedDateRange === '7days'}
-                    onClick={() => handleDateRangeSelect('7days')}
-                  >
-                    7 Days
-                  </Button>
-                  <Button
-                    pressed={selectedDateRange === '30days'}
-                    onClick={() => handleDateRangeSelect('30days')}
-                  >
-                    30 Days
-                  </Button>
-                  <Button
-                    pressed={selectedDateRange === 'quarter'}
-                    onClick={() => handleDateRangeSelect('quarter')}
-                  >
-                    Quarter
-                  </Button>
-                  <Button
-                    pressed={selectedDateRange === 'year'}
-                    onClick={() => handleDateRangeSelect('year')}
-                  >
-                    Year
-                  </Button>
-                  <Button
-                    pressed={selectedDateRange === 'all'}
-                    onClick={() => handleDateRangeSelect('all')}
-                  >
-                    All Time
-                  </Button>
-                </ButtonGroup>
-
-                <Divider />
-
-                <Box background="bg-surface-secondary" padding="300" borderRadius="200">
-                  <Text variant="bodyMd" as="p">
-                    Showing data for: <Text as="span" fontWeight="semibold">{getDateRangeText()}</Text>
-                  </Text>
-                </Box>
-              </BlockStack>
-            </Box>
-          </Card>
-        </Layout.Section>
-
-        {/* Key Metrics Grid */}
-        <Layout.Section>
-          <InlineStack gap="400" wrap={false}>
-            <div style={{ flex: 1, minWidth: '220px' }}>
-              <AnalyticsMetricCard
-                title="Total Revenue Impact"
-                value={formatAmount(data.revenueImpact)}
-                change={data.comparison.change}
-                trend={data.comparison.change > 0 ? 'up' : 'down'}
-                loading={isLoading}
-                delay={0}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: '220px' }}>
-              <AnalyticsMetricCard
-                title="Active Members"
-                value={`${data.activeMembers} / ${data.totalMembers}`}
-                change={12}
-                trend="up"
-                loading={isLoading}
-                delay={50}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: '220px' }}>
-              <AnalyticsMetricCard
-                title="Avg Order Value"
-                value={formatAmount(data.avgOrderValue)}
-                change={8}
-                trend="up"
-                loading={isLoading}
-                delay={100}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: '220px' }}>
-              <AnalyticsMetricCard
-                title="Conversion Rate"
-                value={`${data.conversionRate.toFixed(1)}%`}
-                change={-2}
-                trend="down"
-                loading={isLoading}
-                delay={150}
-              />
-            </div>
-          </InlineStack>
-        </Layout.Section>
-
         {/* Tabbed Content */}
         <Layout.Section>
           <Card>
@@ -1186,14 +916,13 @@ export default function AnalyticsPage() {
                       </Text>
                       {data.tierPerformance.length > 0 ? (
                         <DataTable
-                          columnContentTypes={['text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric']}
+                          columnContentTypes={['text', 'numeric', 'numeric', 'numeric', 'numeric']}
                           headings={[
                             'Tier',
                             'Members',
-                            'Revenue',
-                            'Avg Spend',
-                            'Retention',
-                            'Credit Balance',
+                            'Monthly Order Frequency',
+                            'Revenue/Order',
+                            'Gross Profit/Customer/Month',
                           ]}
                           rows={sortTiersByPriority(data.tierPerformance).map(tier => [
                             <TierBadge
@@ -1203,10 +932,9 @@ export default function AnalyticsPage() {
                               cashbackPercent={tier.cashbackPercent}
                             />,
                             tier.members,
-                            formatAmount(tier.revenue).toString(),
-                            formatAmount(tier.avgSpend),
-                            `${tier.retention.toFixed(0)}%`,
-                            formatAmount(tier.creditBalance),
+                            tier.monthlyOrderFrequency.toFixed(2),
+                            formatAmount(tier.revenuePerOrder),
+                            formatAmount(tier.grossProfitPerCustomerPerMonth),
                           ])}
                         />
                       ) : (

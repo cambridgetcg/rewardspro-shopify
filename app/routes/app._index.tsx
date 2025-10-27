@@ -637,12 +637,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const tierDistribution = tiers.map(tier => {
       const group = tierGroups.get(tier.id) || { count: 0, totalCredit: 0 };
+      const percentage = totalCustomers > 0 ? (group.count / totalCustomers) * 100 : 0;
 
       return {
         id: tier.id,
         name: tier.name,
         count: group.count,
-        percentage: totalCustomers > 0 ? (group.count / totalCustomers) * 100 : 0,
+        percentage,
         cashbackPercent: tier.cashbackPercent,
         totalCredit: group.totalCredit,
         minSpend: tier.minSpend,
