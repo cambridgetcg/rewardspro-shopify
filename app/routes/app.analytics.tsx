@@ -945,69 +945,6 @@ export default function AnalyticsPage() {
                         </EmptyState>
                       )}
                     </BlockStack>
-
-                    <Divider />
-
-                    {/* Customer Segments */}
-                    <BlockStack gap="400">
-                      <Text variant="headingMd" as="h2">
-                        Customer Segments
-                      </Text>
-                      <Grid>
-                        <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-                          <Card>
-                            <Box padding="300">
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" as="h3">VIP Customers</Text>
-                                <Text variant="headingLg" as="p">{data.segments.vip.count}</Text>
-                                <Text variant="bodySm" tone="subdued" as="p">
-                                  Avg credit: {formatAmount(data.segments.vip.avgCredit)}
-                                </Text>
-                              </BlockStack>
-                            </Box>
-                          </Card>
-                        </Grid.Cell>
-                        <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-                          <Card>
-                            <Box padding="300">
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" as="h3">At Risk</Text>
-                                <Text variant="headingLg" as="p">{data.segments.atRisk.count}</Text>
-                                <Text variant="bodySm" tone="subdued" as="p">
-                                  Churn risk: {data.segments.atRisk.churnRisk}%
-                                </Text>
-                              </BlockStack>
-                            </Box>
-                          </Card>
-                        </Grid.Cell>
-                        <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-                          <Card>
-                            <Box padding="300">
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" as="h3">New Members</Text>
-                                <Text variant="headingLg" as="p">{data.segments.new.count}</Text>
-                                <Text variant="bodySm" tone="subdued" as="p">
-                                  Activation: {data.segments.new.activationRate}%
-                                </Text>
-                              </BlockStack>
-                            </Box>
-                          </Card>
-                        </Grid.Cell>
-                        <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 3, lg: 3, xl: 3 }}>
-                          <Card>
-                            <Box padding="300">
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" as="h3">Dormant</Text>
-                                <Text variant="headingLg" as="p">{data.segments.dormant.count}</Text>
-                                <Text variant="bodySm" tone="subdued" as="p">
-                                  {data.segments.dormant.daysSinceLastOrder} days inactive
-                                </Text>
-                              </BlockStack>
-                            </Box>
-                          </Card>
-                        </Grid.Cell>
-                      </Grid>
-                    </BlockStack>
                   </BlockStack>
                 </Box>
               )}
