@@ -1381,6 +1381,41 @@ export default function Dashboard() {
                   Data Synchronization
                 </Text>
 
+                {/* Database Connection Status */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: '#22c55e',
+                      boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
+                    }} />
+                  </div>
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Database Connection
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone="success">ACTIVE</Badge>
+                  </div>
+                </div>
+
                 {/* Customer Sync */}
                 <div style={{
                   display: 'flex',
