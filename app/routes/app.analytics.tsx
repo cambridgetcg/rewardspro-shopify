@@ -155,22 +155,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ]);
 
     // PLACEHOLDER DATA - Will be replaced with real data fetching later
+    // Realistic data for a medium-sized shop with ~1000 members
     const analyticsData: AnalyticsData = {
-      // Overview metrics with placeholder values
-      monthlyOrderFrequency: 2.5, // Average orders per customer per month
-      revenuePerOrder: 125.50, // Average revenue per order
-      grossProfitPerCustomerPerMonth: 75.25, // Gross profit per customer per month
+      // Overview metrics with placeholder values (weighted average across all tiers)
+      monthlyOrderFrequency: 2.83, // Average orders per customer per month
+      revenuePerOrder: 142.75, // Average revenue per order
+      grossProfitPerCustomerPerMonth: 121.48, // Gross profit per customer per month
 
-      // Tier performance with placeholder data
-      tierPerformance: tiers.map((tier, index) => ({
-        id: tier.id,
-        name: tier.name,
-        members: (index + 1) * 10, // Mock member counts
-        cashbackPercent: tier.cashbackPercent,
-        monthlyOrderFrequency: 2.0 + (index * 0.5), // Mock frequency
-        revenuePerOrder: 100 + (index * 25), // Mock revenue per order
-        grossProfitPerCustomerPerMonth: 60 + (index * 15), // Mock gross profit
-      })),
+      // Tier performance with realistic mock data
+      // Distribution: ~1000 members across tiers (more in lower tiers, fewer in higher)
+      // Metrics show progression: higher tiers order more frequently with higher AOV
+      tierPerformance: tiers.map((tier, index) => {
+        // Realistic member distribution (decreases as tiers get higher)
+        const memberCounts = [453, 312, 178, 57]; // Total: 1000 members
+        // Realistic order frequency (increases with tier)
+        const orderFrequencies = [1.47, 2.64, 3.89, 5.28];
+        // Realistic revenue per order (increases with tier)
+        const revenuePerOrders = [87.23, 118.45, 176.82, 263.17];
+        // Realistic gross profit per customer per month (frequency * revenue * ~30% margin)
+        const grossProfits = [38.47, 93.82, 206.34, 417.19];
+
+        return {
+          id: tier.id,
+          name: tier.name,
+          members: memberCounts[index] || 50,
+          cashbackPercent: tier.cashbackPercent,
+          monthlyOrderFrequency: orderFrequencies[index] || 2.0,
+          revenuePerOrder: revenuePerOrders[index] || 100,
+          grossProfitPerCustomerPerMonth: grossProfits[index] || 60,
+        };
+      }),
 
       // Placeholder trend data (empty for now)
       trends: {
