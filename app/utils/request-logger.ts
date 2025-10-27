@@ -225,6 +225,14 @@ export function checkAuthenticationIssues(request: Request): void {
     return;
   }
 
+  // Skip warnings for embedded app requests - these use signed host param + session cookie
+  // instead of bearer token (standard Shopify embedded app auth flow)
+  const isEmbedded = url.searchParams.get('embedded') === '1' || url.searchParams.has('host');
+  if (isEmbedded) {
+    // Embedded apps authenticate via session + signed host param, not bearer token
+    return;
+  }
+
   const issues: string[] = [];
 
   // Only check for missing params if there's no auth header
