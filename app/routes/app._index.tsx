@@ -1456,6 +1456,78 @@ export default function Dashboard() {
                   </Text>
                 </InlineStack>
               </Box>
+
+              {/* Status Legend */}
+              <Divider />
+              <Box paddingBlockStart="300" paddingBlockEnd="200">
+                <InlineStack gap="600" align="center" blockAlign="center">
+                  {/* Green - All Good */}
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        backgroundColor: '#22c55e',
+                        boxShadow: '0 0 5px rgba(34, 197, 94, 0.6)'
+                      }} />
+                    </div>
+                    <Text variant="bodySm" tone="subdued" as="span">All good</Text>
+                  </InlineStack>
+
+                  {/* Yellow - Improvements */}
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(234, 179, 8, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        backgroundColor: '#eab308',
+                        boxShadow: '0 0 5px rgba(234, 179, 8, 0.6)'
+                      }} />
+                    </div>
+                    <Text variant="bodySm" tone="subdued" as="span">Improvements to be made</Text>
+                  </InlineStack>
+
+                  {/* Red - Immediate Action */}
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ef4444',
+                        boxShadow: '0 0 5px rgba(239, 68, 68, 0.6)'
+                      }} />
+                    </div>
+                    <Text variant="bodySm" tone="subdued" as="span">Immediate action required</Text>
+                  </InlineStack>
+                </InlineStack>
+              </Box>
             </BlockStack>
           </Card>
         </Layout.Section>
