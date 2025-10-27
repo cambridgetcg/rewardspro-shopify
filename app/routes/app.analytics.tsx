@@ -984,6 +984,145 @@ export default function AnalyticsPage() {
               {selectedTab === 0 && (
                 <Box padding="400">
                   <BlockStack gap="500">
+                    {/* Store Performance */}
+                    <BlockStack gap="400">
+                      <Text variant="headingMd" as="h2">
+                        Store Performance
+                      </Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">
+                        Overall financial metrics for your store this month
+                      </Text>
+
+                      {/* Financial Metrics Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '16px'
+                      }}>
+                        {/* Monthly Revenue */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Monthly Revenue
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                {formatAmount(48750.00)}
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="success">+12.5%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  vs last month
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+
+                        {/* Total Orders */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Total Orders
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                342
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="success">+8.3%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  vs last month
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+
+                        {/* Average Order Value */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Average Order Value
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                {formatAmount(142.54)}
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="success">+3.8%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  vs last month
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+
+                        {/* Gross Profit */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Gross Profit
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                {formatAmount(21937.50)}
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="info">45.0%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  margin
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+
+                        {/* Active Customers */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Active Customers
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                856
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="success">+15.2%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  vs last month
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+
+                        {/* Conversion Rate */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="200">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Conversion Rate
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                3.24%
+                              </Text>
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="warning">-0.3%</Badge>
+                                <Text variant="bodySm" tone="subdued" as="span">
+                                  vs last month
+                                </Text>
+                              </InlineStack>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                      </div>
+                    </BlockStack>
+
+                    <Divider />
+
                     {/* Tier Performance */}
                     <BlockStack gap="400">
                       <Text variant="headingMd" as="h2">
