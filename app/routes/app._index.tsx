@@ -565,7 +565,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Calculate metrics from aggregates (no in-memory loops)
     const totalCustomers = customerAggregates._count.id || 0;
-    const totalStoreCredit = parseFloat(customerAggregates._sum.storeCredit?.toString() || '0');
+
+    // Handle Prisma Decimal and null values safely
+    const storeCreditSum = customerAggregates._sum.storeCredit;
+    const totalStoreCredit = storeCreditSum !== null && storeCreditSum !== undefined
+      ? parseFloat(storeCreditSum.toString())
+      : 0;
+
     const activeTiers = tiers.length;
     const averageCredit = totalCustomers > 0 ? totalStoreCredit / totalCustomers : 0;
     const customersWithCredit = customersWithCreditCount;
@@ -577,7 +583,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     tierGroupData.forEach(customer => {
       const tierId = customer.currentTierId;
-      const credit = parseFloat(customer.storeCredit?.toString() || '0');
+
+      // Handle Prisma Decimal and null values safely
+      const storeCreditValue = customer.storeCredit;
+      const credit = storeCreditValue !== null && storeCreditValue !== undefined
+        ? parseFloat(storeCreditValue.toString())
+        : 0;
 
       if (!tierGroups.has(tierId)) {
         tierGroups.set(tierId, { count: 0, totalCredit: 0 });
