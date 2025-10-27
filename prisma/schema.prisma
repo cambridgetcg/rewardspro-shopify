@@ -101,6 +101,14 @@ model ShopSettings {
   tierRecalculationEnabled    Boolean                @default(true)     // Enable/disable automatic recalculation
   tierRecalculationLastRun    DateTime?                                  // Track last run for frequency logic
 
+  // Store Business Metrics (for analytics calculations)
+  averageProfitMargin     Decimal?            @db.Decimal(5, 2)  // Average profit margin % (e.g., 45.00 for 45%)
+  averageCogsPercent      Decimal?            @db.Decimal(5, 2)  // Average COGS as % of revenue (e.g., 55.00 for 55%)
+  averageShippingCost     Decimal?            @db.Decimal(10, 2) // Average shipping cost per order
+  averageOrderValue       Decimal?            @db.Decimal(10, 2) // Historical average order value
+  targetRoiPercent        Decimal?            @db.Decimal(5, 2)  // Target ROI % for loyalty program
+  metricsLastUpdated      DateTime?                               // When merchant last updated these metrics
+
   // Metadata
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
