@@ -1124,12 +1124,22 @@ export default function Dashboard() {
                   transition: 'all 0.2s ease'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.hasWidget ? '#22c55e' : '#eab308',
-                    boxShadow: data.hasWidget ? '0 0 8px rgba(34, 197, 94, 0.4)' : '0 0 8px rgba(234, 179, 8, 0.4)'
-                  }} />
+                    backgroundColor: data.hasWidget ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.hasWidget ? '#22c55e' : '#eab308',
+                      boxShadow: data.hasWidget ? '0 0 6px rgba(34, 197, 94, 0.6)' : '0 0 6px rgba(234, 179, 8, 0.6)'
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Storefront Widget
                   </Text>
@@ -1151,12 +1161,22 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: '#22c55e',
-                    boxShadow: '0 0 8px rgba(34, 197, 94, 0.4)'
-                  }} />
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: '#22c55e',
+                      boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Database Connection
                   </Text>
@@ -1176,12 +1196,22 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#22c55e' : '#eab308',
-                    boxShadow: `0 0 8px ${data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
-                  }} />
+                    backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Shopify API (ShopifyQL)
                   </Text>
@@ -1210,12 +1240,22 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.setupComplete ? '#22c55e' : '#ef4444',
-                    boxShadow: `0 0 8px ${data.setupComplete ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`
-                  }} />
+                    backgroundColor: data.setupComplete ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.setupComplete ? '#22c55e' : '#ef4444',
+                      boxShadow: `0 0 6px ${data.setupComplete ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Loyalty Tiers
                   </Text>
@@ -1237,12 +1277,22 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.currencySelected ? '#22c55e' : '#eab308',
-                    boxShadow: `0 0 8px ${data.shopSettings?.currencySelected ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
-                  }} />
+                    backgroundColor: data.shopSettings?.currencySelected ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.currencySelected ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopSettings?.currencySelected ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Store Currency
                   </Text>
@@ -1264,12 +1314,22 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.activeSubscription ? '#22c55e' : '#eab308',
-                    boxShadow: `0 0 8px ${data.activeSubscription ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
-                  }} />
+                    backgroundColor: data.activeSubscription ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.activeSubscription ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.activeSubscription ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Billing Plan
                   </Text>
@@ -1291,12 +1351,22 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#22c55e' : '#eab308',
-                    boxShadow: `0 0 8px ${data.shopSettings?.tierRecalculationEnabled ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
-                  }} />
+                    backgroundColor: data.shopSettings?.tierRecalculationEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopSettings?.tierRecalculationEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Tier Automation
                   </Text>
@@ -1327,14 +1397,25 @@ export default function Dashboard() {
                   borderRadius: '8px'
                 }}>
                   <div style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '16px',
+                    height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.customersInitialSynced ? '#22c55e' :
-                                     data.shopSettings?.customersSyncInProgress ? '#eab308' : '#ef4444',
-                    boxShadow: `0 0 8px ${data.shopSettings?.customersInitialSynced ? 'rgba(34, 197, 94, 0.4)' :
-                                          data.shopSettings?.customersSyncInProgress ? 'rgba(234, 179, 8, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`
-                  }} />
+                    backgroundColor: data.shopSettings?.customersInitialSynced ? 'rgba(34, 197, 94, 0.2)' :
+                                     data.shopSettings?.customersSyncInProgress ? 'rgba(234, 179, 8, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.customersInitialSynced ? '#22c55e' :
+                                       data.shopSettings?.customersSyncInProgress ? '#eab308' : '#ef4444',
+                      boxShadow: `0 0 6px ${data.shopSettings?.customersInitialSynced ? 'rgba(34, 197, 94, 0.6)' :
+                                            data.shopSettings?.customersSyncInProgress ? 'rgba(234, 179, 8, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="bodyMd" as="span" fontWeight="medium">
                     Customer Database
                   </Text>
@@ -1352,12 +1433,22 @@ export default function Dashboard() {
               <Box paddingBlockStart="400" paddingBlockEnd="200">
                 <InlineStack align="center" blockAlign="center" gap="200">
                   <div style={{
-                    width: '14px',
-                    height: '14px',
+                    width: '20px',
+                    height: '20px',
                     borderRadius: '50%',
-                    backgroundColor: (data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
-                    boxShadow: `0 0 10px ${(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(234, 179, 8, 0.5)'}`
-                  }} />
+                    backgroundColor: (data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: (data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 8px ${(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
                   <Text variant="headingSm" as="h3" fontWeight="bold">
                     {(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced)
                       ? '✓ All Systems Operational'
