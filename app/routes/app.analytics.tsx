@@ -66,6 +66,17 @@ interface AnalyticsData {
     grossProfitPerCustomerPerMonth: number;
   }[];
 
+  // Monthly time-series data for charts (last 6 months)
+  monthlyTierTrends: {
+    month: string; // e.g., "Jan 2025"
+    tiers: {
+      tierName: string;
+      orderFrequency: number;
+      revenuePerOrder: number;
+      grossProfit: number;
+    }[];
+  }[];
+
   // Placeholder for future implementation
   trends: {
     revenue: TrendData[];
@@ -162,17 +173,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       revenuePerOrder: 142.75, // Average revenue per order
       grossProfitPerCustomerPerMonth: 121.48, // Gross profit per customer per month
 
-      // Tier performance with realistic mock data
+      // Tier performance with realistic mock data (current month)
       // Distribution: ~1000 members across tiers (more in lower tiers, fewer in higher)
       // Metrics show progression: higher tiers order more frequently with higher AOV
       tierPerformance: tiers.map((tier, index) => {
         // Realistic member distribution (decreases as tiers get higher)
         const memberCounts = [453, 312, 178, 57]; // Total: 1000 members
-        // Realistic order frequency (increases with tier)
+        // Realistic order frequency (increases with tier) - CURRENT month values
         const orderFrequencies = [1.47, 2.64, 3.89, 5.28];
-        // Realistic revenue per order (increases with tier)
+        // Realistic revenue per order (increases with tier) - CURRENT month values
         const revenuePerOrders = [87.23, 118.45, 176.82, 263.17];
-        // Realistic gross profit per customer per month (frequency * revenue * ~30% margin)
+        // Realistic gross profit per customer per month - CURRENT month values
         const grossProfits = [38.47, 93.82, 206.34, 417.19];
 
         return {
@@ -185,6 +196,57 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           grossProfitPerCustomerPerMonth: grossProfits[index] || 60,
         };
       }),
+
+      // Generate 6 months of historical data for time-series charts
+      monthlyTierTrends: (() => {
+        const months = [];
+        const now = new Date();
+
+        // Generate last 6 months
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+          // Base values for each tier (6 months ago)
+          const baseOrderFreqs = [1.12, 2.08, 3.21, 4.67];
+          const baseRevenues = [79.45, 105.23, 151.34, 228.91];
+          const baseGrossProfits = [26.78, 65.71, 145.92, 320.84];
+
+          // Current values (from tierPerformance above)
+          const currentOrderFreqs = [1.47, 2.64, 3.89, 5.28];
+          const currentRevenues = [87.23, 118.45, 176.82, 263.17];
+          const currentGrossProfits = [38.47, 93.82, 206.34, 417.19];
+
+          months.push({
+            month: monthName,
+            tiers: tiers.map((tier, index) => {
+              // Calculate growth progress (0 to 1) from oldest to newest
+              const progress = (5 - i) / 5;
+
+              // Interpolate between base and current values with some randomness
+              const randomFactor = 0.95 + (Math.random() * 0.1); // ±5% variance
+
+              const orderFreq = baseOrderFreqs[index] +
+                (currentOrderFreqs[index] - baseOrderFreqs[index]) * progress * randomFactor;
+
+              const revenue = baseRevenues[index] +
+                (currentRevenues[index] - baseRevenues[index]) * progress * randomFactor;
+
+              const grossProfit = baseGrossProfits[index] +
+                (currentGrossProfits[index] - baseGrossProfits[index]) * progress * randomFactor;
+
+              return {
+                tierName: tier.name,
+                orderFrequency: Math.round(orderFreq * 100) / 100,
+                revenuePerOrder: Math.round(revenue * 100) / 100,
+                grossProfit: Math.round(grossProfit * 100) / 100,
+              };
+            }),
+          });
+        }
+
+        return months;
+      })(),
 
       // Placeholder trend data (empty for now)
       trends: {
@@ -969,493 +1031,177 @@ export default function AnalyticsPage() {
                   <BlockStack gap="600">
                     <BlockStack gap="200">
                       <Text variant="headingMd" as="h2">
-                        Tier Performance Visualizations
+                        Tier Performance Over Time
                       </Text>
                       <Text variant="bodyMd" tone="subdued" as="p">
-                        Compare tier metrics across different presentation styles
+                        Track how each tier's metrics evolve month-over-month (last 6 months)
                       </Text>
                     </BlockStack>
 
-                    {/* Style A: Grouped Vertical Bar Chart */}
+                    {/* Style A: Line Chart - Order Frequency Over Time */}
                     <Card>
                       <Box padding="400">
                         <BlockStack gap="400">
                           <BlockStack gap="200">
                             <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style A: Grouped Bar Chart</Text>
-                              <Badge tone="info">Vertical Bars</Badge>
+                              <Text variant="headingSm" as="h3">Style A: Monthly Order Frequency Trend</Text>
+                              <Badge tone="info">Line Chart</Badge>
                             </InlineStack>
                             <Text variant="bodySm" tone="subdued" as="p">
-                              Side-by-side comparison of all metrics per tier
+                              Track order frequency changes per tier over the last 6 months
                             </Text>
                           </BlockStack>
 
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: `repeat(${data.tierPerformance.length}, 1fr)`,
-                            gap: '24px',
-                            padding: '20px 0'
-                          }}>
-                            {sortTiersByPriority(data.tierPerformance).map((tier) => {
-                              const maxOrderFreq = Math.max(...data.tierPerformance.map(t => t.monthlyOrderFrequency));
-                              const maxRevenue = Math.max(...data.tierPerformance.map(t => t.revenuePerOrder));
-                              const maxProfit = Math.max(...data.tierPerformance.map(t => t.grossProfitPerCustomerPerMonth));
+                          {/* Chart Area */}
+                          <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
+                            {/* Y-axis labels */}
+                            <div style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '50px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              paddingRight: '10px'
+                            }}>
+                              {[6, 5, 4, 3, 2, 1, 0].map(val => (
+                                <div key={val} style={{ fontSize: '11px', color: '#6b7280', textAlign: 'right' }}>
+                                  {val.toFixed(1)}
+                                </div>
+                              ))}
+                            </div>
 
+                            {/* Chart */}
+                            <div style={{
+                              marginLeft: '60px',
+                              height: '100%',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              padding: '10px',
+                              position: 'relative',
+                              background: '#fafbfb'
+                            }}>
+                              <svg width="100%" height="100%" style={{ overflow: 'visible' }}>
+                                {/* Grid lines */}
+                                {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                                  <line
+                                    key={i}
+                                    x1="0"
+                                    y1={`${(i / 6) * 100}%`}
+                                    x2="100%"
+                                    y2={`${(i / 6) * 100}%`}
+                                    stroke="#e5e7eb"
+                                    strokeWidth="1"
+                                  />
+                                ))}
+
+                                {/* Tier lines */}
+                                {data.tierPerformance.map((tier, tierIndex) => {
+                                  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
+                                  const color = colors[tierIndex] || '#6b7280';
+
+                                  // Get this tier's data points
+                                  const points = data.monthlyTierTrends.map((month, monthIndex) => {
+                                    const tierData = month.tiers.find(t => t.tierName === tier.name);
+                                    const value = tierData?.orderFrequency || 0;
+                                    const x = (monthIndex / (data.monthlyTierTrends.length - 1)) * 100;
+                                    const y = 100 - (value / 6) * 100; // Normalize to 0-6 scale
+                                    return `${x},${y}`;
+                                  }).join(' ');
+
+                                  return (
+                                    <polyline
+                                      key={tier.id}
+                                      points={points}
+                                      fill="none"
+                                      stroke={color}
+                                      strokeWidth="3"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  );
+                                })}
+
+                                {/* Data point circles */}
+                                {data.tierPerformance.map((tier, tierIndex) => {
+                                  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
+                                  const color = colors[tierIndex] || '#6b7280';
+
+                                  return data.monthlyTierTrends.map((month, monthIndex) => {
+                                    const tierData = month.tiers.find(t => t.tierName === tier.name);
+                                    const value = tierData?.orderFrequency || 0;
+                                    const x = `${(monthIndex / (data.monthlyTierTrends.length - 1)) * 100}%`;
+                                    const y = `${100 - (value / 6) * 100}%`;
+
+                                    return (
+                                      <circle
+                                        key={`${tier.id}-${monthIndex}`}
+                                        cx={x}
+                                        cy={y}
+                                        r="4"
+                                        fill={color}
+                                        stroke="white"
+                                        strokeWidth="2"
+                                      />
+                                    );
+                                  });
+                                })}
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* X-axis labels */}
+                          <div style={{ marginLeft: '60px', display: 'flex', justifyContent: 'space-between' }}>
+                            {data.monthlyTierTrends.map((month, index) => (
+                              <Text key={index} variant="bodySm" tone="subdued" as="span">
+                                {month.month}
+                              </Text>
+                            ))}
+                          </div>
+
+                          {/* Legend */}
+                          <InlineStack gap="400" blockAlign="center" wrap={true}>
+                            {data.tierPerformance.map((tier, index) => {
+                              const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
                               return (
-                                <div key={tier.id} style={{ textAlign: 'center' }}>
+                                <InlineStack key={tier.id} gap="200" blockAlign="center">
                                   <div style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-end',
-                                    justifyContent: 'center',
-                                    height: '200px',
-                                    gap: '4px',
-                                    marginBottom: '12px'
-                                  }}>
-                                    {/* Monthly Order Frequency */}
-                                    <div style={{
-                                      width: '28px',
-                                      height: `${(tier.monthlyOrderFrequency / maxOrderFreq) * 100}%`,
-                                      backgroundColor: '#006fbb',
-                                      borderRadius: '4px 4px 0 0',
-                                      minHeight: '20px',
-                                      position: 'relative'
-                                    }}>
-                                      <div style={{
-                                        position: 'absolute',
-                                        top: '-20px',
-                                        left: '50%',
-                                        transform: 'translateX(-50%)',
-                                        fontSize: '10px',
-                                        fontWeight: '600',
-                                        whiteSpace: 'nowrap'
-                                      }}>
-                                        {tier.monthlyOrderFrequency.toFixed(1)}
-                                      </div>
-                                    </div>
-
-                                    {/* Revenue per Order */}
-                                    <div style={{
-                                      width: '28px',
-                                      height: `${(tier.revenuePerOrder / maxRevenue) * 100}%`,
-                                      backgroundColor: '#00a047',
-                                      borderRadius: '4px 4px 0 0',
-                                      minHeight: '20px',
-                                      position: 'relative'
-                                    }}>
-                                      <div style={{
-                                        position: 'absolute',
-                                        top: '-20px',
-                                        left: '50%',
-                                        transform: 'translateX(-50%)',
-                                        fontSize: '10px',
-                                        fontWeight: '600',
-                                        whiteSpace: 'nowrap'
-                                      }}>
-                                        {formatAmount(tier.revenuePerOrder)}
-                                      </div>
-                                    </div>
-
-                                    {/* Gross Profit */}
-                                    <div style={{
-                                      width: '28px',
-                                      height: `${(tier.grossProfitPerCustomerPerMonth / maxProfit) * 100}%`,
-                                      backgroundColor: '#bf0711',
-                                      borderRadius: '4px 4px 0 0',
-                                      minHeight: '20px',
-                                      position: 'relative'
-                                    }}>
-                                      <div style={{
-                                        position: 'absolute',
-                                        top: '-20px',
-                                        left: '50%',
-                                        transform: 'translateX(-50%)',
-                                        fontSize: '10px',
-                                        fontWeight: '600',
-                                        whiteSpace: 'nowrap'
-                                      }}>
-                                        {formatAmount(tier.grossProfitPerCustomerPerMonth)}
-                                      </div>
-                                    </div>
-                                  </div>
-
+                                    width: '20px',
+                                    height: '3px',
+                                    backgroundColor: colors[index] || '#6b7280',
+                                    borderRadius: '2px'
+                                  }} />
                                   <TierBadge
                                     tierName={tier.name}
                                     size="small"
                                     showIcon={false}
                                     cashbackPercent={tier.cashbackPercent}
                                   />
-                                  <Text variant="bodySm" tone="subdued" as="p">
-                                    {tier.members} members
-                                  </Text>
-                                </div>
+                                </InlineStack>
                               );
                             })}
-                          </div>
-
-                          {/* Legend */}
-                          <InlineStack gap="400" blockAlign="center">
-                            <InlineStack gap="200" blockAlign="center">
-                              <div style={{ width: '12px', height: '12px', backgroundColor: '#006fbb', borderRadius: '2px' }} />
-                              <Text variant="bodySm" as="span">Order Frequency</Text>
-                            </InlineStack>
-                            <InlineStack gap="200" blockAlign="center">
-                              <div style={{ width: '12px', height: '12px', backgroundColor: '#00a047', borderRadius: '2px' }} />
-                              <Text variant="bodySm" as="span">Revenue/Order</Text>
-                            </InlineStack>
-                            <InlineStack gap="200" blockAlign="center">
-                              <div style={{ width: '12px', height: '12px', backgroundColor: '#bf0711', borderRadius: '2px' }} />
-                              <Text variant="bodySm" as="span">Gross Profit/Customer/Month</Text>
-                            </InlineStack>
                           </InlineStack>
                         </BlockStack>
                       </Box>
                     </Card>
 
-                    {/* Style B: Horizontal Progress Bars */}
+                    {/* More chart styles coming soon */}
                     <Card>
                       <Box padding="400">
-                        <BlockStack gap="400">
-                          <BlockStack gap="200">
-                            <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style B: Horizontal Progress Bars</Text>
-                              <Badge tone="success">Easy Compare</Badge>
-                            </InlineStack>
-                            <Text variant="bodySm" tone="subdued" as="p">
-                              Horizontal bars with numeric values for easy comparison
-                            </Text>
-                          </BlockStack>
-
-                          {sortTiersByPriority(data.tierPerformance).map((tier) => {
-                            const maxOrderFreq = Math.max(...data.tierPerformance.map(t => t.monthlyOrderFrequency));
-                            const maxRevenue = Math.max(...data.tierPerformance.map(t => t.revenuePerOrder));
-                            const maxProfit = Math.max(...data.tierPerformance.map(t => t.grossProfitPerCustomerPerMonth));
-
-                            return (
-                              <BlockStack key={tier.id} gap="300">
-                                <InlineStack align="space-between" blockAlign="center">
-                                  <TierBadge
-                                    tierName={tier.name}
-                                    size="small"
-                                    showIcon={true}
-                                    cashbackPercent={tier.cashbackPercent}
-                                  />
-                                  <Text variant="bodySm" tone="subdued" as="span">
-                                    {tier.members} members
-                                  </Text>
-                                </InlineStack>
-
-                                <BlockStack gap="200">
-                                  <InlineStack align="space-between">
-                                    <Text variant="bodySm" as="span">Monthly Order Frequency</Text>
-                                    <Text variant="bodyMd" fontWeight="semibold" as="span">
-                                      {tier.monthlyOrderFrequency.toFixed(2)}
-                                    </Text>
-                                  </InlineStack>
-                                  <div style={{
-                                    height: '24px',
-                                    backgroundColor: '#f1f1f1',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden'
-                                  }}>
-                                    <div style={{
-                                      height: '100%',
-                                      width: `${(tier.monthlyOrderFrequency / maxOrderFreq) * 100}%`,
-                                      backgroundColor: '#006fbb',
-                                      transition: 'width 0.3s ease',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      paddingLeft: '8px'
-                                    }} />
-                                  </div>
-                                </BlockStack>
-
-                                <BlockStack gap="200">
-                                  <InlineStack align="space-between">
-                                    <Text variant="bodySm" as="span">Revenue per Order</Text>
-                                    <Text variant="bodyMd" fontWeight="semibold" as="span">
-                                      {formatAmount(tier.revenuePerOrder)}
-                                    </Text>
-                                  </InlineStack>
-                                  <div style={{
-                                    height: '24px',
-                                    backgroundColor: '#f1f1f1',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden'
-                                  }}>
-                                    <div style={{
-                                      height: '100%',
-                                      width: `${(tier.revenuePerOrder / maxRevenue) * 100}%`,
-                                      backgroundColor: '#00a047',
-                                      transition: 'width 0.3s ease'
-                                    }} />
-                                  </div>
-                                </BlockStack>
-
-                                <BlockStack gap="200">
-                                  <InlineStack align="space-between">
-                                    <Text variant="bodySm" as="span">Gross Profit/Customer/Month</Text>
-                                    <Text variant="bodyMd" fontWeight="semibold" as="span">
-                                      {formatAmount(tier.grossProfitPerCustomerPerMonth)}
-                                    </Text>
-                                  </InlineStack>
-                                  <div style={{
-                                    height: '24px',
-                                    backgroundColor: '#f1f1f1',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden'
-                                  }}>
-                                    <div style={{
-                                      height: '100%',
-                                      width: `${(tier.grossProfitPerCustomerPerMonth / maxProfit) * 100}%`,
-                                      backgroundColor: '#bf0711',
-                                      transition: 'width 0.3s ease'
-                                    }} />
-                                  </div>
-                                </BlockStack>
-
-                                {tier !== data.tierPerformance[data.tierPerformance.length - 1] && <Divider />}
-                              </BlockStack>
-                            );
-                          })}
+                        <BlockStack gap="300">
+                          <InlineStack align="space-between" blockAlign="center">
+                            <Text variant="headingSm" as="h3">Additional Visualization Styles</Text>
+                            <Badge tone="attention">Coming Soon</Badge>
+                          </InlineStack>
+                          <Text variant="bodyMd" tone="subdued" as="p">
+                            More chart styles will be added: Grouped Bar Charts, Revenue Trends, and Gross Profit Analysis
+                          </Text>
                         </BlockStack>
                       </Box>
                     </Card>
 
-                    {/* Style C: Metric Cards Grid */}
-                    <Card>
-                      <Box padding="400">
-                        <BlockStack gap="400">
-                          <BlockStack gap="200">
-                            <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style C: Metric Cards Grid</Text>
-                              <Badge tone="warning">Card Layout</Badge>
-                            </InlineStack>
-                            <Text variant="bodySm" tone="subdued" as="p">
-                              Individual metric breakdown across tiers
-                            </Text>
-                          </BlockStack>
-
-                          {/* Monthly Order Frequency Cards */}
-                          <BlockStack gap="300">
-                            <Text variant="headingXs" as="h4">Monthly Order Frequency</Text>
-                            <Grid>
-                              {sortTiersByPriority(data.tierPerformance).map((tier) => (
-                                <Grid.Cell key={tier.id} columnSpan={{ xs: 6, sm: 6, md: 4, lg: 3, xl: 3 }}>
-                                  <Card>
-                                    <Box padding="300">
-                                      <BlockStack gap="200">
-                                        <TierBadge
-                                          tierName={tier.name}
-                                          size="small"
-                                          showIcon={false}
-                                          cashbackPercent={tier.cashbackPercent}
-                                        />
-                                        <Text variant="heading2xl" as="p">
-                                          {tier.monthlyOrderFrequency.toFixed(2)}
-                                        </Text>
-                                        <Text variant="bodySm" tone="subdued" as="p">
-                                          {tier.members} members
-                                        </Text>
-                                      </BlockStack>
-                                    </Box>
-                                  </Card>
-                                </Grid.Cell>
-                              ))}
-                            </Grid>
-                          </BlockStack>
-
-                          <Divider />
-
-                          {/* Revenue per Order Cards */}
-                          <BlockStack gap="300">
-                            <Text variant="headingXs" as="h4">Revenue per Order</Text>
-                            <Grid>
-                              {sortTiersByPriority(data.tierPerformance).map((tier) => (
-                                <Grid.Cell key={tier.id} columnSpan={{ xs: 6, sm: 6, md: 4, lg: 3, xl: 3 }}>
-                                  <Card>
-                                    <Box padding="300">
-                                      <BlockStack gap="200">
-                                        <TierBadge
-                                          tierName={tier.name}
-                                          size="small"
-                                          showIcon={false}
-                                          cashbackPercent={tier.cashbackPercent}
-                                        />
-                                        <Text variant="heading2xl" as="p">
-                                          {formatAmount(tier.revenuePerOrder)}
-                                        </Text>
-                                        <Text variant="bodySm" tone="subdued" as="p">
-                                          {tier.members} members
-                                        </Text>
-                                      </BlockStack>
-                                    </Box>
-                                  </Card>
-                                </Grid.Cell>
-                              ))}
-                            </Grid>
-                          </BlockStack>
-
-                          <Divider />
-
-                          {/* Gross Profit Cards */}
-                          <BlockStack gap="300">
-                            <Text variant="headingXs" as="h4">Gross Profit per Customer per Month</Text>
-                            <Grid>
-                              {sortTiersByPriority(data.tierPerformance).map((tier) => (
-                                <Grid.Cell key={tier.id} columnSpan={{ xs: 6, sm: 6, md: 4, lg: 3, xl: 3 }}>
-                                  <Card>
-                                    <Box padding="300">
-                                      <BlockStack gap="200">
-                                        <TierBadge
-                                          tierName={tier.name}
-                                          size="small"
-                                          showIcon={false}
-                                          cashbackPercent={tier.cashbackPercent}
-                                        />
-                                        <Text variant="heading2xl" as="p">
-                                          {formatAmount(tier.grossProfitPerCustomerPerMonth)}
-                                        </Text>
-                                        <Text variant="bodySm" tone="subdued" as="p">
-                                          {tier.members} members
-                                        </Text>
-                                      </BlockStack>
-                                    </Box>
-                                  </Card>
-                                </Grid.Cell>
-                              ))}
-                            </Grid>
-                          </BlockStack>
-                        </BlockStack>
-                      </Box>
-                    </Card>
-
-                    {/* Style D: Stacked Comparison */}
-                    <Card>
-                      <Box padding="400">
-                        <BlockStack gap="400">
-                          <BlockStack gap="200">
-                            <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style D: Ranked Comparison Table</Text>
-                              <Badge>Sortable</Badge>
-                            </InlineStack>
-                            <Text variant="bodySm" tone="subdued" as="p">
-                              Side-by-side metrics with ranking indicators
-                            </Text>
-                          </BlockStack>
-
-                          <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '2px solid #e1e3e5' }}>
-                                  <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Tier</th>
-                                  <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Members</th>
-                                  <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Order Frequency</th>
-                                  <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Revenue/Order</th>
-                                  <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Gross Profit/Cust/Mo</th>
-                                  <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Overall Rank</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sortTiersByPriority(data.tierPerformance).map((tier, index) => {
-                                  const tierStyle = getTierStyle(tier.name);
-                                  return (
-                                    <tr key={tier.id} style={{
-                                      borderBottom: '1px solid #e1e3e5',
-                                      backgroundColor: index % 2 === 0 ? '#fafbfb' : 'white'
-                                    }}>
-                                      <td style={{ padding: '12px' }}>
-                                        <TierBadge
-                                          tierName={tier.name}
-                                          size="small"
-                                          showIcon={true}
-                                          cashbackPercent={tier.cashbackPercent}
-                                        />
-                                      </td>
-                                      <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
-                                        {tier.members}
-                                      </td>
-                                      <td style={{ padding: '12px', textAlign: 'right' }}>
-                                        <div style={{
-                                          display: 'inline-block',
-                                          padding: '4px 8px',
-                                          backgroundColor: '#e3f2fd',
-                                          borderRadius: '4px',
-                                          fontWeight: '600'
-                                        }}>
-                                          {tier.monthlyOrderFrequency.toFixed(2)}
-                                        </div>
-                                      </td>
-                                      <td style={{ padding: '12px', textAlign: 'right' }}>
-                                        <div style={{
-                                          display: 'inline-block',
-                                          padding: '4px 8px',
-                                          backgroundColor: '#e8f5e9',
-                                          borderRadius: '4px',
-                                          fontWeight: '600'
-                                        }}>
-                                          {formatAmount(tier.revenuePerOrder)}
-                                        </div>
-                                      </td>
-                                      <td style={{ padding: '12px', textAlign: 'right' }}>
-                                        <div style={{
-                                          display: 'inline-block',
-                                          padding: '4px 8px',
-                                          backgroundColor: '#ffebee',
-                                          borderRadius: '4px',
-                                          fontWeight: '600'
-                                        }}>
-                                          {formatAmount(tier.grossProfitPerCustomerPerMonth)}
-                                        </div>
-                                      </td>
-                                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                                        <Badge tone={index === 0 ? 'success' : index === 1 ? 'info' : 'attention'}>
-                                          #{index + 1}
-                                        </Badge>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </BlockStack>
-                      </Box>
-                    </Card>
-
-                    {/* MoM and YoY Change Section */}
-                    <Card>
-                      <Box padding="400">
-                        <BlockStack gap="400">
-                          <BlockStack gap="200">
-                            <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Month-over-Month & Year-over-Year Trends</Text>
-                              <Badge tone="attention">Coming Soon</Badge>
-                            </InlineStack>
-                            <Text variant="bodySm" tone="subdued" as="p">
-                              Historical data tracking will be implemented to show performance trends
-                            </Text>
-                          </BlockStack>
-
-                          <BlockStack gap="300">
-                            <Text variant="bodyMd" as="p">
-                              <strong>Planned Metrics:</strong>
-                            </Text>
-                            <ul style={{ paddingLeft: '20px', margin: '0' }}>
-                              <li>Month-over-Month change in order frequency per tier</li>
-                              <li>Month-over-Month revenue per order trends</li>
-                              <li>Year-over-Year tier growth comparison</li>
-                              <li>Seasonal performance patterns by tier</li>
-                            </ul>
-                          </BlockStack>
-
-                          <Banner tone="info">
-                            <Text variant="bodyMd" as="p">
-                              Historical data collection will begin tracking metrics from this point forward to enable MoM and YoY analysis.
-                            </Text>
-                          </Banner>
-                        </BlockStack>
-                      </Box>
-                    </Card>
                   </BlockStack>
                 </Box>
               )}
@@ -1468,51 +1214,11 @@ export default function AnalyticsPage() {
                       <Box padding="400">
                         <BlockStack gap="400">
                           <Text variant="headingMd" as="h2">
-                            Revenue Attribution
+                            Revenue Attribution (Placeholder)
                           </Text>
-                          
-                          <BlockStack gap="300">
-                            <InlineStack align="space-between">
-                              <Text variant="bodyMd" as="span">Direct Loyalty Revenue</Text>
-                              <Text variant="bodyMd" fontWeight="semibold" as="span">
-                                {formatAmount(data.financial.directRevenue)}
-                              </Text>
-                            </InlineStack>
-                            
-                            <Divider />
-                            
-                            <InlineStack align="space-between">
-                              <Text variant="bodyMd" as="span">Credit Issued</Text>
-                              <Text variant="bodyMd" tone="critical" as="span">
-                                -{formatAmount(data.financial.creditIssued)}
-                              </Text>
-                            </InlineStack>
-                            
-                            <InlineStack align="space-between">
-                              <Text variant="bodyMd" as="span">Operational Costs</Text>
-                              <Text variant="bodyMd" tone="critical" as="span">
-                                -{formatAmount(data.financial.costBreakdown.operationalCost)}
-                              </Text>
-                            </InlineStack>
-                            
-                            <Divider />
-                            
-                            <InlineStack align="space-between">
-                              <Text variant="headingSm" as="span">Net Program Value</Text>
-                              <Text variant="headingMd" tone="success" as="span">
-                                {formatAmount(data.financial.netValue)}
-                              </Text>
-                            </InlineStack>
-                            
-                            <Box background="bg-surface-success" padding="300" borderRadius="200">
-                              <InlineStack align="space-between">
-                                <Text variant="bodyMd" fontWeight="semibold" as="span">ROI</Text>
-                                <Badge tone="success">
-                                  {`${data.financial.roi.toFixed(0)}%`}
-                                </Badge>
-                              </InlineStack>
-                            </Box>
-                          </BlockStack>
+                          <Text variant="bodyMd" tone="subdued" as="p">
+                            Financial data will be implemented later
+                          </Text>
                         </BlockStack>
                       </Box>
                     </Card>
@@ -1523,7 +1229,7 @@ export default function AnalyticsPage() {
           </Card>
         </Layout.Section>
       </Layout>
-      
+
       <style>{`
         @keyframes fadeInUp {
           from {
@@ -1535,7 +1241,7 @@ export default function AnalyticsPage() {
             transform: translateY(0);
           }
         }
-        
+
         @keyframes fadeInLeft {
           from {
             opacity: 0;
