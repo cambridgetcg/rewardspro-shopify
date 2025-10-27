@@ -1181,6 +1181,43 @@ export default function Dashboard() {
                     </Badge>
                   </div>
                 </div>
+
+                {/* Customer Account Block */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.hasCustomerAccountBlock ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.hasCustomerAccountBlock ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: data.hasCustomerAccountBlock ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.hasCustomerAccountBlock ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.hasCustomerAccountBlock ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Customer Account Block
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.hasCustomerAccountBlock ? 'success' : 'warning'}>
+                      {data.hasCustomerAccountBlock ? 'ACTIVE' : 'NOT DETECTED'}
+                    </Badge>
+                  </div>
+                </div>
               </BlockStack>
 
               {/* Configuration */}
