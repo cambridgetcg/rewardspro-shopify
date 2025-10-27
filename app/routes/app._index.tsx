@@ -1104,6 +1104,26 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
+        {/* Plan Details Card - Using shared component */}
+        <Layout.Section>
+          <CurrentPlanCard
+            activeSubscription={data.activeSubscription}
+            currentPlan={data.currentPlan}
+            monthlyOrderUsage={{
+              orderCount: data.monthlyOrderUsage?.orderCount || 0,
+              planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
+              projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
+              currentMonth: data.currentMonth
+            }}
+            showUpgradeButton={true}
+            showOverageBanner={false}
+            showCountStrategy={false}
+            showProjectedUsage={true}
+            compact={false}
+            onUpgrade={() => navigate("/app/billing")}
+          />
+        </Layout.Section>
+
         {/* System Status Dashboard - Pre-Flight Checklist */}
         <Layout.Section>
           <Card>
@@ -1762,26 +1782,6 @@ export default function Dashboard() {
             </BlockStack>
           </Layout.Section>
         )}
-
-        {/* Plan Details Card - Using shared component */}
-        <Layout.Section>
-          <CurrentPlanCard
-            activeSubscription={data.activeSubscription}
-            currentPlan={data.currentPlan}
-            monthlyOrderUsage={{
-              orderCount: data.monthlyOrderUsage?.orderCount || 0,
-              planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
-              projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
-              currentMonth: data.currentMonth
-            }}
-            showUpgradeButton={true}
-            showOverageBanner={false}
-            showCountStrategy={false}
-            showProjectedUsage={true}
-            compact={false}
-            onUpgrade={() => navigate("/app/billing")}
-          />
-        </Layout.Section>
       </Layout>
     </Page>
   );
