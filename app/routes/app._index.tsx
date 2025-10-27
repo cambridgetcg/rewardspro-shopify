@@ -1461,7 +1461,7 @@ export default function Dashboard() {
               <Divider />
               <Box paddingBlockStart="300" paddingBlockEnd="200">
                 <InlineStack gap="600" align="center" blockAlign="center">
-                  {/* Green - All Good */}
+                  {/* Green - Operating Normally */}
                   <InlineStack gap="200" blockAlign="center">
                     <div style={{
                       width: '14px',
@@ -1480,10 +1480,10 @@ export default function Dashboard() {
                         boxShadow: '0 0 5px rgba(34, 197, 94, 0.6)'
                       }} />
                     </div>
-                    <Text variant="bodySm" tone="subdued" as="span">All good</Text>
+                    <Text variant="bodySm" tone="subdued" as="span">Operating normally</Text>
                   </InlineStack>
 
-                  {/* Yellow - Improvements */}
+                  {/* Yellow - Recommended */}
                   <InlineStack gap="200" blockAlign="center">
                     <div style={{
                       width: '14px',
@@ -1502,10 +1502,10 @@ export default function Dashboard() {
                         boxShadow: '0 0 5px rgba(234, 179, 8, 0.6)'
                       }} />
                     </div>
-                    <Text variant="bodySm" tone="subdued" as="span">Improvements to be made</Text>
+                    <Text variant="bodySm" tone="subdued" as="span">Configuration recommended</Text>
                   </InlineStack>
 
-                  {/* Red - Immediate Action */}
+                  {/* Red - Needs Attention */}
                   <InlineStack gap="200" blockAlign="center">
                     <div style={{
                       width: '14px',
@@ -1524,7 +1524,7 @@ export default function Dashboard() {
                         boxShadow: '0 0 5px rgba(239, 68, 68, 0.6)'
                       }} />
                     </div>
-                    <Text variant="bodySm" tone="subdued" as="span">Immediate action required</Text>
+                    <Text variant="bodySm" tone="subdued" as="span">Needs attention</Text>
                   </InlineStack>
                 </InlineStack>
               </Box>
