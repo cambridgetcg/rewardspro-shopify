@@ -1038,6 +1038,258 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
+        {/* System Status Dashboard - Pre-Flight Checklist */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="headingMd" as="h2">System Status</Text>
+                <Text variant="bodySm" tone="subdued" as="span">
+                  Pre-Flight Checklist
+                </Text>
+              </InlineStack>
+
+              <Text variant="bodyMd" tone="subdued" as="p">
+                Real-time status of all app systems and integrations
+              </Text>
+
+              {/* Core Systems */}
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3" fontWeight="semibold">
+                  🔧 Core Systems
+                </Text>
+
+                {/* Widget Status */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.hasWidget ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.hasWidget ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px',
+                  cursor: data.hasWidget ? 'default' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.hasWidget ? '#22c55e' : '#eab308',
+                    boxShadow: data.hasWidget ? '0 0 8px rgba(34, 197, 94, 0.4)' : '0 0 8px rgba(234, 179, 8, 0.4)'
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Storefront Widget
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.hasWidget ? 'success' : 'warning'}>
+                      {data.hasWidget ? 'ACTIVE' : 'NOT DETECTED'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Database Connection */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #86efac',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: '#22c55e',
+                    boxShadow: '0 0 8px rgba(34, 197, 94, 0.4)'
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Database Connection
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone="success">CONNECTED</Badge>
+                  </div>
+                </div>
+
+                {/* Shopify API */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#22c55e' : '#eab308',
+                    boxShadow: `0 0 8px ${data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Shopify API (ShopifyQL)
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'success' : 'warning'}>
+                      {data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'OPERATIONAL' : 'LIMITED'}
+                    </Badge>
+                  </div>
+                </div>
+              </BlockStack>
+
+              {/* Configuration */}
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3" fontWeight="semibold">
+                  ⚙️ Configuration
+                </Text>
+
+                {/* Tiers Setup */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.setupComplete ? '#f0fdf4' : '#fee2e2',
+                  border: `1px solid ${data.setupComplete ? '#86efac' : '#fca5a5'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.setupComplete ? '#22c55e' : '#ef4444',
+                    boxShadow: `0 0 8px ${data.setupComplete ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Loyalty Tiers
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.setupComplete ? 'success' : 'critical'}>
+                      {data.setupComplete ? 'CONFIGURED' : 'REQUIRED'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Currency Selection */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.currencySelected ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopSettings?.currencySelected ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.currencySelected ? '#22c55e' : '#eab308',
+                    boxShadow: `0 0 8px ${data.shopSettings?.currencySelected ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Store Currency
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.currencySelected ? 'success' : 'warning'}>
+                      {data.shopSettings?.currencySelected ? `${data.shopSettings.storeCurrency} SET` : 'USING DEFAULT'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Billing Status */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.activeSubscription ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.activeSubscription ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.activeSubscription ? '#22c55e' : '#eab308',
+                    boxShadow: `0 0 8px ${data.activeSubscription ? 'rgba(34, 197, 94, 0.4)' : 'rgba(234, 179, 8, 0.4)'}`
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Billing Plan
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.activeSubscription ? 'success' : 'warning'}>
+                      {data.activeSubscription ? data.activeSubscription.name.toUpperCase() : 'FREE PLAN'}
+                    </Badge>
+                  </div>
+                </div>
+              </BlockStack>
+
+              {/* Data Sync */}
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3" fontWeight="semibold">
+                  🔄 Data Synchronization
+                </Text>
+
+                {/* Customer Sync */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.customersInitialSynced ? '#f0fdf4' :
+                                   data.shopSettings?.customersSyncInProgress ? '#fef3c7' : '#fee2e2',
+                  border: `1px solid ${data.shopSettings?.customersInitialSynced ? '#86efac' :
+                                        data.shopSettings?.customersSyncInProgress ? '#fbbf24' : '#fca5a5'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.customersInitialSynced ? '#22c55e' :
+                                     data.shopSettings?.customersSyncInProgress ? '#eab308' : '#ef4444',
+                    boxShadow: `0 0 8px ${data.shopSettings?.customersInitialSynced ? 'rgba(34, 197, 94, 0.4)' :
+                                          data.shopSettings?.customersSyncInProgress ? 'rgba(234, 179, 8, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`
+                  }} />
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Customer Database
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.customersInitialSynced ? 'success' :
+                                 data.shopSettings?.customersSyncInProgress ? 'attention' : 'critical'}>
+                      {data.shopSettings?.customersInitialSynced ? `${data.metrics.totalCustomers} SYNCED` :
+                       data.shopSettings?.customersSyncInProgress ? 'SYNCING...' : 'NOT SYNCED'}
+                    </Badge>
+                  </div>
+                </div>
+              </BlockStack>
+
+              {/* Overall System Status */}
+              <Box paddingBlockStart="400" paddingBlockEnd="200">
+                <InlineStack align="center" blockAlign="center" gap="200">
+                  <div style={{
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    backgroundColor: (data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
+                    boxShadow: `0 0 10px ${(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(234, 179, 8, 0.5)'}`
+                  }} />
+                  <Text variant="headingSm" as="h3" fontWeight="bold">
+                    {(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced)
+                      ? '✓ All Systems Operational'
+                      : '⚠ Action Required'}
+                  </Text>
+                </InlineStack>
+              </Box>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
         {/* Shopify Analytics - Native Data powered by ShopifyQL */}
         {data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' && (
           <Layout.Section>
