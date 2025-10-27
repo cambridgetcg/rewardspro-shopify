@@ -652,6 +652,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.log(`[Dashboard] Returning data for ${shop}`);
     return json(dashboardData);
   } catch (error) {
+    // If authenticate.admin threw a redirect Response (e.g., to refresh session token),
+    // let Remix handle it instead of treating it as an error
+    if (error instanceof Response) {
+      throw error; // Re-throw the 302 redirect to /auth/session-token
+    }
+
+    // Only log and return 500 for actual unexpected errors
     console.error("[Dashboard] Loader error:", error);
     throw new Response("Failed to load dashboard data", { status: 500 });
   }
