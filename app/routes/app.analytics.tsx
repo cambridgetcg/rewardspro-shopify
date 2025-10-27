@@ -66,7 +66,7 @@ interface AnalyticsData {
     grossProfitPerCustomerPerMonth: number;
   }[];
 
-  // Monthly time-series data for charts (last 6 months)
+  // Monthly time-series data for charts (last 12 months)
   monthlyTierTrends: {
     month: string; // e.g., "Jan 2025"
     tiers: {
@@ -197,17 +197,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         };
       }),
 
-      // Generate 6 months of historical data for time-series charts
+      // Generate 12 months of historical data for time-series charts
       monthlyTierTrends: (() => {
         const months = [];
         const now = new Date();
 
-        // Generate last 6 months
-        for (let i = 5; i >= 0; i--) {
+        // Generate last 12 months
+        for (let i = 11; i >= 0; i--) {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const monthName = date.toLocaleDateString('en-US', { month: 'short' }); // Use 3-letter month names per Polaris guidelines
 
-          // Base values for each tier (6 months ago)
+          // Base values for each tier (12 months ago)
           const baseOrderFreqs = [1.12, 2.08, 3.21, 4.67];
           const baseRevenues = [79.45, 105.23, 151.34, 228.91];
           const baseGrossProfits = [26.78, 65.71, 145.92, 320.84];
@@ -221,7 +221,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             month: monthName,
             tiers: tiers.map((tier, index) => {
               // Calculate growth progress (0 to 1) from oldest to newest
-              const progress = (5 - i) / 5;
+              const progress = (11 - i) / 11;
 
               // Interpolate between base and current values with some randomness
               const randomFactor = 0.95 + (Math.random() * 0.1); // ±5% variance
@@ -1048,7 +1048,7 @@ export default function AnalyticsPage() {
                               <Badge tone="info">Line Chart</Badge>
                             </InlineStack>
                             <Text variant="bodySm" tone="subdued" as="p">
-                              Track order frequency changes per tier over the last 6 months
+                              Track order frequency changes per tier over the last 12 months
                             </Text>
                           </BlockStack>
 
