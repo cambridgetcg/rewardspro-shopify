@@ -17,6 +17,7 @@ import {
   DataTable,
   Banner,
   Select,
+  Modal,
 } from "@shopify/polaris";
 import {
   PlusIcon,
@@ -691,8 +692,8 @@ export default function Dashboard() {
   const [selectedCurrency, setSelectedCurrency] = useState(data.shopSettings?.storeCurrency || "USD");
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
 
-  // Widget setup guide expansion state
-  const [widgetGuideExpanded, setWidgetGuideExpanded] = useState(false);
+  // Widget setup guide modal state
+  const [widgetGuideModalOpen, setWidgetGuideModalOpen] = useState(false);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -838,153 +839,140 @@ export default function Dashboard() {
         {/* Widget Setup Nudge - Always show until detected */}
         {!data.hasWidget && (
           <Layout.Section>
-            {!widgetGuideExpanded ? (
-              /* Simplified View - Show by default */
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="start">
-                    <BlockStack gap="200">
-                      <Text variant="headingMd" as="h2">
-                        Add RewardsPro widget to your store theme
-                      </Text>
-                      <Text variant="bodyMd" tone="subdued" as="p">
-                        Enable the widget in your theme to display rewards on your storefront
-                      </Text>
-                    </BlockStack>
-                    <Badge tone="warning">Action Required</Badge>
-                  </InlineStack>
-
-                  <InlineStack gap="200" align="start">
-                    <Button
-                      onClick={() => setWidgetGuideExpanded(true)}
-                      variant="primary"
-                    >
-                      Follow setup guide
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        window.open(
-                          `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
-                          '_blank'
-                        );
-                      }}
-                    >
-                      Open theme editor
-                    </Button>
-                  </InlineStack>
-                </BlockStack>
-              </Card>
-            ) : (
-              /* Expanded View - Show detailed guide */
-              <Banner
-                title="Important: Add RewardsPro widget to your store theme"
-                tone="warning"
-              >
-                <BlockStack gap="300">
-                  <Text variant="bodyMd" as="p">
-                    To make sure RewardsPro works properly, you'll need to add it as an app embed in your Shopify theme.
-                    Without this step, customers may not see the rewards widget on your storefront.
-                  </Text>
-
-                  <Box paddingBlock="200">
-                    <Banner tone="info">
-                      <BlockStack gap="200">
-                        <Text variant="bodySm" as="p" fontWeight="semibold">
-                          We couldn't detect the RewardsPro widget on your store. Follow the steps below:
-                        </Text>
-                      </BlockStack>
-                    </Banner>
-                  </Box>
-
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="start">
                   <BlockStack gap="200">
-                    <Text variant="bodyMd" as="p" fontWeight="semibold">
+                    <Text variant="headingMd" as="h2">
+                      Add RewardsPro widget to your store theme
+                    </Text>
+                    <Text variant="bodyMd" tone="subdued" as="p">
+                      Enable the widget in your theme to display rewards on your storefront
+                    </Text>
+                  </BlockStack>
+                  <Badge tone="warning">Action Required</Badge>
+                </InlineStack>
+
+                <InlineStack gap="200" align="start">
+                  <Button
+                    onClick={() => setWidgetGuideModalOpen(true)}
+                    variant="primary"
+                  >
+                    Follow setup guide
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      window.open(
+                        `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
+                        '_blank'
+                      );
+                    }}
+                  >
+                    Open theme editor
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+
+            {/* Widget Setup Guide Modal */}
+            <Modal
+              open={widgetGuideModalOpen}
+              onClose={() => setWidgetGuideModalOpen(false)}
+              title="Widget Setup Guide"
+              primaryAction={{
+                content: 'Open theme editor',
+                onAction: () => {
+                  window.open(
+                    `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
+                    '_blank'
+                  );
+                },
+              }}
+              secondaryActions={[
+                {
+                  content: 'Close',
+                  onAction: () => setWidgetGuideModalOpen(false),
+                },
+              ]}
+            >
+              <Modal.Section>
+                <BlockStack gap="400">
+                  <Banner tone="info">
+                    <Text variant="bodyMd" as="p">
+                      We couldn't detect the RewardsPro widget on your store. Follow the steps below to enable it.
+                    </Text>
+                  </Banner>
+
+                  <BlockStack gap="300">
+                    <Text variant="headingSm" as="h3" fontWeight="semibold">
                       Quick setup (takes 30 seconds):
                     </Text>
                     <ol style={{ paddingLeft: '20px', margin: '8px 0' }}>
-                      <li style={{ marginBottom: '8px' }}>
-                        <Text variant="bodySm" as="span">
+                      <li style={{ marginBottom: '12px' }}>
+                        <Text variant="bodyMd" as="span">
                           Go to <strong>Online Store → Themes → Customize</strong>
                         </Text>
                       </li>
-                      <li style={{ marginBottom: '8px' }}>
-                        <Text variant="bodySm" as="span">
+                      <li style={{ marginBottom: '12px' }}>
+                        <Text variant="bodyMd" as="span">
                           Click the <strong>App embeds</strong> icon in the left sidebar (puzzle piece icon)
                         </Text>
                       </li>
-                      <li style={{ marginBottom: '8px' }}>
-                        <Text variant="bodySm" as="span">
+                      <li style={{ marginBottom: '12px' }}>
+                        <Text variant="bodyMd" as="span">
                           Find <strong>"Membership Widget"</strong> and toggle it <strong>ON</strong>
                         </Text>
                       </li>
-                      <li style={{ marginBottom: '8px' }}>
-                        <Text variant="bodySm" as="span">
+                      <li style={{ marginBottom: '12px' }}>
+                        <Text variant="bodyMd" as="span">
                           Click <strong>Save</strong> in the top-right corner
                         </Text>
                       </li>
                     </ol>
                   </BlockStack>
 
-                  <Box paddingBlock="300">
-                    <Card>
-                      <Box padding="400">
-                        <BlockStack gap="300">
-                          <Text variant="bodySm" as="p" fontWeight="semibold">
-                            Visual Guide:
-                          </Text>
-                          <video
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            src="/widget-toggle-guide.mp4"
-                            style={{
-                              width: '100%',
-                              maxWidth: '400px',
-                              border: '1px solid #e0e0e0',
-                              borderRadius: '8px',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                            }}
-                          >
-                            Your browser does not support the video tag.
-                          </video>
-                          <Text variant="bodySm" tone="subdued" as="p">
-                            Toggle the "Membership Widget" switch to ON to enable it on your storefront.
-                          </Text>
-                        </BlockStack>
-                      </Box>
-                    </Card>
-                  </Box>
-
-                  <Box paddingBlock="200">
-                    <Banner tone="info">
-                      <Text variant="bodySm" as="p">
-                        Note: The widget will only show as enabled once we detect it's actually installed (via theme detection).
-                        This onboarding guide will persist until the widget is detected as active.
-                      </Text>
-                    </Banner>
-                  </Box>
-
-                  <InlineStack gap="200" align="start">
-                    <Button
-                      onClick={() => {
-                        window.open(
-                          `https://${data.shop}/admin/themes/current/editor?context=apps&activateAppId=026ce3bf073bed0e44ae8eab09d1ae3a/membership_widget`,
-                          '_blank'
-                        );
-                      }}
-                      variant="primary"
+                  <BlockStack gap="300">
+                    <Text variant="headingSm" as="h3" fontWeight="semibold">
+                      Visual Guide:
+                    </Text>
+                    <Box
+                      padding="400"
+                      background="bg-surface-secondary"
+                      borderRadius="200"
                     >
-                      Open theme editor
-                    </Button>
-                    <Button
-                      onClick={() => setWidgetGuideExpanded(false)}
-                    >
-                      Hide guide
-                    </Button>
-                  </InlineStack>
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        src="/widget-toggle-guide.mp4"
+                        style={{
+                          width: '100%',
+                          maxWidth: '500px',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '8px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          display: 'block',
+                          margin: '0 auto'
+                        }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    </Box>
+                    <Text variant="bodySm" tone="subdued" as="p" alignment="center">
+                      Toggle the "Membership Widget" switch to ON to enable it on your storefront.
+                    </Text>
+                  </BlockStack>
+
+                  <Banner tone="info">
+                    <Text variant="bodySm" as="p">
+                      Note: The widget will only show as enabled once we detect it's actually installed (via theme detection).
+                      This guide will persist until the widget is detected as active.
+                    </Text>
+                  </Banner>
                 </BlockStack>
-              </Banner>
-            )}
+              </Modal.Section>
+            </Modal>
           </Layout.Section>
         )}
 
