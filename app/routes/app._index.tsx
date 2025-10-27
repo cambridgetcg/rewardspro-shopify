@@ -139,9 +139,6 @@ interface DashboardData {
   shop: string;
   metrics: {
     totalCustomers: number;
-    totalStoreCredit: number;
-    activeTiers: number;
-    averageCredit: number;
     customersWithCredit: number;
     customersWithTiers: number;
   };
@@ -518,7 +515,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       db.customer.aggregate({
         where: { shop },
         _count: { id: true },
-        _sum: { storeCredit: true },
       }),
 
       // Count customers with store credit > 0
@@ -601,15 +597,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Calculate metrics from aggregates (no in-memory loops)
     const totalCustomers = customerAggregates._count.id || 0;
-
-    // Handle Prisma Decimal and null values safely
-    const storeCreditSum = customerAggregates._sum.storeCredit;
-    const totalStoreCredit = storeCreditSum !== null && storeCreditSum !== undefined
-      ? parseFloat(storeCreditSum.toString())
-      : 0;
-
-    const activeTiers = tiers.length;
-    const averageCredit = totalCustomers > 0 ? totalStoreCredit / totalCustomers : 0;
     const customersWithCredit = customersWithCreditCount;
     const customersWithTiers = customersWithTiersCount;
 
@@ -851,9 +838,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop,
       metrics: {
         totalCustomers,
-        totalStoreCredit,
-        activeTiers,
-        averageCredit,
         customersWithCredit,
         customersWithTiers,
       },
@@ -1284,38 +1268,6 @@ export default function Dashboard() {
           </Layout.Section>
         )}
 
-        {/* RewardsPro Metrics Overview */}
-        <Layout.Section>
-          <BlockStack gap="400">
-            <Text variant="headingMd" as="h2">RewardsPro Metrics</Text>
-            <StatsOverview
-              stats={[
-                {
-                  label: "Total Customers",
-                  value: data.metrics.totalCustomers.toString(),
-                  icon: PersonIcon,
-                },
-                {
-                  label: "Total Store Credit",
-                  value: formatAmount(data.metrics.totalStoreCredit),
-                  icon: CashDollarIcon,
-                },
-                {
-                  label: "Active Tiers",
-                  value: data.metrics.activeTiers.toString(),
-                  icon: RewardIcon,
-                },
-                {
-                  label: "Average Credit",
-                  value: formatAmount(data.metrics.averageCredit),
-                  icon: ChartVerticalIcon,
-                },
-              ]}
-              loading={isRefreshing}
-            />
-          </BlockStack>
-        </Layout.Section>
-
         {/* Shopify Analytics - Native Data powered by ShopifyQL */}
         {data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' && (
           <Layout.Section>
@@ -1477,14 +1429,6 @@ export default function Dashboard() {
                               content={`Only ${Math.round((data.metrics.customersWithTiers / data.metrics.totalCustomers) * 100)}% of your customers are in a tier. Consider reviewing tier thresholds or running a campaign.`}
                               tone="info"
                               action={{ content: "View customers", onAction: () => shopifyNavigate("/app/customers") }}
-                            />
-                          )}
-
-                          {data.metrics.averageCredit > 50 && (
-                            <ActionBanner
-                              title="High average credit balance"
-                              content={`Your customers have an average of ${formatAmount(data.metrics.averageCredit)} in store credit. This indicates strong engagement with your rewards program.`}
-                              tone="success"
                             />
                           )}
 
