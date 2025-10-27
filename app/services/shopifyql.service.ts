@@ -22,6 +22,21 @@
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 // ============================================
+// CUSTOM ERRORS
+// ============================================
+
+/**
+ * Thrown when ShopifyQL is not available for this shop
+ * (requires Shopify Plus, beta access, or specific API scopes)
+ */
+export class ShopifyQLUnavailableError extends Error {
+  constructor(message: string = "ShopifyQL is not available for this shop") {
+    super(message);
+    this.name = "ShopifyQLUnavailableError";
+  }
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -158,6 +173,20 @@ export async function executeShopifyQLQuery(
     const result = await response.json();
 
     if (result.errors) {
+      // Check if this is a "field doesn't exist" error (ShopifyQL not available)
+      const fieldError = result.errors.find((err: any) =>
+        err.message?.includes("Field 'shopifyqlQuery' doesn't exist") ||
+        err.message?.includes("shopifyqlQuery") && err.message?.includes("doesn't exist")
+      );
+
+      if (fieldError) {
+        // ShopifyQL is not available for this shop (needs Plus/beta/scope)
+        // Throw specific error so calling code can handle gracefully
+        throw new ShopifyQLUnavailableError(
+          "ShopifyQL API is not available (requires Shopify Plus, beta access, or read_shopifyql_api scope)"
+        );
+      }
+
       console.error('[ShopifyQL] GraphQL errors:', result.errors);
       throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
     }

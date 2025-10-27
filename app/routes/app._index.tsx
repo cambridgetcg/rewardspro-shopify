@@ -18,6 +18,7 @@ import {
   Banner,
   Select,
   Modal,
+  Divider,
 } from "@shopify/polaris";
 import {
   PlusIcon,
@@ -39,7 +40,7 @@ import { formatCurrency } from "../utils/currency";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount, countOrdersDirectDataAPI, countOrdersEpochComparison } from "~/utils/order-count-strategies";
-import { getMonthlyOrderCount, getDashboardMetrics, withAuroraFallback, type DashboardMetrics } from "~/services/shopifyql.service";
+import { getMonthlyOrderCount, getDashboardMetrics, withAuroraFallback, ShopifyQLUnavailableError, type DashboardMetrics } from "~/services/shopifyql.service";
 import { parse as parseJsonC } from "jsonc-parser";
 import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
@@ -441,7 +442,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       };
       console.log(`[Dashboard] ⚡ ShopifyQL metrics loaded (${metrics.source})`);
     } catch (error) {
-      console.warn('[Dashboard] ShopifyQL metrics unavailable, continuing without them:', error);
+      // Handle ShopifyQL unavailability gracefully (requires Plus/beta/scope)
+      if (error instanceof ShopifyQLUnavailableError) {
+        console.log('[Dashboard] ℹ️ ShopifyQL not available for this shop (requires Shopify Plus or beta access)');
+      } else {
+        console.warn('[Dashboard] ShopifyQL metrics failed:', error);
+      }
+
       shopifyMetrics = {
         totalRevenue: 0,
         totalOrders: 0,
@@ -530,7 +537,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderCountStrategy = shopifyqlResult.source === 'cache' ? 'ShopifyQL-Cached' : 'ShopifyQL';
         console.log(`[Dashboard] ⚡ ShopifyQL succeeded with count: ${orderCount} (${shopifyqlResult.source})`);
       } catch (shopifyqlError) {
-        console.warn(`[Dashboard] ShopifyQL failed, falling back to Aurora:`, shopifyqlError);
+        // Handle ShopifyQL unavailability gracefully (requires Plus/beta/scope)
+        if (shopifyqlError instanceof ShopifyQLUnavailableError) {
+          console.log(`[Dashboard] ℹ️ ShopifyQL not available, using Aurora fallback`);
+        } else {
+          console.warn(`[Dashboard] ShopifyQL failed, falling back to Aurora:`, shopifyqlError);
+        }
 
         // Fallback to Aurora cache-first strategy
         const cachedUsage = await db.monthlyOrderUsage.findUnique({
