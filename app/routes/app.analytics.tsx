@@ -1293,7 +1293,7 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Chart Area */}
+                          {/* Chart Area - Shopify Analytics Style */}
                           <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
                             {/* Y-axis labels */}
                             <div style={{
@@ -1305,27 +1305,23 @@ export default function AnalyticsPage() {
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              paddingRight: '10px'
+                              paddingRight: '15px'
                             }}>
                               {[6, 5, 4, 3, 2, 1, 0].map(val => (
-                                <div key={val} style={{ fontSize: '11px', color: '#6b7280', textAlign: 'right' }}>
+                                <div key={val} style={{ fontSize: '12px', color: '#8c9196', textAlign: 'right', fontWeight: '400' }}>
                                   {val.toFixed(1)}
                                 </div>
                               ))}
                             </div>
 
-                            {/* Chart */}
+                            {/* Chart - Clean Shopify Style */}
                             <div style={{
                               marginLeft: '60px',
                               height: '100%',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '8px',
-                              padding: '10px',
-                              position: 'relative',
-                              background: '#fafbfb'
+                              position: 'relative'
                             }}>
                               <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                                {/* Grid lines */}
+                                {/* Subtle grid lines - Shopify style */}
                                 {[0, 1, 2, 3, 4, 5, 6].map(i => (
                                   <line
                                     key={i}
@@ -1333,14 +1329,14 @@ export default function AnalyticsPage() {
                                     y1={(i / 6) * 100}
                                     x2="100"
                                     y2={(i / 6) * 100}
-                                    stroke="#e5e7eb"
-                                    strokeWidth="0.3"
+                                    stroke="#e3e5e7"
+                                    strokeWidth="0.2"
                                   />
                                 ))}
 
-                                {/* Tier lines */}
+                                {/* Tier lines - No circles, clean lines only */}
                                 {data.tierPerformance.map((tier, tierIndex) => {
-                                  // Shopify Polaris color palette
+                                  // Softer, Shopify-style colors
                                   const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
                                   const color = colors[tierIndex] || '#5C6AC4';
 
@@ -1359,39 +1355,12 @@ export default function AnalyticsPage() {
                                       points={points}
                                       fill="none"
                                       stroke={color}
-                                      strokeWidth="0.8"
+                                      strokeWidth="0.6"
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
                                       vectorEffect="non-scaling-stroke"
                                     />
                                   );
-                                })}
-
-                                {/* Data point circles */}
-                                {data.tierPerformance.map((tier, tierIndex) => {
-                                  // Shopify Polaris color palette (same as lines above)
-                                  const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
-                                  const color = colors[tierIndex] || '#5C6AC4';
-
-                                  return data.monthlyTierTrends.map((month, monthIndex) => {
-                                    const tierData = month.tiers.find(t => t.tierName === tier.name);
-                                    const value = tierData?.orderFrequency || 0;
-                                    const x = (monthIndex / (data.monthlyTierTrends.length - 1)) * 100;
-                                    const y = 100 - (value / 6) * 100;
-
-                                    return (
-                                      <circle
-                                        key={`${tier.id}-${monthIndex}`}
-                                        cx={x}
-                                        cy={y}
-                                        r="1.2"
-                                        fill={color}
-                                        stroke="white"
-                                        strokeWidth="0.4"
-                                        vectorEffect="non-scaling-stroke"
-                                      />
-                                    );
-                                  });
                                 })}
                               </svg>
                             </div>
@@ -1597,7 +1566,7 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Chart Area */}
+                          {/* Chart Area - Shopify Style */}
                           <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
                             {/* Y-axis labels */}
                             <div style={{
@@ -1609,27 +1578,23 @@ export default function AnalyticsPage() {
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              paddingRight: '10px'
+                              paddingRight: '15px'
                             }}>
                               {[100, 80, 60, 40, 20, 0].map(val => (
-                                <div key={val} style={{ fontSize: '11px', color: '#6b7280', textAlign: 'right' }}>
+                                <div key={val} style={{ fontSize: '12px', color: '#8c9196', textAlign: 'right', fontWeight: '400' }}>
                                   {val}%
                                 </div>
                               ))}
                             </div>
 
-                            {/* Chart */}
+                            {/* Chart - Clean Shopify Style */}
                             <div style={{
                               marginLeft: '60px',
                               height: '100%',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '8px',
-                              padding: '10px',
-                              position: 'relative',
-                              background: '#fafbfb'
+                              position: 'relative'
                             }}>
                               <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                                {/* Grid lines */}
+                                {/* Subtle grid lines */}
                                 {[0, 20, 40, 60, 80, 100].map(i => (
                                   <line
                                     key={i}
@@ -1637,8 +1602,8 @@ export default function AnalyticsPage() {
                                     y1={i}
                                     x2="100"
                                     y2={i}
-                                    stroke="#e5e7eb"
-                                    strokeWidth="0.3"
+                                    stroke="#e3e5e7"
+                                    strokeWidth="0.2"
                                   />
                                 ))}
 
@@ -1658,37 +1623,19 @@ export default function AnalyticsPage() {
                                       <polygon
                                         points={`0,100 ${points} 100,100`}
                                         fill="url(#rewardUsageGradient)"
-                                        opacity="0.3"
+                                        opacity="0.2"
                                       />
 
-                                      {/* Line */}
+                                      {/* Line - no circles */}
                                       <polyline
                                         points={points}
                                         fill="none"
                                         stroke="#8B5CF6"
-                                        strokeWidth="0.8"
+                                        strokeWidth="0.6"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         vectorEffect="non-scaling-stroke"
                                       />
-
-                                      {/* Data points */}
-                                      {usageRates.map((rate, index) => {
-                                        const x = (index / (usageRates.length - 1)) * 100;
-                                        const y = 100 - rate;
-                                        return (
-                                          <circle
-                                            key={index}
-                                            cx={x}
-                                            cy={y}
-                                            r="1.2"
-                                            fill="#8B5CF6"
-                                            stroke="white"
-                                            strokeWidth="0.4"
-                                            vectorEffect="non-scaling-stroke"
-                                          />
-                                        );
-                                      })}
                                     </>
                                   );
                                 })()}
@@ -1734,7 +1681,7 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Chart Area */}
+                          {/* Chart Area - Shopify Style */}
                           <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
                             {/* Y-axis labels */}
                             <div style={{
@@ -1746,27 +1693,23 @@ export default function AnalyticsPage() {
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              paddingRight: '10px'
+                              paddingRight: '15px'
                             }}>
                               {[600, 500, 400, 300, 200, 100, 0].map(val => (
-                                <div key={val} style={{ fontSize: '11px', color: '#6b7280', textAlign: 'right' }}>
+                                <div key={val} style={{ fontSize: '12px', color: '#8c9196', textAlign: 'right', fontWeight: '400' }}>
                                   ${val}k
                                 </div>
                               ))}
                             </div>
 
-                            {/* Chart */}
+                            {/* Chart - Clean Shopify Style */}
                             <div style={{
                               marginLeft: '60px',
                               height: '100%',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '8px',
-                              padding: '10px',
-                              position: 'relative',
-                              background: '#fafbfb'
+                              position: 'relative'
                             }}>
                               <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                                {/* Grid lines */}
+                                {/* Subtle grid lines */}
                                 {[0, 1, 2, 3, 4, 5, 6].map(i => (
                                   <line
                                     key={i}
@@ -1774,8 +1717,8 @@ export default function AnalyticsPage() {
                                     y1={(i / 6) * 100}
                                     x2="100"
                                     y2={(i / 6) * 100}
-                                    stroke="#e5e7eb"
-                                    strokeWidth="0.3"
+                                    stroke="#e3e5e7"
+                                    strokeWidth="0.2"
                                   />
                                 ))}
 
@@ -1797,37 +1740,19 @@ export default function AnalyticsPage() {
                                       <polygon
                                         points={`0,100 ${points} 100,100`}
                                         fill="url(#salesInfluenceGradient)"
-                                        opacity="0.3"
+                                        opacity="0.2"
                                       />
 
-                                      {/* Line */}
+                                      {/* Line - no circles */}
                                       <polyline
                                         points={points}
                                         fill="none"
                                         stroke="#22c55e"
-                                        strokeWidth="0.8"
+                                        strokeWidth="0.6"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         vectorEffect="non-scaling-stroke"
                                       />
-
-                                      {/* Data points */}
-                                      {salesData.map((sales, index) => {
-                                        const x = (index / (salesData.length - 1)) * 100;
-                                        const y = 100 - (sales / maxSales) * 100;
-                                        return (
-                                          <circle
-                                            key={index}
-                                            cx={x}
-                                            cy={y}
-                                            r="1.2"
-                                            fill="#22c55e"
-                                            stroke="white"
-                                            strokeWidth="0.4"
-                                            vectorEffect="non-scaling-stroke"
-                                          />
-                                        );
-                                      })}
                                     </>
                                   );
                                 })()}
