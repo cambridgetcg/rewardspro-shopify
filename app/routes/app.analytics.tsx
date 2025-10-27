@@ -1481,6 +1481,282 @@ export default function AnalyticsPage() {
                       </Box>
                     </Card>
 
+                    {/* Reward Usage Rate Over Time */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <Text variant="headingSm" as="h3">Reward Usage Rate Over Time</Text>
+                              <Badge tone="attention">Cumulative Chart</Badge>
+                            </InlineStack>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Track cumulative reward redemption rate over the last 12 months
+                            </Text>
+                          </BlockStack>
+
+                          {/* Chart Area */}
+                          <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
+                            {/* Y-axis labels */}
+                            <div style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '50px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              paddingRight: '10px'
+                            }}>
+                              {[100, 80, 60, 40, 20, 0].map(val => (
+                                <div key={val} style={{ fontSize: '11px', color: '#6b7280', textAlign: 'right' }}>
+                                  {val}%
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Chart */}
+                            <div style={{
+                              marginLeft: '60px',
+                              height: '100%',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              padding: '10px',
+                              position: 'relative',
+                              background: '#fafbfb'
+                            }}>
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+                                {/* Grid lines */}
+                                {[0, 20, 40, 60, 80, 100].map(i => (
+                                  <line
+                                    key={i}
+                                    x1="0"
+                                    y1={i}
+                                    x2="100"
+                                    y2={i}
+                                    stroke="#e5e7eb"
+                                    strokeWidth="0.3"
+                                  />
+                                ))}
+
+                                {/* Cumulative usage rate line */}
+                                {(() => {
+                                  // Mock cumulative data: starts low, grows over time
+                                  const usageRates = [12, 18, 24, 31, 38, 45, 52, 58, 64, 69, 74, 78];
+                                  const points = usageRates.map((rate, index) => {
+                                    const x = (index / (usageRates.length - 1)) * 100;
+                                    const y = 100 - rate; // Invert for SVG coordinates
+                                    return `${x},${y}`;
+                                  }).join(' ');
+
+                                  return (
+                                    <>
+                                      {/* Area fill under the line */}
+                                      <polygon
+                                        points={`0,100 ${points} 100,100`}
+                                        fill="url(#rewardUsageGradient)"
+                                        opacity="0.3"
+                                      />
+
+                                      {/* Line */}
+                                      <polyline
+                                        points={points}
+                                        fill="none"
+                                        stroke="#8B5CF6"
+                                        strokeWidth="0.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        vectorEffect="non-scaling-stroke"
+                                      />
+
+                                      {/* Data points */}
+                                      {usageRates.map((rate, index) => {
+                                        const x = (index / (usageRates.length - 1)) * 100;
+                                        const y = 100 - rate;
+                                        return (
+                                          <circle
+                                            key={index}
+                                            cx={x}
+                                            cy={y}
+                                            r="1.2"
+                                            fill="#8B5CF6"
+                                            stroke="white"
+                                            strokeWidth="0.4"
+                                            vectorEffect="non-scaling-stroke"
+                                          />
+                                        );
+                                      })}
+                                    </>
+                                  );
+                                })()}
+
+                                {/* Gradient definition */}
+                                <defs>
+                                  <linearGradient id="rewardUsageGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.6" />
+                                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* X-axis labels */}
+                          <div style={{ marginLeft: '60px', display: 'flex', justifyContent: 'space-between' }}>
+                            {data.monthlyTierTrends.map((month, index) => (
+                              <Text key={index} variant="bodySm" tone="subdued" as="span">
+                                {month.month}
+                              </Text>
+                            ))}
+                          </div>
+
+                          <Text variant="bodySm" tone="subdued" as="p">
+                            Cumulative percentage of rewards redeemed by customers since program launch
+                          </Text>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Sales Influenced by Smile Over Time */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <Text variant="headingSm" as="h3">Sales Influenced by Smile Over Time</Text>
+                              <Badge tone="success">Cumulative Chart</Badge>
+                            </InlineStack>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Track cumulative revenue influenced by your loyalty program over the last 12 months
+                            </Text>
+                          </BlockStack>
+
+                          {/* Chart Area */}
+                          <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
+                            {/* Y-axis labels */}
+                            <div style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: '50px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              paddingRight: '10px'
+                            }}>
+                              {[600, 500, 400, 300, 200, 100, 0].map(val => (
+                                <div key={val} style={{ fontSize: '11px', color: '#6b7280', textAlign: 'right' }}>
+                                  ${val}k
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Chart */}
+                            <div style={{
+                              marginLeft: '60px',
+                              height: '100%',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              padding: '10px',
+                              position: 'relative',
+                              background: '#fafbfb'
+                            }}>
+                              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+                                {/* Grid lines */}
+                                {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                                  <line
+                                    key={i}
+                                    x1="0"
+                                    y1={(i / 6) * 100}
+                                    x2="100"
+                                    y2={(i / 6) * 100}
+                                    stroke="#e5e7eb"
+                                    strokeWidth="0.3"
+                                  />
+                                ))}
+
+                                {/* Cumulative sales line */}
+                                {(() => {
+                                  // Mock cumulative data: steady growth from $25k to $585k
+                                  const salesData = [25, 68, 125, 195, 272, 355, 422, 475, 512, 538, 558, 585];
+                                  const maxSales = 600; // $600k max for scale
+
+                                  const points = salesData.map((sales, index) => {
+                                    const x = (index / (salesData.length - 1)) * 100;
+                                    const y = 100 - (sales / maxSales) * 100;
+                                    return `${x},${y}`;
+                                  }).join(' ');
+
+                                  return (
+                                    <>
+                                      {/* Area fill under the line */}
+                                      <polygon
+                                        points={`0,100 ${points} 100,100`}
+                                        fill="url(#salesInfluenceGradient)"
+                                        opacity="0.3"
+                                      />
+
+                                      {/* Line */}
+                                      <polyline
+                                        points={points}
+                                        fill="none"
+                                        stroke="#22c55e"
+                                        strokeWidth="0.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        vectorEffect="non-scaling-stroke"
+                                      />
+
+                                      {/* Data points */}
+                                      {salesData.map((sales, index) => {
+                                        const x = (index / (salesData.length - 1)) * 100;
+                                        const y = 100 - (sales / maxSales) * 100;
+                                        return (
+                                          <circle
+                                            key={index}
+                                            cx={x}
+                                            cy={y}
+                                            r="1.2"
+                                            fill="#22c55e"
+                                            stroke="white"
+                                            strokeWidth="0.4"
+                                            vectorEffect="non-scaling-stroke"
+                                          />
+                                        );
+                                      })}
+                                    </>
+                                  );
+                                })()}
+
+                                {/* Gradient definition */}
+                                <defs>
+                                  <linearGradient id="salesInfluenceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.6" />
+                                    <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* X-axis labels */}
+                          <div style={{ marginLeft: '60px', display: 'flex', justifyContent: 'space-between' }}>
+                            {data.monthlyTierTrends.map((month, index) => (
+                              <Text key={index} variant="bodySm" tone="subdued" as="span">
+                                {month.month}
+                              </Text>
+                            ))}
+                          </div>
+
+                          <Text variant="bodySm" tone="subdued" as="p">
+                            Cumulative revenue from orders influenced by loyalty program participation
+                          </Text>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
                   </BlockStack>
                 </Box>
               )}
