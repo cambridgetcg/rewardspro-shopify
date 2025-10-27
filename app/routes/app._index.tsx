@@ -40,7 +40,6 @@ import { formatCurrency } from "../utils/currency";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount, countOrdersDirectDataAPI, countOrdersEpochComparison } from "~/utils/order-count-strategies";
-import { getMonthlyOrderCount, getDashboardMetrics, withAuroraFallback, ShopifyQLUnavailableError, type DashboardMetrics } from "~/services/shopifyql.service";
 import { parse as parseJsonC } from "jsonc-parser";
 import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
@@ -427,39 +426,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // Fetch all data in parallel for performance
-    // Fetch ShopifyQL metrics (Shopify native data) - independent of Aurora queries
-    let shopifyMetrics: DashboardData['shopifyMetrics'] = null;
-    try {
-      console.log('[Dashboard] Fetching ShopifyQL metrics...');
-      const metrics = await getDashboardMetrics(admin, '-1m', true, 10);
-      shopifyMetrics = {
-        totalRevenue: metrics.totalRevenue,
-        totalOrders: metrics.totalOrders,
-        averageOrderValue: metrics.averageOrderValue,
-        shopifyCustomers: metrics.totalCustomers,
-        conversionRate: metrics.conversionRate,
-        source: metrics.source,
-      };
-      console.log(`[Dashboard] ⚡ ShopifyQL metrics loaded (${metrics.source})`);
-    } catch (error) {
-      // Handle ShopifyQL unavailability gracefully (requires Plus/beta/scope)
-      if (error instanceof ShopifyQLUnavailableError) {
-        console.log('[Dashboard] ℹ️ ShopifyQL not available for this shop (requires Shopify Plus or beta access)');
-      } else {
-        console.warn('[Dashboard] ShopifyQL metrics failed:', error);
-      }
-
-      shopifyMetrics = {
-        totalRevenue: 0,
-        totalOrders: 0,
-        averageOrderValue: 0,
-        shopifyCustomers: 0,
-        conversionRate: 0,
-        source: 'unavailable',
-      };
-    }
-
     // Note: shopSettings already fetched above, so we fetch only remaining data here
+
+    // Disable ShopifyQL for now - will be implemented later with proper data fetching strategy
+    const shopifyMetrics: DashboardData['shopifyMetrics'] = {
+      totalRevenue: 0,
+      totalOrders: 0,
+      averageOrderValue: 0,
+      shopifyCustomers: 0,
+      conversionRate: 0,
+      source: 'unavailable',
+    };
     const perfStart = Date.now();
 
     const [
@@ -521,7 +498,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const year = now.getFullYear();
     const month = now.getMonth() + 1; // 1-indexed for database
 
-    // Count orders using ShopifyQL-first strategy with fallback
+    // Count orders using Aurora database (ShopifyQL disabled for now)
     let orderCount = 0;
     let orderCountStrategy = "unknown";
 
@@ -529,68 +506,51 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const perfOrderStart = Date.now();
       console.log(`[Dashboard] Attempting to count orders for ${shop} - ${currentMonth} ${year}`);
 
-      // Try ShopifyQL first (fastest, leverages Shopify's infrastructure)
-      try {
-        console.log(`[Dashboard] Trying ShopifyQL for order count`);
-        const shopifyqlResult = await getMonthlyOrderCount(admin, true, 10);
-        orderCount = shopifyqlResult.count;
-        orderCountStrategy = shopifyqlResult.source === 'cache' ? 'ShopifyQL-Cached' : 'ShopifyQL';
-        console.log(`[Dashboard] ⚡ ShopifyQL succeeded with count: ${orderCount} (${shopifyqlResult.source})`);
-      } catch (shopifyqlError) {
-        // Handle ShopifyQL unavailability gracefully (requires Plus/beta/scope)
-        if (shopifyqlError instanceof ShopifyQLUnavailableError) {
-          console.log(`[Dashboard] ℹ️ ShopifyQL not available, using Aurora fallback`);
-        } else {
-          console.warn(`[Dashboard] ShopifyQL failed, falling back to Aurora:`, shopifyqlError);
-        }
-
-        // Fallback to Aurora cache-first strategy
-        const cachedUsage = await db.monthlyOrderUsage.findUnique({
-          where: {
-            shop_year_month: {
-              shop,
-              year,
-              month,
-            },
+      // Aurora cache-first strategy
+      const cachedUsage = await db.monthlyOrderUsage.findUnique({
+        where: {
+          shop_year_month: {
+            shop,
+            year,
+            month,
           },
-        });
+        },
+      });
 
-        const now = new Date();
-        const CACHE_FRESH_MINUTES = 15;
-        const cacheIsFresh = cachedUsage &&
-          (now.getTime() - cachedUsage.updatedAt.getTime()) < (CACHE_FRESH_MINUTES * 60 * 1000);
+      const CACHE_FRESH_MINUTES = 15;
+      const cacheIsFresh = cachedUsage &&
+        (now.getTime() - cachedUsage.updatedAt.getTime()) < (CACHE_FRESH_MINUTES * 60 * 1000);
 
-        if (cacheIsFresh && cachedUsage) {
-          // Use cached value from Aurora
-          orderCount = cachedUsage.orderCount;
-          orderCountStrategy = "Aurora-CachedValue";
-          console.log(`[Dashboard] ⚡ Using Aurora cached order count: ${orderCount} (age: ${Math.round((now.getTime() - cachedUsage.updatedAt.getTime()) / 1000)}s)`);
-        } else {
-          // Cache is stale - run Aurora counting strategies
-          console.log(`[Dashboard] Aurora cache is ${!cachedUsage ? 'missing' : 'stale'}, running live count`);
-          const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-          const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+      if (cacheIsFresh && cachedUsage) {
+        // Use cached value from Aurora
+        orderCount = cachedUsage.orderCount;
+        orderCountStrategy = "Aurora-CachedValue";
+        console.log(`[Dashboard] ⚡ Using Aurora cached order count: ${orderCount} (age: ${Math.round((now.getTime() - cachedUsage.updatedAt.getTime()) / 1000)}s)`);
+      } else {
+        // Cache is stale - run Aurora counting strategies
+        console.log(`[Dashboard] Aurora cache is ${!cachedUsage ? 'missing' : 'stale'}, running live count`);
+        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+        const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+        try {
+          // Try DirectDataAPI first (most reliable)
+          orderCount = await countOrdersDirectDataAPI(shop, startOfMonth, endOfMonth);
+          orderCountStrategy = "Aurora-DirectDataAPI";
+          console.log(`[Dashboard] Aurora DirectDataAPI succeeded with count: ${orderCount}`);
+        } catch (error) {
+          console.error("[Dashboard] Aurora DirectDataAPI failed, trying EpochComparison:", error);
 
           try {
-            // Try DirectDataAPI first (most reliable)
-            orderCount = await countOrdersDirectDataAPI(shop, startOfMonth, endOfMonth);
-            orderCountStrategy = "Aurora-DirectDataAPI";
-            console.log(`[Dashboard] Aurora DirectDataAPI succeeded with count: ${orderCount}`);
-          } catch (error) {
-            console.error("[Dashboard] Aurora DirectDataAPI failed, trying EpochComparison:", error);
+            // Fallback to EpochComparison
+            orderCount = await countOrdersEpochComparison(shop, startOfMonth, endOfMonth);
+            orderCountStrategy = "Aurora-EpochComparison";
+            console.log(`[Dashboard] Aurora EpochComparison succeeded with count: ${orderCount}`);
+          } catch (error2) {
+            console.error("[Dashboard] Aurora EpochComparison failed, using pre-aggregated:", error2);
 
-            try {
-              // Fallback to EpochComparison
-              orderCount = await countOrdersEpochComparison(shop, startOfMonth, endOfMonth);
-              orderCountStrategy = "Aurora-EpochComparison";
-              console.log(`[Dashboard] Aurora EpochComparison succeeded with count: ${orderCount}`);
-            } catch (error2) {
-              console.error("[Dashboard] Aurora EpochComparison failed, using pre-aggregated:", error2);
-
-              // Final fallback to pre-aggregated count
-              orderCount = await getOrCreateMonthlyCount(shop, year, month);
-              orderCountStrategy = "Aurora-PreAggregated";
-            }
+            // Final fallback to pre-aggregated count
+            orderCount = await getOrCreateMonthlyCount(shop, year, month);
+            orderCountStrategy = "Aurora-PreAggregated";
           }
         }
       }
