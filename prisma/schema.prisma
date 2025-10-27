@@ -109,6 +109,12 @@ model ShopSettings {
   targetRoiPercent        Decimal?            @db.Decimal(5, 2)  // Target ROI % for loyalty program
   metricsLastUpdated      DateTime?                               // When merchant last updated these metrics
 
+  // Feature Toggles (enable/disable specific features)
+  advancedAnalyticsEnabled      Boolean       @default(true)   // Advanced analytics features
+  autoCashbackProcessingEnabled Boolean       @default(true)   // Automatic cashback processing
+  emailMarketingEnabled         Boolean       @default(false)  // Email marketing campaigns
+  tierProductsEnabled           Boolean       @default(true)   // Tier products module
+
   // Metadata
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt

@@ -135,6 +135,10 @@ interface DashboardData {
     customersSyncInProgress?: boolean;
     currencySelected?: boolean;
     tierRecalculationEnabled?: boolean;
+    advancedAnalyticsEnabled?: boolean;
+    autoCashbackProcessingEnabled?: boolean;
+    emailMarketingEnabled?: boolean;
+    tierProductsEnabled?: boolean;
   } | null;
   // Billing data
   currentPlan: any | null;
@@ -209,6 +213,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         customerAccountBlockDismissed: true,
         customerAccountBlockIsActive: true,
         tierRecalculationEnabled: true,
+        advancedAnalyticsEnabled: true,
+        autoCashbackProcessingEnabled: true,
+        emailMarketingEnabled: true,
+        tierProductsEnabled: true,
       }
     });
 
@@ -1456,6 +1464,166 @@ export default function Dashboard() {
                                  data.shopSettings?.customersSyncInProgress ? 'attention' : 'critical'}>
                       {data.shopSettings?.customersInitialSynced ? `${data.metrics.totalCustomers} SYNCED` :
                        data.shopSettings?.customersSyncInProgress ? 'SYNCING...' : 'NOT SYNCED'}
+                    </Badge>
+                  </div>
+                </div>
+              </BlockStack>
+
+              {/* Feature Toggles */}
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="headingSm" as="h3" fontWeight="semibold">
+                    Feature Toggles
+                  </Text>
+                  <Button size="slim" onClick={() => navigate('/app/settings/features')}>
+                    Configure
+                  </Button>
+                </InlineStack>
+
+                {/* Advanced Analytics */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopSettings?.advancedAnalyticsEnabled ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopSettings?.advancedAnalyticsEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Advanced Analytics
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.advancedAnalyticsEnabled ? 'success' : 'warning'}>
+                      {data.shopSettings?.advancedAnalyticsEnabled ? 'ENABLED' : 'DISABLED'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Automatic Cashback Processing */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopSettings?.autoCashbackProcessingEnabled ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopSettings?.autoCashbackProcessingEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Automatic Cashback Processing
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.autoCashbackProcessingEnabled ? 'success' : 'warning'}>
+                      {data.shopSettings?.autoCashbackProcessingEnabled ? 'ENABLED' : 'DISABLED'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Email Marketing Campaign */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopSettings?.emailMarketingEnabled ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.emailMarketingEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopSettings?.emailMarketingEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Email Marketing Campaign
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.emailMarketingEnabled ? 'success' : 'warning'}>
+                      {data.shopSettings?.emailMarketingEnabled ? 'ENABLED' : 'DISABLED'}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Tier Products Module */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: data.shopSettings?.tierProductsEnabled ? '#f0fdf4' : '#fef3c7',
+                  border: `1px solid ${data.shopSettings?.tierProductsEnabled ? '#86efac' : '#fbbf24'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: data.shopSettings?.tierProductsEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.tierProductsEnabled ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 6px ${data.shopSettings?.tierProductsEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                    }} />
+                  </div>
+                  <Text variant="bodyMd" as="span" fontWeight="medium">
+                    Tier Products Module
+                  </Text>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Badge tone={data.shopSettings?.tierProductsEnabled ? 'success' : 'warning'}>
+                      {data.shopSettings?.tierProductsEnabled ? 'ENABLED' : 'DISABLED'}
                     </Badge>
                   </div>
                 </div>
