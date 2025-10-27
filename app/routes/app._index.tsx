@@ -1664,14 +1664,35 @@ export default function Dashboard() {
                       Detailed analytics charts and ROI calculations
                     </Text>
                   </BlockStack>
-                  <Button
-                    size="slim"
-                    tone={data.shopSettings?.advancedAnalyticsEnabled ? 'success' : undefined}
-                    onClick={() => handleToggleFeature('advancedAnalyticsEnabled', data.shopSettings?.advancedAnalyticsEnabled ?? true)}
-                    loading={fetcher.state === "submitting"}
-                  >
-                    {data.shopSettings?.advancedAnalyticsEnabled ? 'Enabled' : 'Disabled'}
-                  </Button>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      {data.shopSettings?.advancedAnalyticsEnabled ? 'Enabled' : 'Disabled'}
+                    </Text>
+                    <div
+                      onClick={() => handleToggleFeature('advancedAnalyticsEnabled', data.shopSettings?.advancedAnalyticsEnabled ?? true)}
+                      style={{
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#22c55e' : '#e5e7eb',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                      }}
+                    >
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'white',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.advancedAnalyticsEnabled ? '22px' : '2px',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                      }} />
+                    </div>
+                  </InlineStack>
                 </InlineStack>
 
                 <Divider />
@@ -1686,14 +1707,35 @@ export default function Dashboard() {
                       Automatically credit cashback for completed orders
                     </Text>
                   </BlockStack>
-                  <Button
-                    size="slim"
-                    tone={data.shopSettings?.autoCashbackProcessingEnabled ? 'success' : undefined}
-                    onClick={() => handleToggleFeature('autoCashbackProcessingEnabled', data.shopSettings?.autoCashbackProcessingEnabled ?? true)}
-                    loading={fetcher.state === "submitting"}
-                  >
-                    {data.shopSettings?.autoCashbackProcessingEnabled ? 'Enabled' : 'Disabled'}
-                  </Button>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      {data.shopSettings?.autoCashbackProcessingEnabled ? 'Enabled' : 'Disabled'}
+                    </Text>
+                    <div
+                      onClick={() => handleToggleFeature('autoCashbackProcessingEnabled', data.shopSettings?.autoCashbackProcessingEnabled ?? true)}
+                      style={{
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#22c55e' : '#e5e7eb',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                      }}
+                    >
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'white',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.autoCashbackProcessingEnabled ? '22px' : '2px',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                      }} />
+                    </div>
+                  </InlineStack>
                 </InlineStack>
 
                 <Divider />
@@ -1708,14 +1750,35 @@ export default function Dashboard() {
                       Automated email campaigns and communications
                     </Text>
                   </BlockStack>
-                  <Button
-                    size="slim"
-                    tone={data.shopSettings?.emailMarketingEnabled ? 'success' : undefined}
-                    onClick={() => handleToggleFeature('emailMarketingEnabled', data.shopSettings?.emailMarketingEnabled ?? false)}
-                    loading={fetcher.state === "submitting"}
-                  >
-                    {data.shopSettings?.emailMarketingEnabled ? 'Enabled' : 'Disabled'}
-                  </Button>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      {data.shopSettings?.emailMarketingEnabled ? 'Enabled' : 'Disabled'}
+                    </Text>
+                    <div
+                      onClick={() => handleToggleFeature('emailMarketingEnabled', data.shopSettings?.emailMarketingEnabled ?? false)}
+                      style={{
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#22c55e' : '#e5e7eb',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                      }}
+                    >
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'white',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.emailMarketingEnabled ? '22px' : '2px',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                      }} />
+                    </div>
+                  </InlineStack>
                 </InlineStack>
 
                 <Divider />
@@ -1730,14 +1793,35 @@ export default function Dashboard() {
                       Allow customers to purchase tier access
                     </Text>
                   </BlockStack>
-                  <Button
-                    size="slim"
-                    tone={data.shopSettings?.tierProductsEnabled ? 'success' : undefined}
-                    onClick={() => handleToggleFeature('tierProductsEnabled', data.shopSettings?.tierProductsEnabled ?? true)}
-                    loading={fetcher.state === "submitting"}
-                  >
-                    {data.shopSettings?.tierProductsEnabled ? 'Enabled' : 'Disabled'}
-                  </Button>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      {data.shopSettings?.tierProductsEnabled ? 'Enabled' : 'Disabled'}
+                    </Text>
+                    <div
+                      onClick={() => handleToggleFeature('tierProductsEnabled', data.shopSettings?.tierProductsEnabled ?? true)}
+                      style={{
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        backgroundColor: data.shopSettings?.tierProductsEnabled ? '#22c55e' : '#e5e7eb',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                      }}
+                    >
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'white',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.tierProductsEnabled ? '22px' : '2px',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                      }} />
+                    </div>
+                  </InlineStack>
                 </InlineStack>
               </BlockStack>
             </BlockStack>
