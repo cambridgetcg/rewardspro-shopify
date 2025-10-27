@@ -13,19 +13,14 @@ import {
   Icon,
   Box,
   Badge,
-  Divider,
   EmptyState,
   DataTable,
-  Grid,
-  ProgressBar,
-  Tabs,
   Banner,
   Select,
 } from "@shopify/polaris";
 import {
   PlusIcon,
   RefreshIcon,
-  AlertTriangleIcon,
   PersonIcon,
   CashDollarIcon,
   RewardIcon,
@@ -36,16 +31,10 @@ import {
 import {
   StatsOverview,
   EnhancedDataTable,
-  ActionBanner,
 } from "../components/DesignSystem";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { formatCurrency } from "../utils/currency";
-import { TierBadge } from "../components/TierBadge";
-import {
-  getTierStyle,
-  sortTiersByPriority
-} from "../utils/tier-styles";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount, countOrdersDirectDataAPI, countOrdersEpochComparison } from "~/utils/order-count-strategies";
@@ -96,20 +85,6 @@ const CURRENCY_OPTIONS = [
 // HELPER FUNCTIONS
 // ============================================
 
-const formatTransactionType = (type: string): string => {
-  const typeMap: Record<string, string> = {
-    'CASHBACK_EARNED': 'Cashback Earned',
-    'ORDER_PAYMENT': 'Order Payment',
-    'REFUND_CREDIT': 'Refund Credit',
-    'MANUAL_ADJUSTMENT': 'Manual Adjustment',
-    'SHOPIFY_SYNC': 'Shopify Sync',
-    'ADMIN_ADJUSTMENT': 'Admin Adjustment',
-    'TIER_BONUS': 'Tier Bonus',
-  };
-
-  return typeMap[type] || type.replace(/_/g, ' ').toLowerCase();
-};
-
 const getCurrentMonthName = (): string => {
   return new Date().toLocaleDateString('en-US', { month: 'long' });
 };
@@ -151,30 +126,6 @@ interface DashboardData {
     conversionRate: number;
     source: 'shopifyql' | 'cache' | 'unavailable';
   } | null;
-  tierDistribution: Array<{
-    id: string;
-    name: string;
-    count: number;
-    percentage: number;
-    cashbackPercent: number;
-    totalCredit: number;
-    minSpend: number;
-  }>;
-  recentTransactions: Array<{
-    id: string;
-    type: string;
-    amount: number;
-    balance: number;
-    customerEmail: string;
-    createdAt: string;
-    metadata: any;
-  }>;
-  topCustomers: Array<{
-    id: string;
-    email: string;
-    storeCredit: number;
-    tierName: string | null;
-  }>;
   setupComplete: boolean;
   shopSettings: {
     storeCurrency: string;
@@ -505,10 +456,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       customerAggregates,
       customersWithCreditCount,
       customersWithTiersCount,
-      tierGroupData,
-      topCustomers,
       tiers,
-      recentTransactions,
       billingSubscription,
     ] = await Promise.all([
       // Aggregate customer totals (much faster than loading all customers)
@@ -533,57 +481,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         },
       }),
 
-      // Fetch just tier IDs and store credit for grouping (minimal projection)
-      db.customer.findMany({
-        where: { shop },
-        select: {
-          currentTierId: true,
-          storeCredit: true,
-        },
-      }),
-
-      // Top 5 customers (only fetch what we need)
-      db.customer.findMany({
-        where: { shop },
-        orderBy: { storeCredit: 'desc' },
-        take: 5,
-        select: {
-          id: true,
-          email: true,
-          storeCredit: true,
-          currentTier: {
-            select: { name: true },
-          },
-        },
-      }),
-
-      // All tiers
+      // All tiers (still needed for setup check)
       db.tier.findMany({
         where: { shop },
         orderBy: { minSpend: 'asc' },
-      }),
-
-      // Recent transactions with minimal projection
-      db.storeCreditLedger.findMany({
-        where: { shop },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-        select: {
-          id: true,
-          type: true,
-          amount: true,
-          balance: true,
-          reason: true,
-          createdAt: true,
-          metadata: true,
-          customer: {
-            select: {
-              email: true,
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
       }),
 
       // Billing subscription from database (new GraphQL billing)
@@ -599,109 +500,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const totalCustomers = customerAggregates._count.id || 0;
     const customersWithCredit = customersWithCreditCount;
     const customersWithTiers = customersWithTiersCount;
-
-    // Calculate tier distribution from minimal customer data (only tier IDs and credits)
-    // Group customers by tier in memory (much lighter than loading full customer objects)
-    const tierGroups = new Map<string | null, { count: number; totalCredit: number }>();
-
-    tierGroupData.forEach(customer => {
-      const tierId = customer.currentTierId;
-
-      // Handle Prisma Decimal and null values safely
-      const storeCreditValue = customer.storeCredit;
-      const credit = storeCreditValue !== null && storeCreditValue !== undefined
-        ? parseFloat(storeCreditValue.toString())
-        : 0;
-
-      if (!tierGroups.has(tierId)) {
-        tierGroups.set(tierId, { count: 0, totalCredit: 0 });
-      }
-
-      const group = tierGroups.get(tierId)!;
-      group.count++;
-      group.totalCredit += credit;
-    });
-
-    const tierDistribution = tiers.map(tier => {
-      const group = tierGroups.get(tier.id) || { count: 0, totalCredit: 0 };
-      const percentage = totalCustomers > 0 ? (group.count / totalCustomers) * 100 : 0;
-
-      return {
-        id: tier.id,
-        name: tier.name,
-        count: group.count,
-        percentage,
-        cashbackPercent: tier.cashbackPercent,
-        totalCredit: group.totalCredit,
-        minSpend: tier.minSpend,
-      };
-    });
-
-    // Add "No Tier" category (null tier group)
-    const noTierGroup = tierGroups.get(null);
-    if (noTierGroup && noTierGroup.count > 0) {
-      tierDistribution.push({
-        id: 'no-tier',
-        name: "No Tier",
-        count: noTierGroup.count,
-        percentage: totalCustomers > 0 ? (noTierGroup.count / totalCustomers) * 100 : 0,
-        cashbackPercent: 0,
-        totalCredit: noTierGroup.totalCredit,
-        minSpend: 0,
-      });
-    }
-
-    // Sort tier distribution by customer count
-    tierDistribution.sort((a, b) => b.count - a.count);
-
-    // Top customers already fetched with proper select - just format
-    const formattedTopCustomers = topCustomers.map(c => ({
-      id: c.id,
-      email: c.email,
-      storeCredit: parseFloat(c.storeCredit.toString()),
-      tierName: c.currentTier?.name || null,
-    }));
-
-    // Format recent transactions for display
-    const formattedTransactions = recentTransactions.map(tx => {
-      // Build customer display name
-      let customerDisplay = "Unknown Customer";
-      
-      if (tx.customer) {
-        // Check if we have a name
-        if (tx.customer.firstName || tx.customer.lastName) {
-          const name = [tx.customer.firstName, tx.customer.lastName]
-            .filter(Boolean)
-            .join(' ');
-          customerDisplay = name || tx.customer.email;
-        } else if (tx.customer.email) {
-          customerDisplay = tx.customer.email;
-        }
-      } else {
-        // Log orphaned transactions for debugging
-        console.warn(`[Dashboard] Transaction ${tx.id} has no associated customer`);
-        
-        // Try to extract info from metadata if available
-        if (tx.metadata && typeof tx.metadata === 'object') {
-          const meta = tx.metadata as any;
-          if (meta.customerEmail) {
-            customerDisplay = meta.customerEmail;
-          } else if (meta.customerId) {
-            customerDisplay = `Customer #${meta.customerId}`;
-          }
-        }
-      }
-      
-      return {
-        id: tx.id,
-        type: tx.type,
-        amount: parseFloat(tx.amount.toString()),
-        balance: parseFloat(tx.balance.toString()),
-        customerEmail: customerDisplay,
-        createdAt: new Date(tx.createdAt).toLocaleDateString(),
-        metadata: tx.metadata,
-      };
-    });
 
     // Check if setup is complete
     const setupComplete = tiers.length > 0;
@@ -842,9 +640,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         customersWithTiers,
       },
       shopifyMetrics,
-      tierDistribution,
-      recentTransactions: formattedTransactions,
-      topCustomers,
       setupComplete,
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
@@ -887,30 +682,11 @@ export default function Dashboard() {
   const data = useLoaderData<typeof loader>() as DashboardData;
   const navigate = useNavigate();
   const { navigate: shopifyNavigate } = useShopifyNavigation();
-  const [selectedTab, setSelectedTab] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Currency selection state
   const [selectedCurrency, setSelectedCurrency] = useState(data.shopSettings?.storeCurrency || "USD");
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
-
-  // Plan details calculations are now handled by CurrentPlanCard component
-  // These variables are kept for reference but no longer needed
-  // const activePlanName = data.activeSubscription?.name || data.currentPlan?.planName || "RewardsPro Free";
-  // const planDetails = MANAGED_PLANS[activePlanName as keyof typeof MANAGED_PLANS] || MANAGED_PLANS["RewardsPro Free"];
-  // const currentUsage = data.monthlyOrderUsage?.orderCount || 0;
-  // const planLimit = data.monthlyOrderUsage?.planLimit || 200;
-  // const projectedUsage = data.monthlyOrderUsage?.projectedOrders || 0;
-  // const usagePercentage = Math.min((currentUsage / planLimit) * 100, 100);
-  // const projectedPercentage = Math.min((projectedUsage / planLimit) * 100, 100);
-  // const progressTone = usagePercentage >= 90 ? "critical" : usagePercentage >= 75 ? "warning" : "success";
-  // const protectionApplied = currentUsage > planLimit;
-  // const ordersNotCounted = protectionApplied ? currentUsage - planLimit : 0;
-
-  // Format currency helper
-  const formatAmount = useCallback((amount: number) => {
-    return formatCurrency(amount, data.shopSettings as any);
-  }, [data.shopSettings]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -975,12 +751,6 @@ export default function Dashboard() {
       window.removeEventListener('focus', handleWindowFocus);
     };
   }, [data.hasWidget]);
-
-  // Tab configuration
-  const tabs = [
-    { id: 'overview', content: 'Overview', panelID: 'overview-panel' },
-    { id: 'insights', content: 'Insights', panelID: 'insights-panel' },
-  ];
 
   // If setup is not complete, show onboarding
   if (!data.setupComplete) {
@@ -1325,176 +1095,6 @@ export default function Dashboard() {
             compact={false}
             onUpgrade={() => navigate("/app/billing")}
           />
-        </Layout.Section>
-        
-        <Layout.Section>
-          <BlockStack gap="500">
-
-            {/* Tabbed Content Area */}
-            <Card>
-              <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab}>
-                {/* Overview Tab */}
-                {selectedTab === 0 && (
-                  <Box padding="400">
-                    <BlockStack gap="500">
-                      {/* Tier Distribution */}
-                      <BlockStack gap="400">
-                        <Text variant="headingMd" as="h2">
-                          Tier Distribution
-                        </Text>
-                        {data.tierDistribution.length > 0 ? (
-                          <BlockStack gap="300">
-                            {sortTiersByPriority(data.tierDistribution).map((tier) => (
-                              <BlockStack key={tier.id} gap="200">
-                                <InlineStack align="space-between">
-                                  <InlineStack gap="300" align="start">
-                                    {tier.name === "No Tier" ? (
-                                      <Icon source={AlertTriangleIcon} tone="caution" />
-                                    ) : (
-                                      <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '8px',
-                                        background: getTierStyle(tier.name).backgroundColor,
-                                        border: `2px solid ${getTierStyle(tier.name).borderColor}`,
-                                      }}>
-                                        <Icon 
-                                          source={getTierStyle(tier.name).icon} 
-                                          tone="base"
-                                        />
-                                      </div>
-                                    )}
-                                    <BlockStack gap="100">
-                                      <InlineStack gap="200" align="start">
-                                        {tier.name === "No Tier" ? (
-                                          <Text variant="bodyMd" fontWeight="semibold" as="p">
-                                            {tier.name}
-                                          </Text>
-                                        ) : (
-                                          <TierBadge
-                                            tierName={tier.name}
-                                            size="small"
-                                            showIcon={false}
-                                            cashbackPercent={tier.cashbackPercent}
-                                          />
-                                        )}
-                                      </InlineStack>
-                                      <Text variant="bodySm" tone="subdued" as="p">
-                                        {tier.count} customers • {formatAmount(tier.totalCredit)} total credit
-                                      </Text>
-                                    </BlockStack>
-                                  </InlineStack>
-                                  <Text variant="bodyLg" fontWeight="semibold" as="p">
-                                    {tier.percentage.toFixed(1)}%
-                                  </Text>
-                                </InlineStack>
-                                <ProgressBar
-                                  progress={tier.percentage}
-                                  size="small"
-                                  tone={tier.name === "No Tier" ? "critical" : "success"}
-                                />
-                              </BlockStack>
-                            ))}
-                          </BlockStack>
-                        ) : (
-                          <EmptyState
-                            heading="No tier data yet"
-                            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                          >
-                            <p>Tier distribution will appear here once you have customers.</p>
-                          </EmptyState>
-                        )}
-                      </BlockStack>
-                    </BlockStack>
-                  </Box>
-                )}
-
-                {/* Insights Tab */}
-                {selectedTab === 1 && (
-                  <Box padding="400">
-                    <BlockStack gap="500">
-                      <BlockStack gap="400">
-                        <Text variant="headingMd" as="h2">
-                          Key Insights
-                        </Text>
-                        
-                        {/* Insights Cards */}
-                        <BlockStack gap="300">
-                          {data.metrics.customersWithTiers < data.metrics.totalCustomers * 0.5 && (
-                            <ActionBanner
-                              title="Opportunity: Increase tier participation"
-                              content={`Only ${Math.round((data.metrics.customersWithTiers / data.metrics.totalCustomers) * 100)}% of your customers are in a tier. Consider reviewing tier thresholds or running a campaign.`}
-                              tone="info"
-                              action={{ content: "View customers", onAction: () => shopifyNavigate("/app/customers") }}
-                            />
-                          )}
-
-                          {data.tierDistribution.find(t => t.name === "No Tier" && t.percentage > 30) && (
-                            <ActionBanner
-                              title="Many customers without tiers"
-                              content={`${data.tierDistribution.find(t => t.name === "No Tier")?.percentage.toFixed(0)}% of customers aren't in a tier. Consider adjusting your tier requirements.`}
-                              tone="warning"
-                              action={{ content: "Manage customers & tiers", onAction: () => shopifyNavigate("/app/customers") }}
-                            />
-                          )}
-                        </BlockStack>
-                      </BlockStack>
-
-                      <Divider />
-
-                      {/* Program Statistics */}
-                      <BlockStack gap="400">
-                        <Text variant="headingMd" as="h2">
-                          Program Statistics
-                        </Text>
-                        <Grid>
-                          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
-                            <Card>
-                              <Box padding="300">
-                                <BlockStack gap="200">
-                                  <Text variant="bodySm" tone="subdued" as="p">
-                                    Tier Participation Rate
-                                  </Text>
-                                  <Text variant="headingLg" as="h3">
-                                    {Math.round((data.metrics.customersWithTiers / data.metrics.totalCustomers) * 100)}%
-                                  </Text>
-                                  <ProgressBar 
-                                    progress={(data.metrics.customersWithTiers / data.metrics.totalCustomers) * 100}
-                                    size="small"
-                                  />
-                                </BlockStack>
-                              </Box>
-                            </Card>
-                          </Grid.Cell>
-                          <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
-                            <Card>
-                              <Box padding="300">
-                                <BlockStack gap="200">
-                                  <Text variant="bodySm" tone="subdued" as="p">
-                                    Credit Utilization Rate
-                                  </Text>
-                                  <Text variant="headingLg" as="h3">
-                                    {Math.round((data.metrics.customersWithCredit / data.metrics.totalCustomers) * 100)}%
-                                  </Text>
-                                  <ProgressBar 
-                                    progress={(data.metrics.customersWithCredit / data.metrics.totalCustomers) * 100}
-                                    size="small"
-                                  />
-                                </BlockStack>
-                              </Box>
-                            </Card>
-                          </Grid.Cell>
-                        </Grid>
-                      </BlockStack>
-                    </BlockStack>
-                  </Box>
-                )}
-              </Tabs>
-            </Card>
-          </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>
