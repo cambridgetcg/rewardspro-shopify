@@ -48,7 +48,7 @@ import {
 } from "../utils/tier-styles";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
-import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount } from "~/utils/order-count-strategies";
+import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount, countOrdersDirectDataAPI, countOrdersEpochComparison } from "~/utils/order-count-strategies";
 import { parse as parseJsonC } from "jsonc-parser";
 import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
@@ -208,6 +208,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const shop = session.shop;
+    const loaderStart = Date.now();
     console.log(`[Dashboard] Loading data for shop: ${shop}`);
 
     // Check if this is a redirect back from completed onboarding
@@ -465,19 +466,63 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Fetch all data in parallel for performance
     // Note: shopSettings already fetched above, so we fetch only remaining data here
+    const perfStart = Date.now();
+
     const [
-      customers,
+      customerAggregates,
+      customersWithCreditCount,
+      customersWithTiersCount,
+      tierGroupData,
+      topCustomers,
       tiers,
       recentTransactions,
       billingSubscription,
     ] = await Promise.all([
-      // All customers with tier info
+      // Aggregate customer totals (much faster than loading all customers)
+      db.customer.aggregate({
+        where: { shop },
+        _count: { id: true },
+        _sum: { storeCredit: true },
+      }),
+
+      // Count customers with store credit > 0
+      db.customer.count({
+        where: {
+          shop,
+          storeCredit: { gt: 0 },
+        },
+      }),
+
+      // Count customers with tiers assigned
+      db.customer.count({
+        where: {
+          shop,
+          currentTierId: { not: null },
+        },
+      }),
+
+      // Fetch just tier IDs and store credit for grouping (minimal projection)
       db.customer.findMany({
         where: { shop },
-        include: {
-          currentTier: true,
+        select: {
+          currentTierId: true,
+          storeCredit: true,
         },
+      }),
+
+      // Top 5 customers (only fetch what we need)
+      db.customer.findMany({
+        where: { shop },
         orderBy: { storeCredit: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          email: true,
+          storeCredit: true,
+          currentTier: {
+            select: { name: true },
+          },
+        },
       }),
 
       // All tiers
@@ -486,16 +531,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { minSpend: 'asc' },
       }),
 
-      // Recent transactions (last 20)
+      // Recent transactions with minimal projection
       db.storeCreditLedger.findMany({
         where: { shop },
         orderBy: { createdAt: 'desc' },
         take: 20,
-        include: {
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          balance: true,
+          reason: true,
+          createdAt: true,
+          metadata: true,
           customer: {
             select: {
               email: true,
-              shopifyCustomerId: true,
               firstName: true,
               lastName: true,
             },
@@ -509,50 +560,58 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }).catch(() => null), // Gracefully handle if table doesn't exist yet
     ]);
 
-    console.log(`[Dashboard] Fetched data - Customers: ${customers.length}, Tiers: ${tiers.length}, Transactions: ${recentTransactions.length}`);
+    const perfData = Date.now();
+    console.log(`[Dashboard] ⚡ Data fetch completed in ${perfData - perfStart}ms`);
 
-    // Calculate metrics
-    const totalCustomers = customers.length;
-    const totalStoreCredit = customers.reduce((sum, c) => 
-      sum + parseFloat(c.storeCredit.toString()), 0
-    );
+    // Calculate metrics from aggregates (no in-memory loops)
+    const totalCustomers = customerAggregates._count.id || 0;
+    const totalStoreCredit = parseFloat(customerAggregates._sum.storeCredit?.toString() || '0');
     const activeTiers = tiers.length;
     const averageCredit = totalCustomers > 0 ? totalStoreCredit / totalCustomers : 0;
-    const customersWithCredit = customers.filter(c => parseFloat(c.storeCredit.toString()) > 0).length;
-    const customersWithTiers = customers.filter(c => c.currentTierId).length;
+    const customersWithCredit = customersWithCreditCount;
+    const customersWithTiers = customersWithTiersCount;
 
-    // Calculate tier distribution
+    // Calculate tier distribution from minimal customer data (only tier IDs and credits)
+    // Group customers by tier in memory (much lighter than loading full customer objects)
+    const tierGroups = new Map<string | null, { count: number; totalCredit: number }>();
+
+    tierGroupData.forEach(customer => {
+      const tierId = customer.currentTierId;
+      const credit = parseFloat(customer.storeCredit?.toString() || '0');
+
+      if (!tierGroups.has(tierId)) {
+        tierGroups.set(tierId, { count: 0, totalCredit: 0 });
+      }
+
+      const group = tierGroups.get(tierId)!;
+      group.count++;
+      group.totalCredit += credit;
+    });
+
     const tierDistribution = tiers.map(tier => {
-      const customersInTier = customers.filter(c => c.currentTierId === tier.id);
-      const totalCreditInTier = customersInTier.reduce((sum, c) => 
-        sum + parseFloat(c.storeCredit.toString()), 0
-      );
-      
+      const group = tierGroups.get(tier.id) || { count: 0, totalCredit: 0 };
+
       return {
         id: tier.id,
         name: tier.name,
-        count: customersInTier.length,
-        percentage: totalCustomers > 0 ? (customersInTier.length / totalCustomers) * 100 : 0,
+        count: group.count,
+        percentage: totalCustomers > 0 ? (group.count / totalCustomers) * 100 : 0,
         cashbackPercent: tier.cashbackPercent,
-        totalCredit: totalCreditInTier,
+        totalCredit: group.totalCredit,
         minSpend: tier.minSpend,
       };
     });
 
-    // Add "No Tier" category if there are customers without tiers
-    const noTierCustomers = customers.filter(c => !c.currentTierId);
-    if (noTierCustomers.length > 0) {
-      const totalCreditNoTier = noTierCustomers.reduce((sum, c) => 
-        sum + parseFloat(c.storeCredit.toString()), 0
-      );
-      
+    // Add "No Tier" category (null tier group)
+    const noTierGroup = tierGroups.get(null);
+    if (noTierGroup && noTierGroup.count > 0) {
       tierDistribution.push({
         id: 'no-tier',
         name: "No Tier",
-        count: noTierCustomers.length,
-        percentage: totalCustomers > 0 ? (noTierCustomers.length / totalCustomers) * 100 : 0,
+        count: noTierGroup.count,
+        percentage: totalCustomers > 0 ? (noTierGroup.count / totalCustomers) * 100 : 0,
         cashbackPercent: 0,
-        totalCredit: totalCreditNoTier,
+        totalCredit: noTierGroup.totalCredit,
         minSpend: 0,
       });
     }
@@ -560,15 +619,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Sort tier distribution by customer count
     tierDistribution.sort((a, b) => b.count - a.count);
 
-    // Get top customers with store credit
-    const topCustomers = customers
-      .slice(0, 5)
-      .map(c => ({
-        id: c.id,
-        email: c.email,
-        storeCredit: parseFloat(c.storeCredit.toString()),
-        tierName: c.currentTier?.name || null,
-      }));
+    // Top customers already fetched with proper select - just format
+    const formattedTopCustomers = topCustomers.map(c => ({
+      id: c.id,
+      email: c.email,
+      storeCredit: parseFloat(c.storeCredit.toString()),
+      tierName: c.currentTier?.name || null,
+    }));
 
     // Format recent transactions for display
     const formattedTransactions = recentTransactions.map(tx => {
@@ -621,27 +678,66 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const year = now.getFullYear();
     const month = now.getMonth() + 1; // 1-indexed for database
 
-    // Count orders using multiple strategies (like billing-v2 does)
+    // Count orders using cache-first strategy
     let orderCount = 0;
     let orderCountStrategy = "unknown";
 
     try {
+      const perfOrderStart = Date.now();
       console.log(`[Dashboard] Attempting to count orders for ${shop} - ${currentMonth} ${year}`);
 
-      // Use optimized fallback chain (DirectDataAPI first)
-      const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-      const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+      // First check if we have a fresh cache entry
+      const cachedUsage = await db.monthlyOrderUsage.findUnique({
+        where: {
+          shop_year_month: {
+            shop,
+            year,
+            month,
+          },
+        },
+      });
 
-      const result = await countOrdersWithFallback(shop, startOfMonth, endOfMonth);
-      orderCount = result.count;
-      orderCountStrategy = result.strategy;
+      const now = new Date();
+      const CACHE_FRESH_MINUTES = 15;
+      const cacheIsFresh = cachedUsage &&
+        (now.getTime() - cachedUsage.updatedAt.getTime()) < (CACHE_FRESH_MINUTES * 60 * 1000);
 
-      // Fallback: If count is 0, try pre-aggregated count
-      if (orderCount === 0) {
-        console.log("[Dashboard] Count is 0, trying pre-aggregated count");
-        orderCount = await getOrCreateMonthlyCount(shop, year, month);
-        orderCountStrategy = "PreAggregated";
+      if (cacheIsFresh && cachedUsage) {
+        // Use cached value - skip expensive counting
+        orderCount = cachedUsage.orderCount;
+        orderCountStrategy = "CachedValue";
+        console.log(`[Dashboard] ⚡ Using cached order count: ${orderCount} (age: ${Math.round((now.getTime() - cachedUsage.updatedAt.getTime()) / 1000)}s)`);
+      } else {
+        // Cache is stale or doesn't exist - run a single reliable strategy
+        console.log(`[Dashboard] Cache is ${!cachedUsage ? 'missing' : 'stale'}, running live count`);
+        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+        const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+        try {
+          // Try DirectDataAPI first (most reliable)
+          orderCount = await countOrdersDirectDataAPI(shop, startOfMonth, endOfMonth);
+          orderCountStrategy = "DirectDataAPI";
+          console.log(`[Dashboard] DirectDataAPI succeeded with count: ${orderCount}`);
+        } catch (error) {
+          console.error("[Dashboard] DirectDataAPI failed, trying EpochComparison:", error);
+
+          try {
+            // Fallback to EpochComparison
+            orderCount = await countOrdersEpochComparison(shop, startOfMonth, endOfMonth);
+            orderCountStrategy = "EpochComparison";
+            console.log(`[Dashboard] EpochComparison succeeded with count: ${orderCount}`);
+          } catch (error2) {
+            console.error("[Dashboard] EpochComparison failed, using pre-aggregated:", error2);
+
+            // Final fallback to pre-aggregated count
+            orderCount = await getOrCreateMonthlyCount(shop, year, month);
+            orderCountStrategy = "PreAggregated";
+          }
+        }
       }
+
+      const perfOrderEnd = Date.now();
+      console.log(`[Dashboard] ⚡ Order counting completed in ${perfOrderEnd - perfOrderStart}ms using strategy: ${orderCountStrategy}`);
     } catch (error) {
       console.error("[Dashboard] Error counting orders:", error);
       // Fallback to simple total count
@@ -727,6 +823,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       customerAccountBlockDismissed,
     };
 
+    const loaderEnd = Date.now();
+    const totalTime = loaderEnd - loaderStart;
+    console.log(`[Dashboard] ⚡ Total loader execution time: ${totalTime}ms`);
     console.log(`[Dashboard] Returning data for ${shop}`);
     return json(dashboardData);
   } catch (error) {
