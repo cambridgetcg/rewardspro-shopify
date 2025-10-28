@@ -1,6 +1,6 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigation, useNavigate, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useNavigation, useNavigate, useSearchParams, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useMemo } from "react";
 import {
   Page,
@@ -23,6 +23,8 @@ import {
   SkeletonBodyText,
   SkeletonDisplayText,
   ButtonGroup,
+  TextField,
+  FormLayout,
 } from "@shopify/polaris";
 import {
   Chart as ChartJS,
@@ -149,6 +151,12 @@ interface AnalyticsData {
   shopSettings: {
     storeCurrency: string;
     currencyDisplayType: string;
+    averageProfitMargin: string | null;
+    averageCogsPercent: string | null;
+    averageShippingCost: string | null;
+    averageOrderValue: string | null;
+    targetRoiPercent: string | null;
+    metricsLastUpdated: string | null;
   } | null;
 }
 
@@ -322,6 +330,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
+        averageProfitMargin: shopSettings.averageProfitMargin?.toString() || null,
+        averageCogsPercent: shopSettings.averageCogsPercent?.toString() || null,
+        averageShippingCost: shopSettings.averageShippingCost?.toString() || null,
+        averageOrderValue: shopSettings.averageOrderValue?.toString() || null,
+        targetRoiPercent: shopSettings.targetRoiPercent?.toString() || null,
+        metricsLastUpdated: shopSettings.metricsLastUpdated?.toISOString() || null,
       } : null,
     };
 
@@ -330,6 +344,42 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Analytics loader error:", error);
     throw new Response("Failed to load analytics", { status: 500 });
   }
+};
+
+// ============================================
+// ACTION - Handle form submissions
+// ============================================
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  const formData = await request.formData();
+  const actionType = formData.get("action");
+
+  if (actionType === "save-metrics") {
+    const parseDecimal = (value: string | null) => {
+      if (!value || value.trim() === "") return null;
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    await db.shopSettings.update({
+      where: { shop },
+      data: {
+        averageProfitMargin: parseDecimal(formData.get("averageProfitMargin") as string),
+        averageCogsPercent: parseDecimal(formData.get("averageCogsPercent") as string),
+        averageShippingCost: parseDecimal(formData.get("averageShippingCost") as string),
+        averageOrderValue: parseDecimal(formData.get("averageOrderValue") as string),
+        targetRoiPercent: parseDecimal(formData.get("targetRoiPercent") as string),
+        metricsLastUpdated: new Date(),
+      },
+    });
+
+    return json({ success: true, message: "Business metrics updated successfully" });
+  }
+
+  return json({ success: false, message: "Invalid action" });
 };
 
 // ============================================
@@ -1067,6 +1117,126 @@ function InsightCard({ insight }: { insight: Insight }) {
 }
 
 // ============================================
+// MARGIN RECALIBRATION FORM COMPONENT
+// ============================================
+
+interface MarginRecalibrationFormProps {
+  initialValues: {
+    averageProfitMargin: string;
+    averageCogsPercent: string;
+    averageShippingCost: string;
+    averageOrderValue: string;
+    targetRoiPercent: string;
+  };
+}
+
+function MarginRecalibrationForm({ initialValues }: MarginRecalibrationFormProps) {
+  const fetcher = useFetcher();
+
+  const [formValues, setFormValues] = useState(initialValues);
+
+  const handleChange = useCallback((field: string) => (value: string) => {
+    setFormValues((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const formData = new FormData();
+    formData.append("action", "save-metrics");
+    formData.append("averageProfitMargin", formValues.averageProfitMargin);
+    formData.append("averageCogsPercent", formValues.averageCogsPercent);
+    formData.append("averageShippingCost", formValues.averageShippingCost);
+    formData.append("averageOrderValue", formValues.averageOrderValue);
+    formData.append("targetRoiPercent", formValues.targetRoiPercent);
+
+    fetcher.submit(formData, { method: "post" });
+  }, [formValues, fetcher]);
+
+  const isSaving = fetcher.state === "submitting";
+  const showSuccess = fetcher.data?.success && fetcher.state === "idle";
+
+  return (
+    <BlockStack gap="400">
+      {showSuccess && (
+        <Banner tone="success" onDismiss={() => {}}>
+          Business metrics updated successfully
+        </Banner>
+      )}
+
+      <FormLayout>
+        <FormLayout.Group>
+          <TextField
+            label="Average Profit Margin (%)"
+            type="number"
+            value={formValues.averageProfitMargin}
+            onChange={handleChange('averageProfitMargin')}
+            helpText="e.g., 45 for 45% profit margin"
+            autoComplete="off"
+            min="0"
+            max="100"
+            step="0.01"
+          />
+          <TextField
+            label="Average COGS Percent (%)"
+            type="number"
+            value={formValues.averageCogsPercent}
+            onChange={handleChange('averageCogsPercent')}
+            helpText="e.g., 55 for 55% of revenue"
+            autoComplete="off"
+            min="0"
+            max="100"
+            step="0.01"
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="Average Shipping Cost"
+            type="number"
+            value={formValues.averageShippingCost}
+            onChange={handleChange('averageShippingCost')}
+            helpText="Average cost per order in your currency"
+            autoComplete="off"
+            min="0"
+            step="0.01"
+          />
+          <TextField
+            label="Average Order Value"
+            type="number"
+            value={formValues.averageOrderValue}
+            onChange={handleChange('averageOrderValue')}
+            helpText="Historical average order value"
+            autoComplete="off"
+            min="0"
+            step="0.01"
+          />
+        </FormLayout.Group>
+
+        <TextField
+          label="Target ROI Percent (%)"
+          type="number"
+          value={formValues.targetRoiPercent}
+          onChange={handleChange('targetRoiPercent')}
+          helpText="e.g., 300 for 3x return on investment"
+          autoComplete="off"
+          min="0"
+          step="0.01"
+        />
+      </FormLayout>
+
+      <InlineStack align="end">
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          loading={isSaving}
+        >
+          Save Business Metrics
+        </Button>
+      </InlineStack>
+    </BlockStack>
+  );
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -1716,15 +1886,63 @@ export default function AnalyticsPage() {
               {selectedTab === 2 && (
                 <Box padding="400">
                   <BlockStack gap="500">
+                    {/* Margin Recalibration Module */}
                     <Card>
                       <Box padding="400">
                         <BlockStack gap="400">
-                          <Text variant="headingMd" as="h2">
-                            Revenue Attribution (Placeholder)
+                          <BlockStack gap="200">
+                            <Text variant="headingMd" as="h2">
+                              Business Metrics Configuration
+                            </Text>
+                            <Text variant="bodyMd" tone="subdued" as="p">
+                              Configure your store's financial metrics to enable accurate ROI calculations and profit analysis
+                            </Text>
+                            {data.shopSettings?.metricsLastUpdated && (
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Last updated: {new Date(data.shopSettings.metricsLastUpdated).toLocaleDateString()}
+                              </Text>
+                            )}
+                          </BlockStack>
+
+                          <Divider />
+
+                          <MarginRecalibrationForm
+                            initialValues={{
+                              averageProfitMargin: data.shopSettings?.averageProfitMargin || '',
+                              averageCogsPercent: data.shopSettings?.averageCogsPercent || '',
+                              averageShippingCost: data.shopSettings?.averageShippingCost || '',
+                              averageOrderValue: data.shopSettings?.averageOrderValue || '',
+                              targetRoiPercent: data.shopSettings?.targetRoiPercent || '',
+                            }}
+                          />
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Help Card */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="300">
+                          <Text variant="headingSm" as="h3">
+                            How to Use These Metrics
                           </Text>
-                          <Text variant="bodyMd" tone="subdued" as="p">
-                            Financial data will be implemented later
-                          </Text>
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Average Profit Margin:</strong> Your typical profit margin as a percentage (e.g., 45 for 45%)
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Average COGS Percent:</strong> Cost of goods sold as a percentage of revenue (e.g., 55 for 55%)
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Average Shipping Cost:</strong> Typical shipping cost per order in your store currency
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Average Order Value:</strong> Historical average order value for baseline calculations
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Target ROI Percent:</strong> Your target return on investment for the loyalty program (e.g., 300 for 3x)
+                            </Text>
+                          </BlockStack>
                         </BlockStack>
                       </Box>
                     </Card>
