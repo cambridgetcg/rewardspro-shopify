@@ -2036,7 +2036,376 @@ export default function TierProducts() {
               </p>
             </Banner>
           </Layout.Section>
-          
+
+          {/* Tier-Duration Matrix View */}
+          <Layout.Section>
+            <Card>
+              <Box padding="400">
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="headingLg" as="h2">
+                      Tier Product Coverage
+                    </Text>
+                    <Badge tone="info">
+                      {data.tierProducts.length} / {data.tiers.length * 3} products created
+                    </Badge>
+                  </InlineStack>
+
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    See which tier + duration combinations have products. Click + Create to add missing products.
+                  </Text>
+
+                  {data.tiers.length === 0 ? (
+                    <Banner tone="warning">
+                      <p>Create loyalty tiers first before adding tier products.</p>
+                    </Banner>
+                  ) : (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '150px repeat(3, 1fr)',
+                      gap: '12px',
+                      marginTop: '8px'
+                    }}>
+                      {/* Header Row */}
+                      <div style={{ padding: '12px', fontWeight: 600 }}></div>
+                      <div style={{ padding: '12px', fontWeight: 600, textAlign: 'center' }}>
+                        <Text variant="headingSm" as="h3" fontWeight="semibold">Monthly</Text>
+                      </div>
+                      <div style={{ padding: '12px', fontWeight: 600, textAlign: 'center' }}>
+                        <Text variant="headingSm" as="h3" fontWeight="semibold">Annual</Text>
+                      </div>
+                      <div style={{ padding: '12px', fontWeight: 600, textAlign: 'center' }}>
+                        <Text variant="headingSm" as="h3" fontWeight="semibold">Lifetime</Text>
+                      </div>
+
+                      {/* Tier Rows */}
+                      {data.tiers
+                        .sort((a, b) => a.minSpend - b.minSpend)
+                        .map((tier) => {
+                          const monthlyProduct = data.tierProducts.find(
+                            p => p.tierId === tier.id && p.duration === 'MONTHLY'
+                          );
+                          const annualProduct = data.tierProducts.find(
+                            p => p.tierId === tier.id && p.duration === 'ANNUAL'
+                          );
+                          const lifetimeProduct = data.tierProducts.find(
+                            p => p.tierId === tier.id && p.duration === 'LIFETIME'
+                          );
+
+                          return (
+                            <div key={tier.id} style={{ display: 'contents' }}>
+                              {/* Tier Name Cell */}
+                              <div style={{
+                                padding: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                borderRadius: '8px',
+                                background: 'var(--p-color-bg-surface-secondary)'
+                              }}>
+                                <div style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '6px',
+                                  background: getTierStyle(tier.name).backgroundColor,
+                                  border: `1px solid ${getTierStyle(tier.name).borderColor}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <Icon source={getTierStyle(tier.name).icon} tone="base" />
+                                </div>
+                                <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                  {tier.name}
+                                </Text>
+                              </div>
+
+                              {/* Monthly Cell */}
+                              <div style={{
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--p-color-border)',
+                                background: monthlyProduct ? 'var(--p-color-bg-surface)' : 'var(--p-color-bg-surface-secondary)',
+                                minHeight: '80px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                              }}>
+                                {monthlyProduct ? (
+                                  <>
+                                    <InlineStack align="space-between" blockAlign="start">
+                                      <Text variant="headingMd" as="span" fontWeight="bold">
+                                        {formatAmount(monthlyProduct.price)}
+                                      </Text>
+                                      <InlineStack gap="100">
+                                        <div style={{
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          backgroundColor: monthlyProduct.isActive ? '#22c55e' : '#eab308'
+                                        }} />
+                                        <div style={{
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          backgroundColor: monthlyProduct.publishedAt ? '#22c55e' : '#9ca3af'
+                                        }} />
+                                        {monthlyProduct.hasSubscription && (
+                                          <div style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#3b82f6'
+                                          }} />
+                                        )}
+                                      </InlineStack>
+                                    </InlineStack>
+                                    <Text variant="bodySm" tone="subdued" as="code" truncate>
+                                      {monthlyProduct.sku}
+                                    </Text>
+                                    <Button
+                                      size="micro"
+                                      onClick={() => handleEditModalOpen(monthlyProduct)}
+                                      disabled={!data.canCreateProducts}
+                                    >
+                                      Edit
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '100%',
+                                    gap: '8px'
+                                  }}>
+                                    <Button
+                                      size="slim"
+                                      icon={PlusIcon}
+                                      onClick={() => {
+                                        setSelectedTier(tier.id);
+                                        setDuration('MONTHLY');
+                                        setPrice('');
+                                        handleModalOpen();
+                                      }}
+                                      disabled={!data.canCreateProducts}
+                                    >
+                                      Create
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Annual Cell */}
+                              <div style={{
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--p-color-border)',
+                                background: annualProduct ? 'var(--p-color-bg-surface)' : 'var(--p-color-bg-surface-secondary)',
+                                minHeight: '80px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                              }}>
+                                {annualProduct ? (
+                                  <>
+                                    <InlineStack align="space-between" blockAlign="start">
+                                      <Text variant="headingMd" as="span" fontWeight="bold">
+                                        {formatAmount(annualProduct.price)}
+                                      </Text>
+                                      <InlineStack gap="100">
+                                        <div style={{
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          backgroundColor: annualProduct.isActive ? '#22c55e' : '#eab308'
+                                        }} />
+                                        <div style={{
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          backgroundColor: annualProduct.publishedAt ? '#22c55e' : '#9ca3af'
+                                        }} />
+                                        {annualProduct.hasSubscription && (
+                                          <div style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#3b82f6'
+                                          }} />
+                                        )}
+                                      </InlineStack>
+                                    </InlineStack>
+                                    <Text variant="bodySm" tone="subdued" as="code" truncate>
+                                      {annualProduct.sku}
+                                    </Text>
+                                    <Button
+                                      size="micro"
+                                      onClick={() => handleEditModalOpen(annualProduct)}
+                                      disabled={!data.canCreateProducts}
+                                    >
+                                      Edit
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '100%',
+                                    gap: '8px'
+                                  }}>
+                                    <Button
+                                      size="slim"
+                                      icon={PlusIcon}
+                                      onClick={() => {
+                                        setSelectedTier(tier.id);
+                                        setDuration('ANNUAL');
+                                        setPrice('');
+                                        handleModalOpen();
+                                      }}
+                                      disabled={!data.canCreateProducts}
+                                    >
+                                      Create
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Lifetime Cell */}
+                              <div style={{
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--p-color-border)',
+                                background: lifetimeProduct ? 'var(--p-color-bg-surface)' : 'var(--p-color-bg-surface-secondary)',
+                                minHeight: '80px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                              }}>
+                                {lifetimeProduct ? (
+                                  <>
+                                    <InlineStack align="space-between" blockAlign="start">
+                                      <Text variant="headingMd" as="span" fontWeight="bold">
+                                        {formatAmount(lifetimeProduct.price)}
+                                      </Text>
+                                      <InlineStack gap="100">
+                                        <div style={{
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          backgroundColor: lifetimeProduct.isActive ? '#22c55e' : '#eab308'
+                                        }} />
+                                        <div style={{
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          backgroundColor: lifetimeProduct.publishedAt ? '#22c55e' : '#9ca3af'
+                                        }} />
+                                        {lifetimeProduct.hasSubscription && (
+                                          <div style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#3b82f6'
+                                          }} />
+                                        )}
+                                      </InlineStack>
+                                    </InlineStack>
+                                    <Text variant="bodySm" tone="subdued" as="code" truncate>
+                                      {lifetimeProduct.sku}
+                                    </Text>
+                                    <Button
+                                      size="micro"
+                                      onClick={() => handleEditModalOpen(lifetimeProduct)}
+                                      disabled={!data.canCreateProducts}
+                                    >
+                                      Edit
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '100%',
+                                    gap: '8px'
+                                  }}>
+                                    <Button
+                                      size="slim"
+                                      icon={PlusIcon}
+                                      onClick={() => {
+                                        setSelectedTier(tier.id);
+                                        setDuration('LIFETIME');
+                                        setPrice('');
+                                        handleModalOpen();
+                                      }}
+                                      disabled={!data.canCreateProducts}
+                                    >
+                                      Create
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* Legend */}
+                  <Box paddingBlockStart="400">
+                    <BlockStack gap="200">
+                      <Text variant="bodySm" as="span" fontWeight="semibold">Status Indicators:</Text>
+                      <InlineStack gap="400">
+                        <InlineStack gap="100" blockAlign="center">
+                          <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#22c55e'
+                          }} />
+                          <Text variant="bodySm" tone="subdued" as="span">Active/Published</Text>
+                        </InlineStack>
+                        <InlineStack gap="100" blockAlign="center">
+                          <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#eab308'
+                          }} />
+                          <Text variant="bodySm" tone="subdued" as="span">Draft</Text>
+                        </InlineStack>
+                        <InlineStack gap="100" blockAlign="center">
+                          <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#9ca3af'
+                          }} />
+                          <Text variant="bodySm" tone="subdued" as="span">Unpublished</Text>
+                        </InlineStack>
+                        <InlineStack gap="100" blockAlign="center">
+                          <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#3b82f6'
+                          }} />
+                          <Text variant="bodySm" tone="subdued" as="span">Subscription</Text>
+                        </InlineStack>
+                      </InlineStack>
+                    </BlockStack>
+                  </Box>
+                </BlockStack>
+              </Box>
+            </Card>
+          </Layout.Section>
+
           {/* Products Grid - Symmetric Card Layout */}
           <Layout.Section>
             {isRefreshing && data.tierProducts.length === 0 ? (
