@@ -110,12 +110,6 @@ interface DashboardData {
   } | null;
   currentMonth: string;
   daysRemaining: number;
-  // Widget detection
-  hasWidget: boolean;
-  widgetDetectionMethod: string;
-  widgetDismissed: boolean;
-  hasCustomerAccountBlock: boolean;
-  customerAccountBlockDismissed: boolean;
 }
 
 // ============================================
@@ -280,11 +274,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       monthlyOrderUsage,
       currentMonth,
       daysRemaining,
-      hasWidget: false,  // Removed complex detection
-      widgetDetectionMethod: "none",
-      widgetDismissed: true,  // Hide banners for cleaner UI
-      hasCustomerAccountBlock: false,
-      customerAccountBlockDismissed: true,
     };
 
     const loaderEnd = Date.now();
@@ -489,38 +478,6 @@ export default function Dashboard() {
     fetcher.submit(formData, { method: "post" });
   }, [fetcher]);
 
-  // Auto-refresh when window regains focus (user returns from theme editor)
-  // This implements the recommended UX flow from Shopify's developer guide
-  // Guard: Only reload if page has been open for at least 5 seconds to avoid annoyance
-  useEffect(() => {
-    const pageOpenTime = Date.now();
-    const MIN_TIME_BEFORE_RELOAD = 5000; // 5 seconds
-
-    const handleWindowFocus = () => {
-      // Only reload if widget is not detected (to check if user enabled it)
-      if (!data.hasWidget) {
-        const timeElapsed = Date.now() - pageOpenTime;
-
-        // Guard: Only reload if page has been open long enough
-        if (timeElapsed >= MIN_TIME_BEFORE_RELOAD) {
-          console.log('[Dashboard] Window focused - checking if widget was enabled...');
-          // Small delay to ensure theme settings are saved
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        } else {
-          console.log('[Dashboard] Window focused but page recently opened - skipping reload');
-        }
-      }
-    };
-
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, [data.hasWidget]);
-
   // If setup is not complete, show onboarding
   if (!data.setupComplete) {
     return (
@@ -581,75 +538,6 @@ export default function Dashboard() {
               <Text variant="bodyMd" as="p">
                 Your customers haven't been synced yet. Sync them to start tracking rewards and tiers.
               </Text>
-            </Banner>
-          </Layout.Section>
-        )}
-
-        {/* Customer Account Block Setup - TEMPORARILY DISABLED */}
-        {false && !data.hasCustomerAccountBlock && (
-          <Layout.Section data-banner="customer-account-block">
-            <Banner
-              title="Enable customer account membership block"
-              tone="info"
-            >
-              <BlockStack gap="300">
-                <Text variant="bodyMd" as="p">
-                  Show your customers their loyalty tier and rewards directly on their account page.
-                  This creates a personalized experience and encourages engagement with your rewards program.
-                </Text>
-
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" as="p" fontWeight="semibold">
-                    Quick setup (takes 30 seconds):
-                  </Text>
-                  <ol style={{ paddingLeft: '20px', margin: '8px 0' }}>
-                    <li style={{ marginBottom: '8px' }}>
-                      <Text variant="bodySm" as="span">
-                        Click the button below to open the customer account editor
-                      </Text>
-                    </li>
-                    <li style={{ marginBottom: '8px' }}>
-                      <Text variant="bodySm" as="span">
-                        Find <strong>"RewardsPro Membership"</strong> in the app blocks list
-                      </Text>
-                    </li>
-                    <li style={{ marginBottom: '8px' }}>
-                      <Text variant="bodySm" as="span">
-                        Drag it to your desired location on the profile page
-                      </Text>
-                    </li>
-                    <li style={{ marginBottom: '8px' }}>
-                      <Text variant="bodySm" as="span">
-                        Click <strong>Save</strong> in the top-right corner
-                      </Text>
-                    </li>
-                  </ol>
-                </BlockStack>
-
-                <Box paddingBlock="200">
-                  <Banner tone="info">
-                    <Text variant="bodySm" as="p">
-                      Note: The block will only show as enabled once we detect it's actually installed.
-                      This onboarding guide will persist until the block is detected as active.
-                    </Text>
-                  </Banner>
-                </Box>
-
-                <Button
-                  onClick={() => {
-                    // Open customer account profile editor with app blocks context
-                    // Extract shop name from shop domain (e.g., "store.myshopify.com" -> "store")
-                    const shopName = data.shop.split('.')[0];
-                    window.open(
-                      `https://admin.shopify.com/store/${shopName}/settings/checkout/editor/profiles/6001787264?page=profile&context=apps`,
-                      '_blank'
-                    );
-                  }}
-                  variant="primary"
-                >
-                  Enable customer account block
-                </Button>
-              </BlockStack>
             </Banner>
           </Layout.Section>
         )}
@@ -787,16 +675,6 @@ export default function Dashboard() {
                 </Text>
 
                 <StatusItem
-                  id="storefront-widget"
-                  label="Storefront Widget"
-                  status={data.hasWidget ? 'success' : 'warning'}
-                  statusText={data.hasWidget ? 'ACTIVE' : 'NOT DETECTED'}
-                  description="The RewardsPro widget displays customer tier badges, reward balances, and cashback information on your storefront. It embeds on product pages and the customer account to show real-time loyalty status. Enable it in your theme editor under App embeds to activate this feature."
-                  isExpanded={expandedItems.has('storefront-widget')}
-                  onToggle={() => toggleItem('storefront-widget')}
-                />
-
-                <StatusItem
                   id="database-connection"
                   label="Database Connection"
                   status="success"
@@ -898,7 +776,7 @@ export default function Dashboard() {
                     width: '20px',
                     height: '20px',
                     borderRadius: '50%',
-                    backgroundColor: (data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                    backgroundColor: (data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
@@ -907,12 +785,12 @@ export default function Dashboard() {
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
-                      backgroundColor: (data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 8px ${(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
+                      backgroundColor: (data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
+                      boxShadow: `0 0 8px ${(data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
                     }} />
                   </div>
                   <Text variant="headingSm" as="h3" fontWeight="bold">
-                    {(data.hasWidget && data.setupComplete && data.shopSettings?.customersInitialSynced)
+                    {(data.setupComplete && data.shopSettings?.customersInitialSynced)
                       ? '✓ All Systems Operational'
                       : 'Setup in Progress'}
                   </Text>
