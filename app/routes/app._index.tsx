@@ -22,7 +22,6 @@ import {
   Collapsible,
 } from "@shopify/polaris";
 import {
-  PlusIcon,
   PersonIcon,
   CashDollarIcon,
   RewardIcon,
@@ -946,13 +945,8 @@ export default function Dashboard() {
   }
 
   return (
-    <Page 
+    <Page
       title="Dashboard"
-      primaryAction={{
-        content: "Add customer",
-        icon: PlusIcon,
-        url: "/app/customers",
-      }}
     >
       <Layout>
         {/* Customer Sync Status Banner */}
