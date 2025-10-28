@@ -1281,6 +1281,97 @@ export default function Dashboard() {
                 Real-time status of all app systems and integrations
               </Text>
 
+              {/* Status Legend */}
+              <Box
+                padding="300"
+                background="bg-surface-secondary"
+                borderRadius="200"
+              >
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3" fontWeight="semibold">
+                    Status Indicators
+                  </Text>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '12px',
+                  }}>
+                    {/* Operating Normally */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#22c55e',
+                          boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
+                        }} />
+                      </div>
+                      <Text variant="bodySm" as="span" fontWeight="medium">
+                        Operating normally
+                      </Text>
+                    </div>
+
+                    {/* Configuration Recommended */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(234, 179, 8, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#eab308',
+                          boxShadow: '0 0 6px rgba(234, 179, 8, 0.6)'
+                        }} />
+                      </div>
+                      <Text variant="bodySm" as="span" fontWeight="medium">
+                        Configuration recommended
+                      </Text>
+                    </div>
+
+                    {/* Needs Attention */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ef4444',
+                          boxShadow: '0 0 6px rgba(239, 68, 68, 0.6)'
+                        }} />
+                      </div>
+                      <Text variant="bodySm" as="span" fontWeight="medium">
+                        Needs attention
+                      </Text>
+                    </div>
+                  </div>
+                </BlockStack>
+              </Box>
+
               {/* Core Systems */}
               <BlockStack gap="300">
                 <Text variant="headingSm" as="h3" fontWeight="semibold">
