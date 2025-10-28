@@ -23,7 +23,6 @@ import {
 } from "@shopify/polaris";
 import {
   PlusIcon,
-  RefreshIcon,
   PersonIcon,
   CashDollarIcon,
   RewardIcon,
@@ -829,7 +828,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { navigate: shopifyNavigate } = useShopifyNavigation();
   const fetcher = useFetcher();
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Currency selection state
   const [selectedCurrency, setSelectedCurrency] = useState(data.shopSettings?.storeCurrency || "USD");
@@ -848,12 +846,6 @@ export default function Dashboard() {
       }
       return newSet;
     });
-  }, []);
-
-  // Handle refresh
-  const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    window.location.reload();
   }, []);
 
   // Handle currency selection and save
@@ -961,14 +953,6 @@ export default function Dashboard() {
         icon: PlusIcon,
         url: "/app/customers",
       }}
-      secondaryActions={[
-        {
-          content: "Refresh",
-          icon: RefreshIcon,
-          onAction: handleRefresh,
-          loading: isRefreshing,
-        },
-      ]}
     >
       <Layout>
         {/* Customer Sync Status Banner */}
@@ -1676,7 +1660,6 @@ export default function Dashboard() {
                     icon: RewardIcon,
                   },
                 ]}
-                loading={isRefreshing}
               />
             </BlockStack>
           </Layout.Section>
