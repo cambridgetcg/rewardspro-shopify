@@ -37,6 +37,8 @@ import {
   Modal,
   Divider,
   Collapsible,
+  Toast,
+  Frame,
 } from "@shopify/polaris";
 import {
   PersonIcon,
@@ -474,6 +476,10 @@ export default function Dashboard() {
   // System status expanded items state
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
+  // Toast state for feature toggle feedback
+  const [toastActive, setToastActive] = useState(false);
+  const [toastContent, setToastContent] = useState('');
+
   const toggleItem = useCallback((itemId: string) => {
     setExpandedItems(prev => {
       const newSet = new Set(prev);
@@ -499,38 +505,73 @@ export default function Dashboard() {
     fetcher.submit(formData, { method: "post" });
   }, [fetcher]);
 
+  // Show toast message when feature toggle completes
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data) {
+      const result = fetcher.data as { success?: boolean; feature?: string; enabled?: boolean };
+
+      if (result.success && result.feature && typeof result.enabled === 'boolean') {
+        const featureNames: Record<string, string> = {
+          'advancedAnalyticsEnabled': 'Advanced Analytics',
+          'autoCashbackProcessingEnabled': 'Automatic Cashback Processing',
+          'emailMarketingEnabled': 'Email Marketing Campaigns',
+          'tierProductsEnabled': 'Tier Products Module',
+        };
+
+        const featureName = featureNames[result.feature] || result.feature;
+        const action = result.enabled ? 'enabled' : 'disabled';
+
+        setToastContent(`${featureName} ${action}`);
+        setToastActive(true);
+      }
+    }
+  }, [fetcher.state, fetcher.data]);
+
+  // Toast markup
+  const toastMarkup = toastActive ? (
+    <Toast
+      content={toastContent}
+      onDismiss={() => setToastActive(false)}
+      duration={3000}
+    />
+  ) : null;
+
   // If setup is not complete, show onboarding
   if (!data.setupComplete) {
     return (
-      <Page title="Welcome to RewardsPro">
-        <Layout>
-          <Layout.Section>
-            <EmptyState
-              heading="Get started with RewardsPro"
-              action={{
-                content: "Manage customers & tiers",
-                url: "/app/customers",
-              }}
-              secondaryAction={{
-                content: "Configure settings",
-                url: "/app/settings",
-              }}
-              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-            >
-              <p>Set up loyalty tiers and start rewarding your customers with cashback.</p>
-            </EmptyState>
-          </Layout.Section>
-        </Layout>
-        
-        {/* Bottom spacer to prevent content from touching the bottom */}
-        <div style={{ height: '80px', width: '100%' }} aria-hidden="true" />
-      </Page>
+      <Frame>
+        <Page title="Welcome to RewardsPro">
+          <Layout>
+            <Layout.Section>
+              <EmptyState
+                heading="Get started with RewardsPro"
+                action={{
+                  content: "Manage customers & tiers",
+                  url: "/app/customers",
+                }}
+                secondaryAction={{
+                  content: "Configure settings",
+                  url: "/app/settings",
+                }}
+                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+              >
+                <p>Set up loyalty tiers and start rewarding your customers with cashback.</p>
+              </EmptyState>
+            </Layout.Section>
+          </Layout>
+
+          {/* Bottom spacer to prevent content from touching the bottom */}
+          <div style={{ height: '80px', width: '100%' }} aria-hidden="true" />
+        </Page>
+        {toastMarkup}
+      </Frame>
     );
   }
 
   return (
-    <Page
-      title="Dashboard"
+    <Frame>
+      <Page
+        title="Dashboard"
     >
       <Layout>
         {/* Customer Sync Status Banner */}
@@ -922,5 +963,7 @@ export default function Dashboard() {
         )}
       </Layout>
     </Page>
+    {toastMarkup}
+  </Frame>
   );
 }
