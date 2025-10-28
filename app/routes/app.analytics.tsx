@@ -1296,6 +1296,7 @@ export default function AnalyticsPage() {
     { id: 'charts', content: 'Charts' },
     { id: 'financial', content: 'Financial' },
     { id: 'actions', content: 'Recommended Actions', badge: '5' },
+    { id: 'behaviour', content: 'Customer Behaviour' },
   ];
 
   return (
@@ -2393,6 +2394,688 @@ export default function AnalyticsPage() {
                         </Box>
                       </Card>
                     </div>
+                  </BlockStack>
+                </Box>
+              )}
+
+              {/* Customer Behaviour Tab */}
+              {selectedTab === 4 && (
+                <Box padding="400">
+                  <BlockStack gap="600">
+                    {/* Header */}
+                    <BlockStack gap="300">
+                      <Text variant="headingMd" as="h2">
+                        Customer Behaviour Analysis
+                      </Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">
+                        Compare loyalty program member behavior against non-members and industry benchmarks
+                      </Text>
+                    </BlockStack>
+
+                    {/* Performance Summary Cards */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '16px'
+                    }}>
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Program Members
+                            </Text>
+                            <Text variant="headingLg" as="h3">
+                              856
+                            </Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="success">68% of total</Badge>
+                              <Text variant="bodySm" tone="subdued" as="span">
+                                vs 54% industry avg
+                              </Text>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Order Frequency Lift
+                            </Text>
+                            <Text variant="headingLg" as="h3" tone="success">
+                              3.4x
+                            </Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="success">+240%</Badge>
+                              <Text variant="bodySm" tone="subdued" as="span">
+                                vs non-members
+                              </Text>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              AOV Increase
+                            </Text>
+                            <Text variant="headingLg" as="h3" tone="success">
+                              +42%
+                            </Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="success">$158 vs $112</Badge>
+                              <Text variant="bodySm" tone="subdued" as="span">
+                                member vs non-member
+                              </Text>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="200">
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Revenue Lift
+                            </Text>
+                            <Text variant="headingLg" as="h3" tone="success">
+                              +156%
+                            </Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="success">$4.2K vs $1.3K</Badge>
+                              <Text variant="bodySm" tone="subdued" as="span">
+                                12-month LTV
+                              </Text>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+                    </div>
+
+                    {/* Industry Selector */}
+                    <Card>
+                      <Box padding="400">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <BlockStack gap="100">
+                            <Text variant="headingSm" as="h3">
+                              Industry Benchmark
+                            </Text>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Compare your performance against industry averages
+                            </Text>
+                          </BlockStack>
+                          <div style={{ minWidth: '200px' }}>
+                            <Select
+                              label=""
+                              options={[
+                                { label: 'General Retail', value: 'general' },
+                                { label: 'Fashion & Apparel', value: 'fashion' },
+                                { label: 'Beauty & Cosmetics', value: 'beauty' },
+                                { label: 'Food & Beverage', value: 'food' },
+                                { label: 'Electronics', value: 'electronics' },
+                              ]}
+                              value="general"
+                              onChange={() => {}}
+                            />
+                          </div>
+                        </InlineStack>
+                      </Box>
+                    </Card>
+
+                    {/* Comparison Table */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <Text variant="headingSm" as="h3">
+                            Three-Way Performance Comparison
+                          </Text>
+
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{
+                              width: '100%',
+                              borderCollapse: 'collapse',
+                              fontSize: '13px'
+                            }}>
+                              <thead>
+                                <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                                  <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>Metric</th>
+                                  <th style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>
+                                    <Badge tone="success">Members</Badge>
+                                  </th>
+                                  <th style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>
+                                    <Badge>Non-Members</Badge>
+                                  </th>
+                                  <th style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>
+                                    <Badge tone="info">Industry Avg</Badge>
+                                  </th>
+                                  <th style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>Performance</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                  <td style={{ padding: '12px' }}>Avg Orders/Month</td>
+                                  <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>2.8</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>0.8</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>1.2</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                                    <Badge tone="success">233% of industry</Badge>
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                  <td style={{ padding: '12px' }}>Average Order Value</td>
+                                  <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>$158</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>$112</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>$135</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                                    <Badge tone="success">117% of industry</Badge>
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                  <td style={{ padding: '12px' }}>Lifetime Value (12mo)</td>
+                                  <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>$4,224</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>$1,344</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>$1,890</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                                    <Badge tone="success">223% of industry</Badge>
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                  <td style={{ padding: '12px' }}>Retention Rate (90 days)</td>
+                                  <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>84%</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>43%</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>58%</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                                    <Badge tone="success">145% of industry</Badge>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '12px' }}>Repeat Purchase Rate</td>
+                                  <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: '#22c55e' }}>91%</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>38%</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>52%</td>
+                                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                                    <Badge tone="success">175% of industry</Badge>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Benchmark Performance Bars */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <Text variant="headingSm" as="h3">
+                            Performance vs Industry Benchmark
+                          </Text>
+                          <Text variant="bodySm" tone="subdued" as="p">
+                            Green indicates outperforming industry average (&gt;110%), yellow is on par (90-110%)
+                          </Text>
+
+                          <BlockStack gap="300">
+                            {/* Order Frequency */}
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <Text variant="bodyMd" as="span" fontWeight="medium">
+                                  Order Frequency
+                                </Text>
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                    233%
+                                  </Text>
+                                  <Badge tone="success">Excellent</Badge>
+                                </InlineStack>
+                              </InlineStack>
+                              <div style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: '#e5e7eb',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}>
+                                <div style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#22c55e',
+                                  borderRadius: '4px'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: '100%',
+                                  width: '2px',
+                                  height: '100%',
+                                  backgroundColor: '#666',
+                                  marginLeft: '-1px'
+                                }} />
+                              </div>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                2.8 orders/month vs 1.2 industry average
+                              </Text>
+                            </BlockStack>
+
+                            {/* Average Order Value */}
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <Text variant="bodyMd" as="span" fontWeight="medium">
+                                  Average Order Value
+                                </Text>
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                    117%
+                                  </Text>
+                                  <Badge tone="success">Above Average</Badge>
+                                </InlineStack>
+                              </InlineStack>
+                              <div style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: '#e5e7eb',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}>
+                                <div style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#22c55e',
+                                  borderRadius: '4px',
+                                  maxWidth: '85%'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: '85.5%',
+                                  width: '2px',
+                                  height: '100%',
+                                  backgroundColor: '#666',
+                                  marginLeft: '-1px'
+                                }} />
+                              </div>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                $158 vs $135 industry average
+                              </Text>
+                            </BlockStack>
+
+                            {/* Retention Rate */}
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <Text variant="bodyMd" as="span" fontWeight="medium">
+                                  Retention Rate (90-day)
+                                </Text>
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                    145%
+                                  </Text>
+                                  <Badge tone="success">Excellent</Badge>
+                                </InlineStack>
+                              </InlineStack>
+                              <div style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: '#e5e7eb',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}>
+                                <div style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  backgroundColor: '#22c55e',
+                                  borderRadius: '4px',
+                                  maxWidth: '95%'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: '69%',
+                                  width: '2px',
+                                  height: '100%',
+                                  backgroundColor: '#666',
+                                  marginLeft: '-1px'
+                                }} />
+                              </div>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                84% vs 58% industry average
+                              </Text>
+                            </BlockStack>
+
+                            {/* Engagement Score */}
+                            <BlockStack gap="200">
+                              <InlineStack align="space-between" blockAlign="center">
+                                <Text variant="bodyMd" as="span" fontWeight="medium">
+                                  Program Engagement Score
+                                </Text>
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="attention">
+                                    92%
+                                  </Text>
+                                  <Badge tone="attention">Room for Growth</Badge>
+                                </InlineStack>
+                              </InlineStack>
+                              <div style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: '#e5e7eb',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}>
+                                <div style={{
+                                  width: '91%',
+                                  height: '100%',
+                                  backgroundColor: '#eab308',
+                                  borderRadius: '4px'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: '100%',
+                                  width: '2px',
+                                  height: '100%',
+                                  backgroundColor: '#666',
+                                  marginLeft: '-1px'
+                                }} />
+                              </div>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                73/100 vs 80/100 industry average
+                              </Text>
+                            </BlockStack>
+                          </BlockStack>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Behavior Comparison Charts */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+                      gap: '20px'
+                    }}>
+                      {/* Purchase Frequency Chart */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <BlockStack gap="100">
+                              <Text variant="headingSm" as="h3">
+                                Purchase Frequency Comparison
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Average orders per customer per month
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{ marginTop: '20px' }}>
+                              <BlockStack gap="300">
+                                {/* Members */}
+                                <BlockStack gap="100">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="bodyMd" as="span">Members</Text>
+                                    <Text variant="bodyMd" as="span" fontWeight="semibold">2.8 orders/mo</Text>
+                                  </InlineStack>
+                                  <div style={{
+                                    width: '100%',
+                                    height: '32px',
+                                    backgroundColor: '#22c55e',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    paddingLeft: '12px'
+                                  }}>
+                                    <Text variant="bodySm" as="span" tone="text-inverse" fontWeight="semibold">
+                                      350%
+                                    </Text>
+                                  </div>
+                                </BlockStack>
+
+                                {/* Industry */}
+                                <BlockStack gap="100">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="bodyMd" as="span">Industry Average</Text>
+                                    <Text variant="bodyMd" as="span" fontWeight="semibold">1.2 orders/mo</Text>
+                                  </InlineStack>
+                                  <div style={{
+                                    width: '43%',
+                                    height: '32px',
+                                    backgroundColor: '#3b82f6',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    paddingLeft: '12px'
+                                  }}>
+                                    <Text variant="bodySm" as="span" tone="text-inverse" fontWeight="semibold">
+                                      150%
+                                    </Text>
+                                  </div>
+                                </BlockStack>
+
+                                {/* Non-Members */}
+                                <BlockStack gap="100">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="bodyMd" as="span">Non-Members</Text>
+                                    <Text variant="bodyMd" as="span" fontWeight="semibold">0.8 orders/mo</Text>
+                                  </InlineStack>
+                                  <div style={{
+                                    width: '29%',
+                                    height: '32px',
+                                    backgroundColor: '#9ca3af',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    paddingLeft: '12px'
+                                  }}>
+                                    <Text variant="bodySm" as="span" tone="text-inverse" fontWeight="semibold">
+                                      100%
+                                    </Text>
+                                  </div>
+                                </BlockStack>
+                              </BlockStack>
+                            </div>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      {/* AOV Comparison */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <BlockStack gap="100">
+                              <Text variant="headingSm" as="h3">
+                                Average Order Value Comparison
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Revenue per transaction
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{ marginTop: '20px' }}>
+                              <BlockStack gap="300">
+                                {/* Members */}
+                                <BlockStack gap="100">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="bodyMd" as="span">Members</Text>
+                                    <Text variant="bodyMd" as="span" fontWeight="semibold">$158</Text>
+                                  </InlineStack>
+                                  <div style={{
+                                    width: '100%',
+                                    height: '32px',
+                                    backgroundColor: '#22c55e',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    paddingLeft: '12px'
+                                  }}>
+                                    <Text variant="bodySm" as="span" tone="text-inverse" fontWeight="semibold">
+                                      141%
+                                    </Text>
+                                  </div>
+                                </BlockStack>
+
+                                {/* Industry */}
+                                <BlockStack gap="100">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="bodyMd" as="span">Industry Average</Text>
+                                    <Text variant="bodyMd" as="span" fontWeight="semibold">$135</Text>
+                                  </InlineStack>
+                                  <div style={{
+                                    width: '85%',
+                                    height: '32px',
+                                    backgroundColor: '#3b82f6',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    paddingLeft: '12px'
+                                  }}>
+                                    <Text variant="bodySm" as="span" tone="text-inverse" fontWeight="semibold">
+                                      120%
+                                    </Text>
+                                  </div>
+                                </BlockStack>
+
+                                {/* Non-Members */}
+                                <BlockStack gap="100">
+                                  <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="bodyMd" as="span">Non-Members</Text>
+                                    <Text variant="bodyMd" as="span" fontWeight="semibold">$112</Text>
+                                  </InlineStack>
+                                  <div style={{
+                                    width: '71%',
+                                    height: '32px',
+                                    backgroundColor: '#9ca3af',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    paddingLeft: '12px'
+                                  }}>
+                                    <Text variant="bodySm" as="span" tone="text-inverse" fontWeight="semibold">
+                                      100%
+                                    </Text>
+                                  </div>
+                                </BlockStack>
+                              </BlockStack>
+                            </div>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+                    </div>
+
+                    {/* Utilization Patterns */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <BlockStack gap="100">
+                            <Text variant="headingSm" as="h3">
+                              Program Engagement Patterns
+                            </Text>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              When customers interact with your loyalty program
+                            </Text>
+                          </BlockStack>
+
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                            gap: '24px'
+                          }}>
+                            {/* Day of Week */}
+                            <BlockStack gap="300">
+                              <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                Day of Week Activity
+                              </Text>
+                              <BlockStack gap="200">
+                                {[
+                                  { day: 'Monday', percent: 67 },
+                                  { day: 'Tuesday', percent: 78 },
+                                  { day: 'Wednesday', percent: 92 },
+                                  { day: 'Thursday', percent: 81 },
+                                  { day: 'Friday', percent: 73 },
+                                  { day: 'Saturday', percent: 58 },
+                                  { day: 'Sunday', percent: 44 },
+                                ].map(({ day, percent }) => (
+                                  <BlockStack key={day} gap="50">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <Text variant="bodySm" as="span">{day}</Text>
+                                      <Text variant="bodySm" as="span" fontWeight="medium">{percent}%</Text>
+                                    </InlineStack>
+                                    <div style={{
+                                      width: '100%',
+                                      height: '6px',
+                                      backgroundColor: '#e5e7eb',
+                                      borderRadius: '3px',
+                                      overflow: 'hidden'
+                                    }}>
+                                      <div style={{
+                                        width: `${percent}%`,
+                                        height: '100%',
+                                        backgroundColor: percent >= 80 ? '#22c55e' : percent >= 60 ? '#3b82f6' : '#9ca3af',
+                                        borderRadius: '3px'
+                                      }} />
+                                    </div>
+                                  </BlockStack>
+                                ))}
+                              </BlockStack>
+                            </BlockStack>
+
+                            {/* Reward Redemption Patterns */}
+                            <BlockStack gap="300">
+                              <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                Reward Utilization
+                              </Text>
+                              <BlockStack gap="200">
+                                {[
+                                  { label: 'Points Earned', percent: 94 },
+                                  { label: 'Points Redeemed', percent: 73 },
+                                  { label: 'Credit Utilized', percent: 68 },
+                                  { label: 'Tier Benefits Used', percent: 82 },
+                                  { label: 'Referrals Made', percent: 31 },
+                                ].map(({ label, percent }) => (
+                                  <BlockStack key={label} gap="50">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <Text variant="bodySm" as="span">{label}</Text>
+                                      <Text variant="bodySm" as="span" fontWeight="medium">{percent}%</Text>
+                                    </InlineStack>
+                                    <div style={{
+                                      width: '100%',
+                                      height: '6px',
+                                      backgroundColor: '#e5e7eb',
+                                      borderRadius: '3px',
+                                      overflow: 'hidden'
+                                    }}>
+                                      <div style={{
+                                        width: `${percent}%`,
+                                        height: '100%',
+                                        backgroundColor: percent >= 80 ? '#22c55e' : percent >= 60 ? '#3b82f6' : '#9ca3af',
+                                        borderRadius: '3px'
+                                      }} />
+                                    </div>
+                                  </BlockStack>
+                                ))}
+                              </BlockStack>
+                            </BlockStack>
+                          </div>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Key Insights Banner */}
+                    <Banner tone="success">
+                      <BlockStack gap="200">
+                        <Text variant="bodyMd" as="p" fontWeight="semibold">
+                          🎉 Your loyalty program is performing exceptionally well
+                        </Text>
+                        <Text variant="bodySm" as="p">
+                          Members show 3.4x higher order frequency, 42% higher AOV, and 145% better retention compared to industry benchmarks.
+                          Focus on improving engagement score (currently 92% of industry average) to maximize program impact.
+                        </Text>
+                      </BlockStack>
+                    </Banner>
                   </BlockStack>
                 </Box>
               )}
