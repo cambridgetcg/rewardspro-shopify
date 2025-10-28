@@ -1295,6 +1295,7 @@ export default function AnalyticsPage() {
     { id: 'overview', content: 'Overview' },
     { id: 'charts', content: 'Charts' },
     { id: 'financial', content: 'Financial' },
+    { id: 'actions', content: 'Recommended Actions', badge: '5' },
   ];
 
   return (
@@ -1946,6 +1947,452 @@ export default function AnalyticsPage() {
                         </BlockStack>
                       </Box>
                     </Card>
+                  </BlockStack>
+                </Box>
+              )}
+
+              {/* Recommended Actions Tab */}
+              {selectedTab === 3 && (
+                <Box padding="400">
+                  <BlockStack gap="500">
+                    {/* Header Section */}
+                    <BlockStack gap="300">
+                      <Text variant="headingMd" as="h2">
+                        Recommended Actions
+                      </Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">
+                        Data-driven suggestions to increase engagement and revenue
+                      </Text>
+
+                      {/* Summary Metrics */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                        gap: '12px',
+                        marginTop: '8px'
+                      }}>
+                        <Card>
+                          <Box padding="300">
+                            <BlockStack gap="100">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                High Priority
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                3
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                        <Card>
+                          <Box padding="300">
+                            <BlockStack gap="100">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Customers Affected
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                412
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                        <Card>
+                          <Box padding="300">
+                            <BlockStack gap="100">
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Potential Revenue
+                              </Text>
+                              <Text variant="headingLg" as="h3">
+                                $15,750
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                      </div>
+                    </BlockStack>
+
+                    {/* Action Cards Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+                      gap: '20px',
+                      marginTop: '16px'
+                    }}>
+                      {/* Action 1: Re-engagement Campaign */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            {/* Header with badges */}
+                            <InlineStack align="space-between" blockAlign="start">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="critical">High Priority</Badge>
+                                <Badge tone="info">Engagement</Badge>
+                              </InlineStack>
+                              <div style={{ fontSize: '24px' }}>📧</div>
+                            </InlineStack>
+
+                            {/* Title and Description */}
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                Re-engage Inactive Customers
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Target customers who haven't made a purchase in 60+ days with personalized incentives
+                              </Text>
+                            </BlockStack>
+
+                            {/* Metrics */}
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '8px'
+                            }}>
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Affected Customers
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    87 customers
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Potential Recovery
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                    $4,200
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Expected Response Rate
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    23%
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <InlineStack gap="200" align="end">
+                              <Button>Customize Action</Button>
+                              <Button variant="primary">Execute Now</Button>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      {/* Action 2: Tier Upgrade Promotion */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <InlineStack align="space-between" blockAlign="start">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="attention">Medium Priority</Badge>
+                                <Badge tone="info">Growth</Badge>
+                              </InlineStack>
+                              <div style={{ fontSize: '24px' }}>🎯</div>
+                            </InlineStack>
+
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                Tier Upgrade Promotion
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Encourage customers within 20% of the next tier with targeted incentives
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '8px'
+                            }}>
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Affected Customers
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    34 customers
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Additional Spend Needed
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                    $890
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Conversion Rate
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    41%
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </div>
+
+                            <InlineStack gap="200" align="end">
+                              <Button>Customize Action</Button>
+                              <Button variant="primary">Execute Now</Button>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      {/* Action 3: Reward Expiry Reminders */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <InlineStack align="space-between" blockAlign="start">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="critical">High Priority</Badge>
+                                <Badge tone="info">Retention</Badge>
+                              </InlineStack>
+                              <div style={{ fontSize: '24px' }}>⏰</div>
+                            </InlineStack>
+
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                Reward Expiry Reminders
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Notify customers with rewards expiring within 14 days to drive immediate action
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '8px'
+                            }}>
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Affected Customers
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    23 customers
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Rewards at Risk
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="critical">
+                                    $1,150
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Days Until Expiry
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    7-14 days
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </div>
+
+                            <InlineStack gap="200" align="end">
+                              <Button>Customize Action</Button>
+                              <Button variant="primary">Execute Now</Button>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      {/* Action 4: High-Value Retention */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <InlineStack align="space-between" blockAlign="start">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="critical">High Priority</Badge>
+                                <Badge tone="info">Revenue</Badge>
+                              </InlineStack>
+                              <div style={{ fontSize: '24px' }}>💰</div>
+                            </InlineStack>
+
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                VIP Customer Retention
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Re-engage high-value customers who haven't purchased in 30+ days
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '8px'
+                            }}>
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Affected Customers
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    12 customers
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Annual Value at Risk
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="critical">
+                                    $8,400
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Recovery Success Rate
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    67%
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </div>
+
+                            <InlineStack gap="200" align="end">
+                              <Button>Customize Action</Button>
+                              <Button variant="primary">Execute Now</Button>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      {/* Action 5: Birthday Campaign */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <InlineStack align="space-between" blockAlign="start">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="attention">Medium Priority</Badge>
+                                <Badge tone="info">Engagement</Badge>
+                              </InlineStack>
+                              <div style={{ fontSize: '24px' }}>🎁</div>
+                            </InlineStack>
+
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                Birthday & Anniversary Campaign
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Send special offers to customers celebrating birthdays in the next 30 days
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '8px'
+                            }}>
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Affected Customers
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    56 customers
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Expected Revenue
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                    $2,240
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Redemption Rate
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    40%
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </div>
+
+                            <InlineStack gap="200" align="end">
+                              <Button>Customize Action</Button>
+                              <Button variant="primary">Execute Now</Button>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+
+                      {/* Action 6: Low Balance Activation */}
+                      <Card>
+                        <Box padding="400">
+                          <BlockStack gap="300">
+                            <InlineStack align="space-between" blockAlign="start">
+                              <InlineStack gap="200" blockAlign="center">
+                                <Badge tone="attention">Medium Priority</Badge>
+                                <Badge tone="info">Retention</Badge>
+                              </InlineStack>
+                              <div style={{ fontSize: '24px' }}>📊</div>
+                            </InlineStack>
+
+                            <BlockStack gap="200">
+                              <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                Low Balance Activation
+                              </Text>
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Remind customers with small reward balances to use them before expiry
+                              </Text>
+                            </BlockStack>
+
+                            <div style={{
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '8px'
+                            }}>
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Affected Customers
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    94 customers
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Dormant Rewards
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold" tone="attention">
+                                    $1,820
+                                  </Text>
+                                </InlineStack>
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="bodySm" as="span" tone="subdued">
+                                    Activation Rate
+                                  </Text>
+                                  <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                    31%
+                                  </Text>
+                                </InlineStack>
+                              </BlockStack>
+                            </div>
+
+                            <InlineStack gap="200" align="end">
+                              <Button>Customize Action</Button>
+                              <Button variant="primary">Execute Now</Button>
+                            </InlineStack>
+                          </BlockStack>
+                        </Box>
+                      </Card>
+                    </div>
                   </BlockStack>
                 </Box>
               )}
