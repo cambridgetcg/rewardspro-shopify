@@ -1517,14 +1517,9 @@ function CustomersTableContent({
           <BlockStack gap="100">
             <InlineStack gap="200" align="start">
               {customer.currentTier ? (
-                <>
-                  <Badge tone={customer.membershipStatus?.isPurchased ? "info" : "success"}>
-                    {`${customer.currentTier.name}`}
-                  </Badge>
-                  <Text variant="bodySm" tone="subdued" as="span">
-                    {String(customer.currentTier.cashbackPercent)}%
-                  </Text>
-                </>
+                <Badge tone={customer.membershipStatus?.isPurchased ? "info" : "success"}>
+                  {`${customer.currentTier.name}`}
+                </Badge>
               ) : (
                 <Badge tone="attention">No tier</Badge>
               )}
