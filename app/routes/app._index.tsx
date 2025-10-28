@@ -590,8 +590,8 @@ export default function Dashboard() {
 
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: '12px',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '16px',
                   }}>
                     {/* Operating Normally */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
