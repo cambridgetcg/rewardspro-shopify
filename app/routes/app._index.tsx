@@ -169,7 +169,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Fetch only essential data in parallel
     const [shopSettings, billingSubscription] = await Promise.all([
-      // Shop settings for feature toggles and currency
+      // Shop settings for feature manager and currency
       db.shopSettings.findUnique({
         where: { shop },
         select: {
@@ -311,7 +311,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 
 // ============================================
-// ACTION - Handle feature toggles
+// ACTION - Handle feature manager
 // ============================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -864,12 +864,12 @@ export default function Dashboard() {
           </Card>
         </Layout.Section>
 
-        {/* Feature Toggles */}
+        {/* Feature Manager */}
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <Text variant="headingMd" as="h2">Feature Toggles</Text>
+                <Text variant="headingMd" as="h2">Feature Manager</Text>
                 <Text variant="bodySm" tone="subdued" as="span">
                   Control which features are active
                 </Text>
