@@ -33,13 +33,15 @@ import {
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend,
   Filler,
   type ChartOptions,
 } from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, Doughnut, Radar } from 'react-chartjs-2';
 
 // Register Chart.js components
 ChartJS.register(
@@ -48,6 +50,8 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend,
@@ -1648,55 +1652,176 @@ export default function AnalyticsPage() {
                       </Text>
                     </BlockStack>
 
-                    {/* Style A: Line Chart - Order Frequency Over Time */}
+                    {/* Customer Distribution by Tier - Doughnut Chart */}
                     <Card>
                       <Box padding="400">
                         <BlockStack gap="400">
                           <BlockStack gap="200">
                             <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style A: Monthly Order Frequency Trend</Text>
-                              <Badge tone="info">Line Chart</Badge>
+                              <Text variant="headingSm" as="h3">Customer Distribution by Tier</Text>
+                              <Badge tone="info">Doughnut Chart</Badge>
                             </InlineStack>
                             <Text variant="bodySm" tone="subdued" as="p">
-                              Track order frequency changes per tier over the last 12 months
+                              Breakdown of customer base across loyalty tiers
                             </Text>
                           </BlockStack>
 
-                          {/* Chart.js Line Chart */}
+                          {/* Chart.js Doughnut Chart */}
+                          <div style={{ height: '300px', padding: '20px 0', display: 'flex', justifyContent: 'center' }}>
+                            <Doughnut
+                              data={{
+                                labels: sortTiersByPriority(data.tierPerformance).map(tier => tier.name),
+                                datasets: [{
+                                  label: 'Customers',
+                                  data: sortTiersByPriority(data.tierPerformance).map(tier => tier.customerCount),
+                                  backgroundColor: [
+                                    'rgba(92, 106, 196, 0.8)',
+                                    'rgba(0, 111, 187, 0.8)',
+                                    'rgba(0, 132, 142, 0.8)',
+                                    'rgba(71, 193, 191, 0.8)',
+                                  ],
+                                  borderColor: [
+                                    '#5C6AC4',
+                                    '#006FBB',
+                                    '#00848E',
+                                    '#47C1BF',
+                                  ],
+                                  borderWidth: 2,
+                                }],
+                              }}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                  legend: {
+                                    display: true,
+                                    position: 'right',
+                                    labels: {
+                                      boxWidth: 12,
+                                      padding: 15,
+                                      font: { size: 12 }
+                                    }
+                                  },
+                                  tooltip: {
+                                    callbacks: {
+                                      label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${label}: ${value} customers (${percentage}%)`;
+                                      }
+                                    }
+                                  }
+                                },
+                                cutout: '60%',
+                              }}
+                            />
+                          </div>
+
+                          {/* Summary Stats */}
+                          <InlineStack gap="400" align="space-between">
+                            <Text variant="bodySm" tone="subdued" as="span">
+                              Total: {sortTiersByPriority(data.tierPerformance).reduce((sum, tier) => sum + tier.customerCount, 0)} customers
+                            </Text>
+                            <Text variant="bodySm" tone="subdued" as="span">
+                              {sortTiersByPriority(data.tierPerformance).length} active tiers
+                            </Text>
+                          </InlineStack>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+
+                    {/* Revenue Composition Over Time - Stacked Area Chart */}
+                    <Card>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between" blockAlign="center">
+                              <Text variant="headingSm" as="h3">Revenue Composition by Tier</Text>
+                              <Badge tone="success">Stacked Area</Badge>
+                            </InlineStack>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Track how each tier contributes to total revenue over the last 12 months
+                            </Text>
+                          </BlockStack>
+
+                          {/* Chart.js Stacked Area Chart */}
                           <div style={{ height: '300px', padding: '20px 0' }}>
                             <Line
                               data={{
                                 labels: data.monthlyTierTrends.map(m => m.month),
                                 datasets: data.tierPerformance.map((tier, tierIndex) => {
-                                  const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
-                                  const color = colors[tierIndex] || '#5C6AC4';
+                                  const colors = [
+                                    { border: '#5C6AC4', bg: 'rgba(92, 106, 196, 0.5)' },
+                                    { border: '#006FBB', bg: 'rgba(0, 111, 187, 0.5)' },
+                                    { border: '#00848E', bg: 'rgba(0, 132, 142, 0.5)' },
+                                    { border: '#47C1BF', bg: 'rgba(71, 193, 191, 0.5)' },
+                                  ];
+                                  const color = colors[tierIndex] || colors[0];
 
                                   return {
                                     label: tier.name,
                                     data: data.monthlyTierTrends.map(month => {
                                       const tierData = month.tiers.find(t => t.tierName === tier.name);
-                                      return tierData?.orderFrequency || 0;
+                                      return tierData?.revenue || 0;
                                     }),
-                                    borderColor: color,
-                                    backgroundColor: color,
-                                    tension: 0.1,
+                                    borderColor: color.border,
+                                    backgroundColor: color.bg,
+                                    fill: true,
+                                    tension: 0.4,
                                   };
                                 }),
                               }}
-                              options={getShopifyChartOptions({ max: 6 })}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {
+                                  mode: 'index',
+                                  intersect: false,
+                                },
+                                plugins: {
+                                  legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: { boxWidth: 12, padding: 10 }
+                                  },
+                                  tooltip: {
+                                    callbacks: {
+                                      label: function(context) {
+                                        return `${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+                                      }
+                                    }
+                                  }
+                                },
+                                scales: {
+                                  x: {
+                                    stacked: true,
+                                    grid: { display: false },
+                                  },
+                                  y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    ticks: {
+                                      callback: function(value) {
+                                        return '$' + value.toLocaleString();
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
                             />
                           </div>
 
                           {/* Legend */}
                           <InlineStack gap="400" blockAlign="center" wrap={true}>
                             {data.tierPerformance.map((tier, index) => {
-                              // Shopify Polaris color palette (matches chart lines)
                               const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
                               return (
                                 <InlineStack key={tier.id} gap="200" blockAlign="center">
                                   <div style={{
                                     width: '20px',
-                                    height: '3px',
+                                    height: '12px',
                                     backgroundColor: colors[index] || '#5C6AC4',
                                     borderRadius: '2px'
                                   }} />
@@ -1714,83 +1839,131 @@ export default function AnalyticsPage() {
                       </Box>
                     </Card>
 
-                    {/* Style B: Vertical Bar Chart - Current Month Tier Comparison */}
+                    {/* Multi-Dimensional Tier Performance - Radar Chart */}
                     <Card>
                       <Box padding="400">
                         <BlockStack gap="400">
                           <BlockStack gap="200">
                             <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style B: Current Month Tier Comparison</Text>
-                              <Badge tone="success">Vertical Bars</Badge>
+                              <Text variant="headingSm" as="h3">Multi-Dimensional Tier Performance</Text>
+                              <Badge tone="info">Radar Chart</Badge>
                             </InlineStack>
                             <Text variant="bodySm" tone="subdued" as="p">
-                              Compare order frequency across tiers for the current month
+                              Compare multiple performance dimensions across tiers simultaneously
                             </Text>
                           </BlockStack>
 
-                          {/* Chart.js Bar Chart */}
-                          <div style={{ height: '300px', padding: '20px 0' }}>
-                            <Bar
+                          {/* Chart.js Radar Chart */}
+                          <div style={{ height: '400px', padding: '20px 0', display: 'flex', justifyContent: 'center' }}>
+                            <Radar
                               data={{
-                                labels: sortTiersByPriority(data.tierPerformance).map(tier => tier.name),
-                                datasets: [{
-                                  label: 'Order Frequency',
-                                  data: sortTiersByPriority(data.tierPerformance).map(tier => tier.monthlyOrderFrequency),
-                                  backgroundColor: '#5C6AC4',
-                                  borderRadius: 4,
-                                  barPercentage: 0.6,
-                                }],
+                                labels: [
+                                  'Order Frequency',
+                                  'Avg Order Value',
+                                  'Customer LTV',
+                                  'Retention Rate',
+                                  'Revenue/Order',
+                                  'Cashback Earned'
+                                ],
+                                datasets: data.tierPerformance.map((tier, tierIndex) => {
+                                  const colors = [
+                                    { border: '#5C6AC4', bg: 'rgba(92, 106, 196, 0.2)' },
+                                    { border: '#006FBB', bg: 'rgba(0, 111, 187, 0.2)' },
+                                    { border: '#00848E', bg: 'rgba(0, 132, 142, 0.2)' },
+                                    { border: '#47C1BF', bg: 'rgba(71, 193, 191, 0.2)' },
+                                  ];
+                                  const color = colors[tierIndex] || colors[0];
+
+                                  // Normalize values to 0-100 scale for radar chart
+                                  const normalizeValue = (value: number, max: number) => (value / max) * 100;
+
+                                  return {
+                                    label: tier.name,
+                                    data: [
+                                      normalizeValue(tier.monthlyOrderFrequency, 6), // Order Frequency (max 6)
+                                      normalizeValue(tier.averageOrderValue, 300), // AOV (max $300)
+                                      normalizeValue(tier.lifetimeValue, 5000), // LTV (max $5000)
+                                      tier.retentionRate, // Already percentage (0-100)
+                                      normalizeValue(tier.revenuePerOrder, 300), // Revenue/Order (max $300)
+                                      normalizeValue(tier.totalCashbackEarned, 1000), // Cashback (max $1000)
+                                    ],
+                                    borderColor: color.border,
+                                    backgroundColor: color.bg,
+                                    borderWidth: 2,
+                                    pointBackgroundColor: color.border,
+                                    pointBorderColor: '#fff',
+                                    pointHoverBackgroundColor: '#fff',
+                                    pointHoverBorderColor: color.border,
+                                  };
+                                }),
                               }}
-                              options={getShopifyBarChartOptions(false)}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  r: {
+                                    angleLines: {
+                                      display: true,
+                                      color: 'rgba(0, 0, 0, 0.1)'
+                                    },
+                                    suggestedMin: 0,
+                                    suggestedMax: 100,
+                                    ticks: {
+                                      stepSize: 20,
+                                      callback: function(value) {
+                                        return value + '%';
+                                      }
+                                    },
+                                    pointLabels: {
+                                      font: { size: 11 }
+                                    }
+                                  }
+                                },
+                                plugins: {
+                                  legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: { boxWidth: 12, padding: 10 }
+                                  },
+                                  tooltip: {
+                                    callbacks: {
+                                      label: function(context) {
+                                        return `${context.dataset.label}: ${context.parsed.r.toFixed(1)}%`;
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
                             />
                           </div>
 
-                          {/* Chart footer */}
-                          <InlineStack align="space-between">
-                            <Text variant="bodySm" tone="subdued" as="span">
-                              Monthly Order Frequency (orders/customer/month)
-                            </Text>
-                            <Text variant="bodySm" tone="subdued" as="span">
-                              Current month
-                            </Text>
+                          {/* Legend */}
+                          <InlineStack gap="400" blockAlign="center" wrap={true}>
+                            {data.tierPerformance.map((tier, index) => {
+                              const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
+                              return (
+                                <InlineStack key={tier.id} gap="200" blockAlign="center">
+                                  <div style={{
+                                    width: '12px',
+                                    height: '12px',
+                                    backgroundColor: colors[index] || '#5C6AC4',
+                                    borderRadius: '50%',
+                                    border: '2px solid white',
+                                    boxShadow: '0 0 0 1px ' + (colors[index] || '#5C6AC4')
+                                  }} />
+                                  <TierBadge
+                                    tierName={tier.name}
+                                    size="small"
+                                    showIcon={false}
+                                    cashbackPercent={tier.cashbackPercent}
+                                  />
+                                </InlineStack>
+                              );
+                            })}
                           </InlineStack>
-                        </BlockStack>
-                      </Box>
-                    </Card>
-
-                    {/* Style C: Horizontal Bar Chart - Monthly Growth */}
-                    <Card>
-                      <Box padding="400">
-                        <BlockStack gap="400">
-                          <BlockStack gap="200">
-                            <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Style C: Revenue Per Order by Tier</Text>
-                              <Badge tone="info">Horizontal Bars</Badge>
-                            </InlineStack>
-                            <Text variant="bodySm" tone="subdued" as="p">
-                              Current month revenue per order across all tiers
-                            </Text>
-                          </BlockStack>
-
-                          {/* Chart.js Horizontal Bar Chart */}
-                          <div style={{ height: '300px', padding: '20px 0' }}>
-                            <Bar
-                              data={{
-                                labels: sortTiersByPriority(data.tierPerformance).map(tier => tier.name),
-                                datasets: [{
-                                  label: 'Revenue Per Order',
-                                  data: sortTiersByPriority(data.tierPerformance).map(tier => tier.revenuePerOrder),
-                                  backgroundColor: '#5C6AC4',
-                                  borderRadius: 4,
-                                  barPercentage: 0.6,
-                                }],
-                              }}
-                              options={getShopifyBarChartOptions(true)}
-                            />
-                          </div>
 
                           <Text variant="bodySm" tone="subdued" as="p">
-                            Revenue per order (current month average)
+                            Each axis normalized to 0-100% scale for comparison across different metrics
                           </Text>
                         </BlockStack>
                       </Box>
