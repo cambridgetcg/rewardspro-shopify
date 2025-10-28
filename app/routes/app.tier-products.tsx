@@ -1441,70 +1441,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         success: true,
         message: "Product deleted successfully",
       });
-      
-    } else if (intent === "reset-selling-plans") {
-      // Reset all selling plans to use new descriptions
-      console.log("[TierProducts] Resetting selling plans with new descriptions");
-      
-      // First, remove existing selling plan group
-      await SellingPlanManagerEnhanced.removeSellingPlanGroup({ shop, admin });
-      
-      // Get all tier products from Shopify
-      const productsQuery = `#graphql
-        query getProducts {
-          products(first: 100, query: "tag:tier-product") {
-            edges {
-              node {
-                id
-                variants(first: 1) {
-                  edges {
-                    node {
-                      id
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
-      
-      const productsResponse = await admin.graphql(productsQuery);
-      const productsResult = await productsResponse.json();
-      
-      if (productsResult.data?.products?.edges?.length > 0) {
-        // Collect variant IDs
-        const variantIds: string[] = [];
-        const tierIds: string[] = [];
-        
-        for (const edge of productsResult.data.products.edges) {
-          const variant = edge.node.variants.edges[0]?.node;
-          if (variant) {
-            variantIds.push(variant.id);
-            tierIds.push("dummy-tier-id"); // We don't need real tier IDs for this
-          }
-        }
-        
-        // Create new selling plan group with updated descriptions
-        if (variantIds.length > 0) {
-          const productVariantMap = new Map();
-          variantIds.forEach((variantId, index) => {
-            productVariantMap.set(tierIds[index], variantId);
-          });
-          
-          await SellingPlanManagerEnhanced.createSellingPlanGroup({
-            shop,
-            admin,
-            tierIds,
-            productVariantMap,
-          });
-        }
-      }
-      
-      return json({
-        success: true,
-        message: "Selling plans have been reset with new descriptions"
-      });
     }
 
     return json({ success: false, error: "Invalid action" }, { status: 400 });
@@ -1821,18 +1757,6 @@ export default function TierProducts() {
           icon: PlusIcon,
           onAction: handleModalOpen,
         } : undefined}
-        secondaryActions={data.canCreateProducts ? [
-          {
-            content: "Reset Subscription Descriptions",
-            onAction: () => {
-              if (confirm("This will update all selling plan descriptions. Continue?")) {
-                const form = new FormData();
-                form.append("intent", "reset-selling-plans");
-                submit(form, { method: "post" });
-              }
-            },
-          }
-        ] : undefined}
       >
         <Layout>
           {/* Loading State Banner */}
