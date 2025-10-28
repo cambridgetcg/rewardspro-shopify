@@ -1514,10 +1514,10 @@ export default function AnalyticsPage() {
                                 Current Reward Usage Rate
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                78.3%
+                                77.3%
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="success">+5.2%</Badge>
+                                <Badge tone="success">+6.8%</Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
                                   vs last month
                                 </Text>
@@ -1563,7 +1563,7 @@ export default function AnalyticsPage() {
                                   Reward Usage Rate Over Time
                                 </Text>
                                 <Text variant="bodySm" tone="subdued" as="p">
-                                  Cumulative redemption rate
+                                  Monthly redemption rate
                                 </Text>
                               </BlockStack>
                               <div style={{ height: '250px' }}>
@@ -1571,12 +1571,12 @@ export default function AnalyticsPage() {
                                   data={{
                                     labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
                                     datasets: [{
-                                      label: 'Cumulative Usage Rate',
-                                      data: [12.5, 18.0, 24.3, 31.1, 38.4, 45.8, 52.3, 58.7, 64.2, 69.5, 74.1, 78.3],
+                                      label: 'Usage Rate',
+                                      data: [65.2, 72.4, 68.1, 75.3, 71.7, 78.5, 74.2, 69.8, 73.1, 76.4, 70.5, 77.3],
                                       borderColor: '#8B5CF6',
                                       backgroundColor: 'rgba(139, 92, 246, 0.2)',
                                       fill: true,
-                                      tension: 0.1,
+                                      tension: 0.4,
                                     }],
                                   }}
                                   options={getShopifyChartOptions({
@@ -1801,10 +1801,10 @@ export default function AnalyticsPage() {
                           <BlockStack gap="200">
                             <InlineStack align="space-between" blockAlign="center">
                               <Text variant="headingSm" as="h3">Reward Usage Rate Over Time</Text>
-                              <Badge tone="attention">Cumulative Chart</Badge>
+                              <Badge tone="info">Monthly Trends</Badge>
                             </InlineStack>
                             <Text variant="bodySm" tone="subdued" as="p">
-                              Track cumulative reward redemption rate over the last 12 months
+                              Track monthly reward redemption rate over the last 12 months
                             </Text>
                           </BlockStack>
 
@@ -1815,11 +1815,11 @@ export default function AnalyticsPage() {
                                 labels: data.monthlyTierTrends.map(m => m.month),
                                 datasets: [{
                                   label: 'Reward Usage Rate',
-                                  data: [12, 18, 24, 31, 38, 45, 52, 58, 64, 69, 74, 78],
+                                  data: [65.2, 72.4, 68.1, 75.3, 71.7, 78.5, 74.2, 69.8, 73.1, 76.4, 70.5, 77.3],
                                   borderColor: '#8B5CF6',
                                   backgroundColor: 'rgba(139, 92, 246, 0.2)',
                                   fill: true,
-                                  tension: 0.1,
+                                  tension: 0.4,
                                 }],
                               }}
                               options={getShopifyChartOptions({
