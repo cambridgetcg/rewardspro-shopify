@@ -1377,42 +1377,82 @@ export default function AnalyticsPage() {
                         </Card>
                       </div>
 
-                      {/* Historical Data Table */}
-                      <DataTable
-                        columnContentTypes={['text', 'numeric', 'numeric', 'numeric', 'numeric']}
-                        headings={[
-                          'Month',
-                          'Monthly Reward Usage',
-                          'Cumulative Usage Rate',
-                          'Monthly Influenced Sales',
-                          'Cumulative Sales',
-                        ]}
-                        rows={(() => {
-                          // Mock data for 12 months
-                          const monthlyData = [
-                            { month: 'Nov', monthlyUsage: '12.5%', cumulativeUsage: '12.5%', monthlySales: 25340, cumulativeSales: 25340 },
-                            { month: 'Dec', monthlyUsage: '15.2%', cumulativeUsage: '18.0%', monthlySales: 42680, cumulativeSales: 68020 },
-                            { month: 'Jan', monthlyUsage: '18.7%', cumulativeUsage: '24.3%', monthlySales: 56900, cumulativeSales: 124920 },
-                            { month: 'Feb', monthlyUsage: '22.3%', cumulativeUsage: '31.1%', monthlySales: 69850, cumulativeSales: 194770 },
-                            { month: 'Mar', monthlyUsage: '26.5%', cumulativeUsage: '38.4%', monthlySales: 77230, cumulativeSales: 272000 },
-                            { month: 'Apr', monthlyUsage: '31.2%', cumulativeUsage: '45.8%', monthlySales: 82560, cumulativeSales: 354560 },
-                            { month: 'May', monthlyUsage: '35.8%', cumulativeUsage: '52.3%', monthlySales: 67340, cumulativeSales: 421900 },
-                            { month: 'Jun', monthlyUsage: '41.5%', cumulativeUsage: '58.7%', monthlySales: 52890, cumulativeSales: 474790 },
-                            { month: 'Jul', monthlyUsage: '47.2%', cumulativeUsage: '64.2%', monthlySales: 37120, cumulativeSales: 511910 },
-                            { month: 'Aug', monthlyUsage: '53.8%', cumulativeUsage: '69.5%', monthlySales: 26340, cumulativeSales: 538250 },
-                            { month: 'Sep', monthlyUsage: '60.4%', cumulativeUsage: '74.1%', monthlySales: 19850, cumulativeSales: 558100 },
-                            { month: 'Oct', monthlyUsage: '67.9%', cumulativeUsage: '78.3%', monthlySales: 27320, cumulativeSales: 585420 },
-                          ];
+                      {/* Historical Data Charts */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+                        gap: '24px',
+                        marginTop: '16px'
+                      }}>
+                        {/* Reward Usage Rate Chart */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="300">
+                              <BlockStack gap="100">
+                                <Text variant="headingSm" as="h3">
+                                  Reward Usage Rate Over Time
+                                </Text>
+                                <Text variant="bodySm" tone="subdued" as="p">
+                                  Cumulative redemption rate
+                                </Text>
+                              </BlockStack>
+                              <div style={{ height: '250px' }}>
+                                <Line
+                                  data={{
+                                    labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+                                    datasets: [{
+                                      label: 'Cumulative Usage Rate',
+                                      data: [12.5, 18.0, 24.3, 31.1, 38.4, 45.8, 52.3, 58.7, 64.2, 69.5, 74.1, 78.3],
+                                      borderColor: '#8B5CF6',
+                                      backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                                      fill: true,
+                                      tension: 0.1,
+                                    }],
+                                  }}
+                                  options={getShopifyChartOptions({
+                                    max: 100,
+                                    callback: (value) => `${value}%`,
+                                  })}
+                                />
+                              </div>
+                            </BlockStack>
+                          </Box>
+                        </Card>
 
-                          return monthlyData.map(row => [
-                            row.month,
-                            row.monthlyUsage,
-                            row.cumulativeUsage,
-                            formatAmount(row.monthlySales),
-                            formatAmount(row.cumulativeSales),
-                          ]);
-                        })()}
-                      />
+                        {/* Influenced Sales Chart */}
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="300">
+                              <BlockStack gap="100">
+                                <Text variant="headingSm" as="h3">
+                                  Influenced Sales Over Time
+                                </Text>
+                                <Text variant="bodySm" tone="subdued" as="p">
+                                  Cumulative revenue from program
+                                </Text>
+                              </BlockStack>
+                              <div style={{ height: '250px' }}>
+                                <Line
+                                  data={{
+                                    labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+                                    datasets: [{
+                                      label: 'Cumulative Sales',
+                                      data: [25340, 68020, 124920, 194770, 272000, 354560, 421900, 474790, 511910, 538250, 558100, 585420],
+                                      borderColor: '#22c55e',
+                                      backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                      fill: true,
+                                      tension: 0.1,
+                                    }],
+                                  }}
+                                  options={getShopifyChartOptions({
+                                    callback: (value) => formatAmount(Number(value)),
+                                  })}
+                                />
+                              </div>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                      </div>
 
                       <Text variant="bodySm" tone="subdued" as="p">
                         Reward usage rate shows the percentage of earned rewards that customers have redeemed.
@@ -1626,13 +1666,13 @@ export default function AnalyticsPage() {
                       </Box>
                     </Card>
 
-                    {/* Sales Influenced by Smile Over Time */}
+                    {/* Sales Influenced by Rewards Pro Over Time */}
                     <Card>
                       <Box padding="400">
                         <BlockStack gap="400">
                           <BlockStack gap="200">
                             <InlineStack align="space-between" blockAlign="center">
-                              <Text variant="headingSm" as="h3">Sales Influenced by Smile Over Time</Text>
+                              <Text variant="headingSm" as="h3">Sales Influenced by Rewards Pro Over Time</Text>
                               <Badge tone="success">Cumulative Chart</Badge>
                             </InlineStack>
                             <Text variant="bodySm" tone="subdued" as="p">
