@@ -12,7 +12,13 @@ import { AuthenticatedFetchProvider } from "../components/AuthenticatedFetch";
 import { logRequest, logResponse, logError, logShopifyContext, checkAuthenticationIssues } from "../utils/request-logger";
 import db from "../db.server";
 
-export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+export const links = () => [
+  { rel: "stylesheet", href: polarisStyles },
+  {
+    rel: "stylesheet",
+    href: "https://cdn.shopify.com/shopifycloud/app-home/latest/app-home.css"
+  },
+];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { startTime, requestId } = await logRequest(request, 'App Route Loader');
@@ -168,6 +174,12 @@ export default function App() {
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <AppBridgeInitializer />
       <AuthenticatedFetchProvider>
+        {/* Load Polaris web components for s-switch */}
+        <script
+          src="https://cdn.shopify.com/shopifycloud/app-home/latest/app-home.js"
+          type="module"
+          defer
+        />
         <NavMenu>
           <Link to="/app" rel="home">
             Home
