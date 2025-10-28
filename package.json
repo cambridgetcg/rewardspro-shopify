@@ -36,6 +36,8 @@
     "migrate:currency-selected": "node scripts/apply-currency-selected-migration.mjs",
     "migrate:tier-recalculation": "node scripts/apply-tier-recalculation-settings-migration.mjs",
     "migrate:verify-tier-recalc": "node scripts/verify-tier-recalc-migration.mjs",
+    "migrate:check-feature-toggles": "node scripts/check-feature-toggles.mjs",
+    "migrate:feature-toggles": "node scripts/apply-feature-toggles-migration.mjs",
     "cleanup:tier-products": "node scripts/cleanup-orphaned-tier-products.mjs",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
