@@ -1,19 +1,15 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import { useState, useCallback } from "react";
 import {
   Page,
   Layout,
   Card,
-  FormLayout,
-  Button,
   Banner,
   BlockStack,
-  InlineStack,
   Text,
   Box,
-  Checkbox,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
@@ -76,61 +72,93 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json<LoaderData>({ features, shop });
 };
 
-// ============= ACTION =============
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-
-  const formData = await request.formData();
-  const action = formData.get("action");
-
-  if (action === "save-features") {
-    const advancedAnalyticsEnabled = formData.get("advancedAnalyticsEnabled") === "true";
-    const autoCashbackProcessingEnabled = formData.get("autoCashbackProcessingEnabled") === "true";
-    const emailMarketingEnabled = formData.get("emailMarketingEnabled") === "true";
-    const tierProductsEnabled = formData.get("tierProductsEnabled") === "true";
-
-    await db.shopSettings.update({
-      where: { shop },
-      data: {
-        advancedAnalyticsEnabled,
-        autoCashbackProcessingEnabled,
-        emailMarketingEnabled,
-        tierProductsEnabled,
-      },
-    });
-
-    return json({ success: true, message: "Feature settings saved successfully" });
-  }
-
-  return json({ success: false, message: "Invalid action" });
-};
-
 // ============= COMPONENT =============
 
-export default function FeatureToggles() {
-  const { features, shop } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher();
+// Rectangular Toggle Button Component
+interface ToggleButtonProps {
+  label: string;
+  description: string;
+  enabled: boolean;
+  onToggle: () => void;
+}
 
-  const [formValues, setFormValues] = useState({
+function ToggleButton({ label, description, enabled, onToggle }: ToggleButtonProps) {
+  return (
+    <Box
+      padding="400"
+      background={enabled ? "bg-fill-success-secondary" : "bg-fill-secondary"}
+      borderRadius="200"
+    >
+      <BlockStack gap="300">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <BlockStack gap="100">
+            <Text variant="headingSm" as="h3" fontWeight="semibold">
+              {label}
+            </Text>
+            <Text variant="bodySm" as="p" tone="subdued">
+              {description}
+            </Text>
+          </BlockStack>
+
+          <button
+            type="button"
+            onClick={onToggle}
+            style={{
+              padding: "8px 24px",
+              borderRadius: "6px",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "600",
+              fontSize: "13px",
+              transition: "all 0.2s ease",
+              backgroundColor: enabled ? "#22c55e" : "#6b7280",
+              color: "white",
+              minWidth: "100px",
+              boxShadow: enabled
+                ? "0 1px 3px rgba(34, 197, 94, 0.3)"
+                : "0 1px 3px rgba(0, 0, 0, 0.1)",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = enabled
+                ? "0 4px 6px rgba(34, 197, 94, 0.4)"
+                : "0 4px 6px rgba(0, 0, 0, 0.15)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = enabled
+                ? "0 1px 3px rgba(34, 197, 94, 0.3)"
+                : "0 1px 3px rgba(0, 0, 0, 0.1)";
+            }}
+          >
+            {enabled ? "ENABLED" : "DISABLED"}
+          </button>
+        </div>
+      </BlockStack>
+    </Box>
+  );
+}
+
+// ============= MAIN COMPONENT =============
+
+export default function FeatureToggles() {
+  const { features } = useLoaderData<typeof loader>();
+
+  const [toggleStates, setToggleStates] = useState({
     advancedAnalyticsEnabled: features.advancedAnalyticsEnabled,
     autoCashbackProcessingEnabled: features.autoCashbackProcessingEnabled,
     emailMarketingEnabled: features.emailMarketingEnabled,
     tierProductsEnabled: features.tierProductsEnabled,
   });
 
-  const handleChange = useCallback((field: string) => (value: boolean) => {
-    setFormValues((prev) => ({ ...prev, [field]: value }));
+  const handleToggle = useCallback((field: keyof typeof toggleStates) => {
+    setToggleStates((prev) => ({ ...prev, [field]: !prev[field] }));
   }, []);
-
-  const isSaving = fetcher.state === "submitting";
-  const showSuccess = fetcher.data?.success && fetcher.state === "idle";
 
   return (
     <Page
       title="Feature Toggles"
-      subtitle="Enable or disable specific features for your store"
+      subtitle="Preview and toggle feature states (UI only)"
       backAction={{ content: "Dashboard", url: "/app" }}
     >
       <Layout>
@@ -139,104 +167,54 @@ export default function FeatureToggles() {
           <Banner tone="info">
             <BlockStack gap="200">
               <Text as="p">
-                Control which features are active in your RewardsPro installation. Disabling
-                features won't delete any data, but will hide them from your interface.
+                Toggle features on and off to preview their states. These toggles are UI-only
+                and do not persist changes to the database. Use this to explore feature configurations.
               </Text>
             </BlockStack>
           </Banner>
         </Layout.Section>
 
         <Layout.Section>
-          {/* Success Banner */}
-          {showSuccess && (
-            <Banner tone="success" onDismiss={() => fetcher.data = null}>
-              Feature settings saved successfully
-            </Banner>
-          )}
-
-          {/* Main Form */}
           <Card>
-            <fetcher.Form method="post">
-              <input type="hidden" name="action" value="save-features" />
-              <input
-                type="hidden"
-                name="advancedAnalyticsEnabled"
-                value={formValues.advancedAnalyticsEnabled.toString()}
-              />
-              <input
-                type="hidden"
-                name="autoCashbackProcessingEnabled"
-                value={formValues.autoCashbackProcessingEnabled.toString()}
-              />
-              <input
-                type="hidden"
-                name="emailMarketingEnabled"
-                value={formValues.emailMarketingEnabled.toString()}
-              />
-              <input
-                type="hidden"
-                name="tierProductsEnabled"
-                value={formValues.tierProductsEnabled.toString()}
-              />
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">
+                Feature Settings
+              </Text>
 
-              <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">
-                  Feature Settings
-                </Text>
+              <BlockStack gap="300">
+                {/* Advanced Analytics */}
+                <ToggleButton
+                  label="Advanced Analytics"
+                  description="Enable detailed analytics charts, ROI calculations, and tier performance tracking"
+                  enabled={toggleStates.advancedAnalyticsEnabled}
+                  onToggle={() => handleToggle("advancedAnalyticsEnabled")}
+                />
 
-                <FormLayout>
-                  {/* Advanced Analytics */}
-                  <Box>
-                    <Checkbox
-                      label="Advanced Analytics"
-                      checked={formValues.advancedAnalyticsEnabled}
-                      onChange={handleChange("advancedAnalyticsEnabled")}
-                      helpText="Enable detailed analytics charts, ROI calculations, and tier performance tracking"
-                    />
-                  </Box>
+                {/* Automatic Cashback Processing */}
+                <ToggleButton
+                  label="Automatic Cashback Processing"
+                  description="Automatically process and credit cashback for completed orders"
+                  enabled={toggleStates.autoCashbackProcessingEnabled}
+                  onToggle={() => handleToggle("autoCashbackProcessingEnabled")}
+                />
 
-                  {/* Automatic Cashback Processing */}
-                  <Box>
-                    <Checkbox
-                      label="Automatic Cashback Processing"
-                      checked={formValues.autoCashbackProcessingEnabled}
-                      onChange={handleChange("autoCashbackProcessingEnabled")}
-                      helpText="Automatically process and credit cashback for completed orders"
-                    />
-                  </Box>
+                {/* Email Marketing Campaign */}
+                <ToggleButton
+                  label="Email Marketing Campaigns"
+                  description="Enable email marketing campaigns and automated customer communications"
+                  enabled={toggleStates.emailMarketingEnabled}
+                  onToggle={() => handleToggle("emailMarketingEnabled")}
+                />
 
-                  {/* Email Marketing Campaign */}
-                  <Box>
-                    <Checkbox
-                      label="Email Marketing Campaigns"
-                      checked={formValues.emailMarketingEnabled}
-                      onChange={handleChange("emailMarketingEnabled")}
-                      helpText="Enable email marketing campaigns and automated customer communications"
-                    />
-                  </Box>
-
-                  {/* Tier Products Module */}
-                  <Box>
-                    <Checkbox
-                      label="Tier Products Module"
-                      checked={formValues.tierProductsEnabled}
-                      onChange={handleChange("tierProductsEnabled")}
-                      helpText="Allow customers to purchase tier access via Shopify products and subscriptions"
-                    />
-                  </Box>
-                </FormLayout>
-
-                <InlineStack align="end">
-                  <Button
-                    variant="primary"
-                    submit
-                    loading={isSaving}
-                  >
-                    Save Settings
-                  </Button>
-                </InlineStack>
+                {/* Tier Products Module */}
+                <ToggleButton
+                  label="Tier Products Module"
+                  description="Allow customers to purchase tier access via Shopify products and subscriptions"
+                  enabled={toggleStates.tierProductsEnabled}
+                  onToggle={() => handleToggle("tierProductsEnabled")}
+                />
               </BlockStack>
-            </fetcher.Form>
+            </BlockStack>
           </Card>
         </Layout.Section>
 
