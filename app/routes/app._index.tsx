@@ -35,13 +35,11 @@ import {
   StatsOverview,
   EnhancedDataTable,
 } from "../components/DesignSystem";
-import { authenticate } from "../shopify.server";
+import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
 import { formatCurrency } from "../utils/currency";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
-import { countOrdersWithFallback, countOrdersDateExtraction, getOrCreateMonthlyCount, countOrdersDirectDataAPI, countOrdersEpochComparison } from "~/utils/order-count-strategies";
-import { parse as parseJsonC } from "jsonc-parser";
 import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
 // ============================================
@@ -166,7 +164,9 @@ interface DashboardData {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    const { session, billing, admin } = await authenticate.admin(request);
+    // Simplified auth - only destructure what we need immediately
+    const authResult = await authenticate.admin(request);
+    const { session } = authResult;
 
     if (!session?.shop) {
       throw new Response("Unauthorized", { status: 401 });
@@ -174,19 +174,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const shop = session.shop;
     const loaderStart = Date.now();
-    console.log(`[Dashboard] Loading data for shop: ${shop}`);
+    console.log(`[Dashboard] Loading simplified data for shop: ${shop}`);
 
-    // Check if this is a redirect back from completed onboarding
-    const url = new URL(request.url);
-    const onboardingParam = url.searchParams.get("onboarding");
-
-    // Check active subscription with Shopify
+    // Check active subscription with Shopify (if billing available)
     let activeSubscription = null;
-    const { FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } = await import("../shopify.server");
-
-    if (billing) {
+    if (authResult.billing) {
       try {
-        const { hasActivePayment, appSubscriptions } = await billing.check({
+        const { hasActivePayment, appSubscriptions } = await authResult.billing.check({
           plans: [FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN],
           isTest: process.env.NODE_ENV === 'development',
         });
@@ -199,385 +193,71 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     }
 
-    // STEP 1: Fetch shop settings ONCE (reused everywhere)
-    // This avoids duplicate queries and ensures consistent data
-    const shopSettings = await db.shopSettings.findUnique({
-      where: { shop },
-      select: {
-        storeCurrency: true,
-        currencyDisplayType: true,
-        customersInitialSynced: true,
-        customersSyncInProgress: true,
-        currencySelected: true,
-        widgetIsActive: true,
-        widgetSetupDismissed: true,
-        customerAccountBlockDismissed: true,
-        customerAccountBlockIsActive: true,
-        tierRecalculationEnabled: true,
-        advancedAnalyticsEnabled: true,
-        autoCashbackProcessingEnabled: true,
-        emailMarketingEnabled: true,
-        tierProductsEnabled: true,
-      }
-    });
-
-    // Extract flags (dismissal is SEPARATE from detection)
-    const widgetDismissed = shopSettings?.widgetSetupDismissed || false;
-    const customerAccountBlockDismissed = shopSettings?.customerAccountBlockDismissed || false;
-
-    // Widget detection - PROPER SEPARATION OF CONCERNS:
-    // 1. Dismissal flag is ONLY for UI (suppress banner)
-    // 2. Detection runs regardless of dismissal state
-    // 3. Cache last known status for fallback
-    // 4. Check theme settings for actual detection
-    // 5. hasWidget = true ONLY if actually detected (not just dismissed)
-    let hasWidget = false;
-    let widgetDetectionMethod = "none";
-
-    try {
-      console.log("[Dashboard] Starting widget detection...");
-
-      // Run GraphQL theme detection
-      // Check both current.blocks AND current.enabled_app_embeds
-      let detectedInTheme = false;
-      const cachedStatus = shopSettings?.widgetIsActive || false;
-
-      try {
-        // Step 1: Get the main (published) theme
-        const themeQuery = `#graphql
-          query {
-            themes(first: 1, roles: MAIN) {
-              nodes {
-                id
-                name
-                role
-              }
-            }
-          }
-        `;
-
-        const themeResponse = await admin.graphql(themeQuery);
-        const themeData = await themeResponse.json();
-        const mainTheme = themeData?.data?.themes?.nodes?.[0];
-
-        if (mainTheme?.id) {
-          console.log(`[Dashboard] Main theme: ${mainTheme.name} (${mainTheme.id})`);
-
-          // Step 2: Fetch config/settings_data.json using GraphQL
-          const settingsQuery = `#graphql
-            query getSettings($themeId: ID!) {
-              theme(id: $themeId) {
-                files(filenames: ["config/settings_data.json"], first: 1) {
-                  nodes {
-                    body {
-                      ... on OnlineStoreThemeFileBodyText {
-                        content
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          `;
-
-          const settingsResponse = await admin.graphql(settingsQuery, {
-            variables: { themeId: mainTheme.id }
-          });
-          const settingsData = await settingsResponse.json();
-          let settingsContent = settingsData?.data?.theme?.files?.nodes?.[0]?.body?.content;
-
-          if (settingsContent) {
-            // Step 3: Parse JSON using tolerant parser
-            // Real Shopify themes often have Liquid tags, trailing commas, or non-JSON content
-            // Use jsonc-parser for tolerant parsing and add sanitation
-            try {
-              // Sanitize Liquid tags before parsing
-              // Remove Liquid output tags {{ ... }}
-              settingsContent = settingsContent.replace(/\{\{[^}]*\}\}/g, '');
-              // Remove Liquid logic tags {% ... %}
-              settingsContent = settingsContent.replace(/\{%[^%]*%\}/g, '');
-
-              // Remove comment blocks
-              settingsContent = settingsContent.replace(/\/\*[\s\S]*?\*\//g, ''); // Remove /* */ blocks
-              settingsContent = settingsContent.replace(/\/\/[^\n]*\n/g, ''); // Remove // comments
-
-              // Parse with jsonc-parser (handles trailing commas, comments)
-              const themeSettings = parseJsonC(settingsContent);
-
-              // CANONICAL CHECK: current.enabled_app_embeds (Shopify's official flag)
-              const enabledAppEmbeds = themeSettings.current?.enabled_app_embeds || [];
-              const appHandle = 'RewardsproMembership';
-              const blockHandle = 'membership_widget';
-              const extensionUid = 'a58b9b10-e482-42f9-90d4-885a20081116e17dfcf9';
-              const expectedType = `shopify://apps/${appHandle}/blocks/${blockHandle}/${extensionUid}`;
-
-              // Check if our app embed is in the enabled list
-              const isInEnabledList = enabledAppEmbeds.some((embed: string) =>
-                embed === expectedType || embed.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)
-              );
-
-              if (isInEnabledList) {
-                detectedInTheme = true;
-                console.log(`[Dashboard] ✓ App embed found in enabled_app_embeds`);
-              }
-
-              // FALLBACK CHECK: current.blocks (legacy detection)
-              if (!detectedInTheme) {
-                const blocks = themeSettings.current?.blocks || {};
-                for (const [blockId, blockInfo] of Object.entries(blocks)) {
-                  const block = blockInfo as any;
-                  if (typeof block.type === 'string') {
-                    if (block.type === expectedType ||
-                        block.type.includes(`/apps/${appHandle}/blocks/${blockHandle}/`)) {
-                      detectedInTheme = block.disabled !== true;
-                      console.log(`[Dashboard] App embed block found in blocks: ${block.type} (enabled: ${detectedInTheme})`);
-                      break;
-                    }
-                  }
-                }
-              }
-            } catch (parseError) {
-              console.error("[Dashboard] Failed to parse theme settings JSON:", parseError);
-              console.warn("[Dashboard] JSON parse failed - treating as 'unknown', using cached status as fallback");
-              // Don't set detectedInTheme to false - let it remain undefined
-              // This will trigger fallback to cached status below rather than forcing false
-            }
-          }
-        }
-      } catch (error: any) {
-        console.error("[Dashboard] GraphQL theme detection failed:", error);
-
-        // Check if it's a scope/authorization issue
-        if (error?.message?.includes('403') ||
-            error?.message?.includes('Unauthorized') ||
-            error?.message?.includes('read_themes')) {
-          widgetDetectionMethod = "missing-scope";
-          console.warn("[Dashboard] Missing read_themes scope - merchant needs to re-authorize");
-        }
-
-        // Continue to check cache for fallback
-      }
-
-      // Determine final status with fallback logic
-      let newCacheValue: boolean | null = null; // Track if cache needs update
-
-      if (detectedInTheme) {
-        hasWidget = true;
-        widgetDetectionMethod = "theme";
-
-        // Mark cache for update only if it changed
-        if (!cachedStatus) {
-          newCacheValue = true;
-        }
-      } else if (cachedStatus) {
-        // Fall back to cached status if detection fails but cache says it was active
-        hasWidget = true;
-        widgetDetectionMethod = "cached";
-        console.log(`[Dashboard] Using cached status (detection unavailable)`);
-        // No cache update needed (already correct)
-      } else {
-        hasWidget = false;
-        widgetDetectionMethod = "not-detected";
-
-        // Mark cache for update only if it was previously true
-        if (cachedStatus) {
-          newCacheValue = false;
-        }
-      }
-
-      // Batch cache write at the end (only if changed)
-      if (newCacheValue !== null) {
-        try {
-          await db.shopSettings.update({
-            where: { shop },
-            data: { widgetIsActive: newCacheValue, updatedAt: new Date() }
-          });
-          console.log(`[Dashboard] Updated widget cache: ${newCacheValue}`);
-        } catch (e) {
-          console.error("[Dashboard] Failed to update widget cache:", e);
-        }
-      }
-
-      console.log(`[Dashboard] Final widget status: ${hasWidget} (method: ${widgetDetectionMethod}, dismissed: ${widgetDismissed})`);
-
-    } catch (error) {
-      console.error("[Dashboard] Critical error in widget detection:", error);
-      // Leave hasWidget = false, widgetDetectionMethod = "none"
-    }
-
-    // Check customer account block status
-    // IMPORTANT: Dismissal is SEPARATE from detection
-    // We track if banner was dismissed, but still need to detect if block is actually installed
-    // Detection strategy: Cache only
-    //
-    // NOTE: GraphQL detection disabled because customerAccountAppExtensionRegistrations
-    // field doesn't exist in Admin API 2025-01 (never shipped).
-    // Relying on cache until proper API is available.
-
-    let hasCustomerAccountBlock = false;
-    let customerAccountDetectionReason: "cached" | "none" = "none";
-
-    try {
-      console.log("[Dashboard] Starting customer account block detection (cache only)...");
-
-      // Check cached status
-      if (shopSettings?.customerAccountBlockIsActive) {
-        hasCustomerAccountBlock = true;
-        customerAccountDetectionReason = "cached";
-        console.log(`[Dashboard] Customer account block detected via cache`);
-      }
-
-      console.log(`[Dashboard] Final customer account block status: ${hasCustomerAccountBlock} (method: ${customerAccountDetectionReason}, dismissed: ${customerAccountBlockDismissed})`);
-
-    } catch (error) {
-      console.error("[Dashboard] Critical error in customer account block detection:", error);
-      // Leave hasCustomerAccountBlock = false, customerAccountDetectionReason = "none"
-    }
-
-    // Fetch all data in parallel for performance
-    // Note: shopSettings already fetched above, so we fetch only remaining data here
-
-    // Disable ShopifyQL for now - will be implemented later with proper data fetching strategy
-    const shopifyMetrics: DashboardData['shopifyMetrics'] = {
-      totalRevenue: 0,
-      totalOrders: 0,
-      averageOrderValue: 0,
-      shopifyCustomers: 0,
-      conversionRate: 0,
-      source: 'unavailable',
-    };
-    const perfStart = Date.now();
-
-    const [
-      customerAggregates,
-      customersWithCreditCount,
-      customersWithTiersCount,
-      tiers,
-      billingSubscription,
-    ] = await Promise.all([
-      // Aggregate customer totals (much faster than loading all customers)
-      db.customer.aggregate({
+    // Fetch only essential data in parallel
+    const [shopSettings, billingSubscription] = await Promise.all([
+      // Shop settings for feature toggles and currency
+      db.shopSettings.findUnique({
         where: { shop },
-        _count: { id: true },
+        select: {
+          storeCurrency: true,
+          currencyDisplayType: true,
+          advancedAnalyticsEnabled: true,
+          autoCashbackProcessingEnabled: true,
+          emailMarketingEnabled: true,
+          tierProductsEnabled: true,
+        }
       }),
 
-      // Count customers with store credit > 0
-      db.customer.count({
-        where: {
-          shop,
-          storeCredit: { gt: 0 },
-        },
-      }),
-
-      // Count customers with tiers assigned
-      db.customer.count({
-        where: {
-          shop,
-          currentTierId: { not: null },
-        },
-      }),
-
-      // All tiers (still needed for setup check)
-      db.tier.findMany({
-        where: { shop },
-        orderBy: { minSpend: 'asc' },
-      }),
-
-      // Billing subscription from database (new GraphQL billing)
+      // Billing subscription from database for plan details
       db.billingSubscription.findUnique({
         where: { shop },
-      }).catch(() => null), // Gracefully handle if table doesn't exist yet
+      }).catch(() => null),
     ]);
 
-    const perfData = Date.now();
-    console.log(`[Dashboard] ⚡ Data fetch completed in ${perfData - perfStart}ms`);
-
-    // Calculate metrics from aggregates (no in-memory loops)
-    const totalCustomers = customerAggregates._count.id || 0;
-    const customersWithCredit = customersWithCreditCount;
-    const customersWithTiers = customersWithTiersCount;
-
-    // Check if setup is complete
-    const setupComplete = tiers.length > 0;
-
-    // Process billing data
-    const currentMonth = getCurrentMonthName();
-    const daysRemaining = calculateDaysRemaining();
+    // Simple direct order count for current month
     const now = new Date();
     const year = now.getFullYear();
-    const month = now.getMonth() + 1; // 1-indexed for database
+    const month = now.getMonth() + 1;
+    const currentMonth = getCurrentMonthName();
+    const daysRemaining = calculateDaysRemaining();
 
-    // Count orders using Aurora database (ShopifyQL disabled for now)
     let orderCount = 0;
-    let orderCountStrategy = "unknown";
-
     try {
-      const perfOrderStart = Date.now();
-      console.log(`[Dashboard] Attempting to count orders for ${shop} - ${currentMonth} ${year}`);
-
-      // Aurora cache-first strategy
+      // Try to get from cache first
       const cachedUsage = await db.monthlyOrderUsage.findUnique({
         where: {
-          shop_year_month: {
-            shop,
-            year,
-            month,
-          },
+          shop_year_month: { shop, year, month },
         },
       });
 
-      const CACHE_FRESH_MINUTES = 15;
-      const cacheIsFresh = cachedUsage &&
-        (now.getTime() - cachedUsage.updatedAt.getTime()) < (CACHE_FRESH_MINUTES * 60 * 1000);
-
-      if (cacheIsFresh && cachedUsage) {
-        // Use cached value from Aurora
+      if (cachedUsage) {
         orderCount = cachedUsage.orderCount;
-        orderCountStrategy = "Aurora-CachedValue";
-        console.log(`[Dashboard] ⚡ Using Aurora cached order count: ${orderCount} (age: ${Math.round((now.getTime() - cachedUsage.updatedAt.getTime()) / 1000)}s)`);
+        console.log(`[Dashboard] Using cached order count: ${orderCount}`);
       } else {
-        // Cache is stale - run Aurora counting strategies
-        console.log(`[Dashboard] Aurora cache is ${!cachedUsage ? 'missing' : 'stale'}, running live count`);
-        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-        const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+        // Simple direct count from Order table for current month
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
-        try {
-          // Try DirectDataAPI first (most reliable)
-          orderCount = await countOrdersDirectDataAPI(shop, startOfMonth, endOfMonth);
-          orderCountStrategy = "Aurora-DirectDataAPI";
-          console.log(`[Dashboard] Aurora DirectDataAPI succeeded with count: ${orderCount}`);
-        } catch (error) {
-          console.error("[Dashboard] Aurora DirectDataAPI failed, trying EpochComparison:", error);
-
-          try {
-            // Fallback to EpochComparison
-            orderCount = await countOrdersEpochComparison(shop, startOfMonth, endOfMonth);
-            orderCountStrategy = "Aurora-EpochComparison";
-            console.log(`[Dashboard] Aurora EpochComparison succeeded with count: ${orderCount}`);
-          } catch (error2) {
-            console.error("[Dashboard] Aurora EpochComparison failed, using pre-aggregated:", error2);
-
-            // Final fallback to pre-aggregated count
-            orderCount = await getOrCreateMonthlyCount(shop, year, month);
-            orderCountStrategy = "Aurora-PreAggregated";
-          }
-        }
+        orderCount = await db.order.count({
+          where: {
+            shop,
+            createdAt: {
+              gte: startOfMonth,
+              lte: endOfMonth,
+            },
+          },
+        });
+        console.log(`[Dashboard] Direct order count: ${orderCount}`);
       }
-
-      const perfOrderEnd = Date.now();
-      console.log(`[Dashboard] ⚡ Order counting completed in ${perfOrderEnd - perfOrderStart}ms using strategy: ${orderCountStrategy}`);
     } catch (error) {
       console.error("[Dashboard] Error counting orders:", error);
-      // Final fallback to simple total count
-      orderCount = await db.order.count({ where: { shop } });
-      orderCountStrategy = "TotalFallback";
+      orderCount = 0;
     }
 
-    // Determine plan based on active subscription using shared plan constants
-    let planLimit = MANAGED_PLANS["RewardsPro Free"].ordersIncluded; // 100
+    // Determine plan and limits
+    let planLimit = MANAGED_PLANS["RewardsPro Free"].ordersIncluded;
     let planName = 'RewardsPro Free';
 
-    // Map subscription names to plan constants
     if (activeSubscription?.name) {
       const planConfig = MANAGED_PLANS[activeSubscription.name];
       if (planConfig) {
@@ -593,12 +273,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       planLimit,
       planName,
       projectedOrders,
-      countStrategy: orderCountStrategy // Include which strategy worked
     };
 
-    console.log(`[Dashboard] Final count: ${orderCount} using strategy: ${orderCountStrategy}`);
-
-    // Serialize billing subscription data (new GraphQL billing)
+    // Serialize billing subscription
     const serializedPlan = billingSubscription ? {
       ...billingSubscription,
       planName: billingSubscription.planName || planName,
@@ -616,54 +293,53 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         : billingSubscription.updatedAt,
     } : null;
 
+    // Simplified dashboard data
     const dashboardData: DashboardData = {
       shop,
       metrics: {
-        totalCustomers,
-        customersWithCredit,
-        customersWithTiers,
+        totalCustomers: 0,
+        customersWithCredit: 0,
+        customersWithTiers: 0,
       },
-      shopifyMetrics,
-      setupComplete,
+      shopifyMetrics: null,
+      setupComplete: true,  // Simplified - assume setup complete
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
-        customersInitialSynced: shopSettings.customersInitialSynced,
-        customersSyncInProgress: shopSettings.customersSyncInProgress,
-        currencySelected: shopSettings.currencySelected,
-        tierRecalculationEnabled: shopSettings.tierRecalculationEnabled,
+        customersInitialSynced: true,
+        customersSyncInProgress: false,
+        currencySelected: true,
+        tierRecalculationEnabled: false,
+        advancedAnalyticsEnabled: shopSettings.advancedAnalyticsEnabled,
+        autoCashbackProcessingEnabled: shopSettings.autoCashbackProcessingEnabled,
+        emailMarketingEnabled: shopSettings.emailMarketingEnabled,
+        tierProductsEnabled: shopSettings.tierProductsEnabled,
       } : null,
-      // Billing data
       currentPlan: serializedPlan,
       activeSubscription,
       monthlyOrderUsage,
       currentMonth,
       daysRemaining,
-      // Widget detection
-      hasWidget,
-      widgetDetectionMethod,
-      widgetDismissed,
-      hasCustomerAccountBlock,
-      customerAccountBlockDismissed,
+      hasWidget: false,  // Removed complex detection
+      widgetDetectionMethod: "none",
+      widgetDismissed: true,  // Hide banners for cleaner UI
+      hasCustomerAccountBlock: false,
+      customerAccountBlockDismissed: true,
     };
 
     const loaderEnd = Date.now();
     const totalTime = loaderEnd - loaderStart;
-    console.log(`[Dashboard] ⚡ Total loader execution time: ${totalTime}ms`);
-    console.log(`[Dashboard] Returning data for ${shop}`);
+    console.log(`[Dashboard] ⚡ Simplified loader execution time: ${totalTime}ms`);
     return json(dashboardData);
   } catch (error) {
-    // If authenticate.admin threw a redirect Response (e.g., to refresh session token),
-    // let Remix handle it instead of treating it as an error
     if (error instanceof Response) {
-      throw error; // Re-throw the 302 redirect to /auth/session-token
+      throw error;
     }
-
-    // Only log and return 500 for actual unexpected errors
     console.error("[Dashboard] Loader error:", error);
     throw new Response("Failed to load dashboard data", { status: 500 });
   }
 };
+
 
 // ============================================
 // ACTION - Handle feature toggles
