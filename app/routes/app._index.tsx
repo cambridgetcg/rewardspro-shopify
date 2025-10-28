@@ -3,23 +3,6 @@ import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
 
-// Declare s-switch web component for TypeScript
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      's-switch': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        id?: string;
-        label?: string;
-        details?: string;
-        checked?: boolean;
-        disabled?: boolean;
-        name?: string;
-        value?: string;
-        onchange?: (event: Event) => void;
-      }, HTMLElement>;
-    }
-  }
-}
 import {
   Page,
   Layout,
@@ -493,14 +476,11 @@ export default function Dashboard() {
   }, []);
 
   // Handle feature toggle
-  const handleToggleFeature = useCallback((feature: string, event: Event) => {
-    const target = event.currentTarget as HTMLInputElement;
-    const enabled = target.checked;
-
+  const handleToggleFeature = useCallback((feature: string, currentValue: boolean) => {
     const formData = new FormData();
     formData.append("action", "toggle-feature");
     formData.append("feature", feature);
-    formData.append("enabled", enabled.toString());
+    formData.append("enabled", (!currentValue).toString());
 
     fetcher.submit(formData, { method: "post" });
   }, [fetcher]);
@@ -877,48 +857,192 @@ export default function Dashboard() {
                 Enable or disable specific features for your store. Changes take effect immediately.
               </Text>
 
-              <BlockStack gap="300">
+              <BlockStack gap="400">
                 {/* Advanced Analytics */}
-                <s-switch
-                  id="advanced-analytics-toggle"
-                  label="Advanced Analytics"
-                  details="Detailed analytics charts and ROI calculations"
-                  checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
-                  onchange={(e: Event) => handleToggleFeature('advancedAnalyticsEnabled', e)}
-                />
+                <InlineStack align="space-between" blockAlign="start">
+                  <Box width="80%">
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">
+                        Advanced Analytics
+                      </Text>
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Detailed analytics charts and ROI calculations
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
+                    onClick={() => handleToggleFeature('advancedAnalyticsEnabled', data.shopSettings?.advancedAnalyticsEnabled ?? true)}
+                    style={{
+                      width: '51px',
+                      height: '31px',
+                      backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#008060' : '#e4e5e7',
+                      border: 'none',
+                      borderRadius: '15.5px',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background-color 200ms ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '27px',
+                        height: '27px',
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.advancedAnalyticsEnabled ? '22px' : '2px',
+                        transition: 'left 200ms ease',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                      }}
+                    />
+                  </button>
+                </InlineStack>
 
                 <Divider />
 
                 {/* Automatic Cashback Processing */}
-                <s-switch
-                  id="auto-cashback-toggle"
-                  label="Automatic Cashback Processing"
-                  details="Automatically credit cashback for completed orders"
-                  checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
-                  onchange={(e: Event) => handleToggleFeature('autoCashbackProcessingEnabled', e)}
-                />
+                <InlineStack align="space-between" blockAlign="start">
+                  <Box width="80%">
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">
+                        Automatic Cashback Processing
+                      </Text>
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Automatically credit cashback for completed orders
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
+                    onClick={() => handleToggleFeature('autoCashbackProcessingEnabled', data.shopSettings?.autoCashbackProcessingEnabled ?? true)}
+                    style={{
+                      width: '51px',
+                      height: '31px',
+                      backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#008060' : '#e4e5e7',
+                      border: 'none',
+                      borderRadius: '15.5px',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background-color 200ms ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '27px',
+                        height: '27px',
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.autoCashbackProcessingEnabled ? '22px' : '2px',
+                        transition: 'left 200ms ease',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                      }}
+                    />
+                  </button>
+                </InlineStack>
 
                 <Divider />
 
-                {/* Email Marketing Campaign */}
-                <s-switch
-                  id="email-marketing-toggle"
-                  label="Email Marketing Campaigns"
-                  details="Automated email campaigns and communications"
-                  checked={data.shopSettings?.emailMarketingEnabled ?? false}
-                  onchange={(e: Event) => handleToggleFeature('emailMarketingEnabled', e)}
-                />
+                {/* Email Marketing Campaigns */}
+                <InlineStack align="space-between" blockAlign="start">
+                  <Box width="80%">
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">
+                        Email Marketing Campaigns
+                      </Text>
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Automated email campaigns and communications
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={data.shopSettings?.emailMarketingEnabled ?? false}
+                    onClick={() => handleToggleFeature('emailMarketingEnabled', data.shopSettings?.emailMarketingEnabled ?? false)}
+                    style={{
+                      width: '51px',
+                      height: '31px',
+                      backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#008060' : '#e4e5e7',
+                      border: 'none',
+                      borderRadius: '15.5px',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background-color 200ms ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '27px',
+                        height: '27px',
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.emailMarketingEnabled ? '22px' : '2px',
+                        transition: 'left 200ms ease',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                      }}
+                    />
+                  </button>
+                </InlineStack>
 
                 <Divider />
 
                 {/* Tier Products Module */}
-                <s-switch
-                  id="tier-products-toggle"
-                  label="Tier Products Module"
-                  details="Allow customers to purchase tier access"
-                  checked={data.shopSettings?.tierProductsEnabled ?? true}
-                  onchange={(e: Event) => handleToggleFeature('tierProductsEnabled', e)}
-                />
+                <InlineStack align="space-between" blockAlign="start">
+                  <Box width="80%">
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">
+                        Tier Products Module
+                      </Text>
+                      <Text variant="bodySm" as="p" tone="subdued">
+                        Allow customers to purchase tier access
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={data.shopSettings?.tierProductsEnabled ?? true}
+                    onClick={() => handleToggleFeature('tierProductsEnabled', data.shopSettings?.tierProductsEnabled ?? true)}
+                    style={{
+                      width: '51px',
+                      height: '31px',
+                      backgroundColor: data.shopSettings?.tierProductsEnabled ? '#008060' : '#e4e5e7',
+                      border: 'none',
+                      borderRadius: '15.5px',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background-color 200ms ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '27px',
+                        height: '27px',
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: data.shopSettings?.tierProductsEnabled ? '22px' : '2px',
+                        transition: 'left 200ms ease',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                      }}
+                    />
+                  </button>
+                </InlineStack>
               </BlockStack>
             </BlockStack>
           </Card>
