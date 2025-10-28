@@ -19,6 +19,7 @@ import {
   Select,
   Modal,
   Divider,
+  Collapsible,
 } from "@shopify/polaris";
 import {
   PlusIcon,
@@ -29,6 +30,8 @@ import {
   ChartVerticalIcon,
   CheckCircleIcon,
   InfoIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from "~/utils/polaris-icons";
 import {
   StatsOverview,
@@ -697,6 +700,130 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // DASHBOARD COMPONENT
 // ============================================
 
+// ============================================
+// STATUS ITEM COMPONENT
+// ============================================
+
+interface StatusItemProps {
+  id: string;
+  label: string;
+  status: 'success' | 'warning' | 'critical';
+  statusText: string;
+  description: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function StatusItem({ id, label, status, statusText, description, isExpanded, onToggle }: StatusItemProps) {
+  const getBackgroundColor = () => {
+    switch (status) {
+      case 'success': return '#f0fdf4';
+      case 'warning': return '#fef3c7';
+      case 'critical': return '#fee2e2';
+      default: return '#f9fafb';
+    }
+  };
+
+  const getBorderColor = () => {
+    switch (status) {
+      case 'success': return '#86efac';
+      case 'warning': return '#fbbf24';
+      case 'critical': return '#fca5a5';
+      default: return '#e5e7eb';
+    }
+  };
+
+  const getLightColor = () => {
+    switch (status) {
+      case 'success': return { bg: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', shadow: 'rgba(34, 197, 94, 0.6)' };
+      case 'warning': return { bg: 'rgba(234, 179, 8, 0.2)', color: '#eab308', shadow: 'rgba(234, 179, 8, 0.6)' };
+      case 'critical': return { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', shadow: 'rgba(239, 68, 68, 0.6)' };
+      default: return { bg: 'rgba(156, 163, 175, 0.2)', color: '#9ca3af', shadow: 'rgba(156, 163, 175, 0.6)' };
+    }
+  };
+
+  const getBadgeTone = (): 'success' | 'warning' | 'critical' => {
+    return status === 'success' ? 'success' : status === 'warning' ? 'warning' : 'critical';
+  };
+
+  const lightColors = getLightColor();
+
+  return (
+    <div>
+      <div
+        onClick={onToggle}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px 16px',
+          backgroundColor: getBackgroundColor(),
+          border: `1px solid ${getBorderColor()}`,
+          borderRadius: '8px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {/* Status light indicator */}
+        <div style={{
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          backgroundColor: lightColors.bg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: lightColors.color,
+            boxShadow: `0 0 6px ${lightColors.shadow}`
+          }} />
+        </div>
+
+        {/* Label */}
+        <Text variant="bodyMd" as="span" fontWeight="medium">
+          {label}
+        </Text>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Status badge */}
+        <Badge tone={getBadgeTone()}>
+          {statusText}
+        </Badge>
+
+        {/* Expand/collapse icon */}
+        <Icon source={isExpanded ? ChevronUpIcon : ChevronDownIcon} />
+      </div>
+
+      {/* Collapsible description */}
+      <Collapsible
+        open={isExpanded}
+        id={`collapsible-${id}`}
+        transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
+      >
+        <div style={{
+          padding: '16px',
+          backgroundColor: '#fafafa',
+          borderLeft: `1px solid ${getBorderColor()}`,
+          borderRight: `1px solid ${getBorderColor()}`,
+          borderBottom: `1px solid ${getBorderColor()}`,
+          borderRadius: '0 0 8px 8px',
+          marginTop: '-8px'
+        }}>
+          <Text variant="bodySm" as="p" tone="subdued">
+            {description}
+          </Text>
+        </div>
+      </Collapsible>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>() as DashboardData;
   const navigate = useNavigate();
@@ -710,6 +837,21 @@ export default function Dashboard() {
 
   // Widget setup guide modal state
   const [widgetGuideModalOpen, setWidgetGuideModalOpen] = useState(false);
+
+  // System status expanded items state
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  const toggleItem = useCallback((itemId: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  }, []);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -1145,153 +1287,45 @@ export default function Dashboard() {
                   Core Systems
                 </Text>
 
-                {/* Widget Status */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.hasWidget ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.hasWidget ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px',
-                  cursor: data.hasWidget ? 'default' : 'pointer',
-                  transition: 'all 0.2s ease'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.hasWidget ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.hasWidget ? '#22c55e' : '#eab308',
-                      boxShadow: data.hasWidget ? '0 0 6px rgba(34, 197, 94, 0.6)' : '0 0 6px rgba(234, 179, 8, 0.6)'
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Storefront Widget
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.hasWidget ? 'success' : 'warning'}>
-                      {data.hasWidget ? 'ACTIVE' : 'NOT DETECTED'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="storefront-widget"
+                  label="Storefront Widget"
+                  status={data.hasWidget ? 'success' : 'warning'}
+                  statusText={data.hasWidget ? 'ACTIVE' : 'NOT DETECTED'}
+                  description="The RewardsPro widget displays customer tier badges, reward balances, and cashback information on your storefront. It embeds on product pages and the customer account to show real-time loyalty status. Enable it in your theme editor under App embeds to activate this feature."
+                  isExpanded={expandedItems.has('storefront-widget')}
+                  onToggle={() => toggleItem('storefront-widget')}
+                />
 
-                {/* Database Connection */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: '#f0fdf4',
-                  border: '1px solid #86efac',
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: '#22c55e',
-                      boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Database Connection
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone="success">CONNECTED</Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="database-connection"
+                  label="Database Connection"
+                  status="success"
+                  statusText="CONNECTED"
+                  description="Your app is connected to the AWS Aurora PostgreSQL database where all customer data, tier assignments, transaction history, and loyalty rewards are securely stored. This connection is monitored 24/7 for optimal performance and reliability."
+                  isExpanded={expandedItems.has('database-connection')}
+                  onToggle={() => toggleItem('database-connection')}
+                />
 
-                {/* Shopify API */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Shopify API (ShopifyQL)
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'success' : 'warning'}>
-                      {data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'OPERATIONAL' : 'LIMITED'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="shopify-api"
+                  label="Shopify API (ShopifyQL)"
+                  status={data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'success' : 'warning'}
+                  statusText={data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'OPERATIONAL' : 'LIMITED'}
+                  description="ShopifyQL provides advanced analytics and order data from Shopify Plus stores. When available, it enables real-time order counting and enhanced dashboard metrics. If unavailable, the app automatically falls back to GraphQL API for data fetching with slightly delayed metrics."
+                  isExpanded={expandedItems.has('shopify-api')}
+                  onToggle={() => toggleItem('shopify-api')}
+                />
 
-                {/* Customer Account Block */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.hasCustomerAccountBlock ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.hasCustomerAccountBlock ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.hasCustomerAccountBlock ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.hasCustomerAccountBlock ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.hasCustomerAccountBlock ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Customer Account Block
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.hasCustomerAccountBlock ? 'success' : 'warning'}>
-                      {data.hasCustomerAccountBlock ? 'ACTIVE' : 'NOT DETECTED'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="customer-account-block"
+                  label="Customer Account Block"
+                  status={data.hasCustomerAccountBlock ? 'success' : 'warning'}
+                  statusText={data.hasCustomerAccountBlock ? 'ACTIVE' : 'NOT DETECTED'}
+                  description="The Customer Account Block is a UI extension that displays loyalty information directly in customer accounts. It shows tier status, rewards balance, transaction history, and redemption options. Customers can view and manage their loyalty benefits without leaving their account page."
+                  isExpanded={expandedItems.has('customer-account-block')}
+                  onToggle={() => toggleItem('customer-account-block')}
+                />
               </BlockStack>
 
               {/* Configuration */}
@@ -1300,153 +1334,45 @@ export default function Dashboard() {
                   Configuration
                 </Text>
 
-                {/* Tiers Setup */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.setupComplete ? '#f0fdf4' : '#fee2e2',
-                  border: `1px solid ${data.setupComplete ? '#86efac' : '#fca5a5'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.setupComplete ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.setupComplete ? '#22c55e' : '#ef4444',
-                      boxShadow: `0 0 6px ${data.setupComplete ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Loyalty Tiers
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.setupComplete ? 'success' : 'critical'}>
-                      {data.setupComplete ? 'CONFIGURED' : 'REQUIRED'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="loyalty-tiers"
+                  label="Loyalty Tiers"
+                  status={data.setupComplete ? 'success' : 'critical'}
+                  statusText={data.setupComplete ? 'CONFIGURED' : 'REQUIRED'}
+                  description="Loyalty tiers define the membership levels in your rewards program. Each tier has a spending threshold and cashback percentage. Customers automatically move between tiers based on their purchase history. Configure tiers in Settings to set up your program structure and reward levels."
+                  isExpanded={expandedItems.has('loyalty-tiers')}
+                  onToggle={() => toggleItem('loyalty-tiers')}
+                />
 
-                {/* Currency Selection */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.currencySelected ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopSettings?.currencySelected ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.currencySelected ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.currencySelected ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopSettings?.currencySelected ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Store Currency
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.currencySelected ? 'success' : 'warning'}>
-                      {data.shopSettings?.currencySelected ? `${data.shopSettings.storeCurrency} SET` : 'USING DEFAULT'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="store-currency"
+                  label="Store Currency"
+                  status={data.shopSettings?.currencySelected ? 'success' : 'warning'}
+                  statusText={data.shopSettings?.currencySelected ? `${data.shopSettings.storeCurrency} SET` : 'USING DEFAULT'}
+                  description="Store currency determines how rewards, cashback, and credit are displayed throughout the app. Select your primary store currency to ensure consistent formatting in customer communications, dashboard displays, and transaction records. You can change this in Settings."
+                  isExpanded={expandedItems.has('store-currency')}
+                  onToggle={() => toggleItem('store-currency')}
+                />
 
-                {/* Billing Status */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.activeSubscription ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.activeSubscription ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.activeSubscription ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.activeSubscription ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.activeSubscription ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Billing Plan
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.activeSubscription ? 'success' : 'warning'}>
-                      {data.activeSubscription ? data.activeSubscription.name.toUpperCase() : 'FREE PLAN'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="billing-plan"
+                  label="Billing Plan"
+                  status={data.activeSubscription ? 'success' : 'warning'}
+                  statusText={data.activeSubscription ? data.activeSubscription.name.toUpperCase() : 'FREE PLAN'}
+                  description="Your billing plan determines feature access and usage limits. The Free plan includes basic loyalty features with limited monthly orders. Paid plans unlock advanced analytics, automation, email campaigns, and higher order limits. Upgrade in the Billing section to access premium features."
+                  isExpanded={expandedItems.has('billing-plan')}
+                  onToggle={() => toggleItem('billing-plan')}
+                />
 
-                {/* Tier Automation */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#f0fdf4' : '#fef3c7',
-                  border: `1px solid ${data.shopSettings?.tierRecalculationEnabled ? '#86efac' : '#fbbf24'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.tierRecalculationEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 6px ${data.shopSettings?.tierRecalculationEnabled ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Tier Automation
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.tierRecalculationEnabled ? 'success' : 'warning'}>
-                      {data.shopSettings?.tierRecalculationEnabled ? 'ENABLED' : 'DISABLED'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="tier-automation"
+                  label="Tier Automation"
+                  status={data.shopSettings?.tierRecalculationEnabled ? 'success' : 'warning'}
+                  statusText={data.shopSettings?.tierRecalculationEnabled ? 'ENABLED' : 'DISABLED'}
+                  description={`Tier automation automatically recalculates customer tier assignments based on their spending history at a set frequency (${data.shopSettings?.tierRecalculationFrequency || 'WEEKLY'}). When enabled, customers are automatically promoted or demoted between tiers as they reach spending thresholds. Last run: ${data.shopSettings?.tierRecalculationLastRun ? new Date(data.shopSettings.tierRecalculationLastRun).toLocaleDateString() : 'Never'}. Configure frequency in Settings.`}
+                  isExpanded={expandedItems.has('tier-automation')}
+                  onToggle={() => toggleItem('tier-automation')}
+                />
               </BlockStack>
 
               {/* Data Sync */}
@@ -1455,84 +1381,25 @@ export default function Dashboard() {
                   Data Synchronization
                 </Text>
 
-                {/* Database Connection Status */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: '#f0fdf4',
-                  border: '1px solid #86efac',
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: '#22c55e',
-                      boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Database Connection
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone="success">ACTIVE</Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="data-sync-database"
+                  label="Database Connection"
+                  status="success"
+                  statusText="ACTIVE"
+                  description="Real-time synchronization between your Shopify store and the RewardsPro database. All customer orders, tier assignments, and reward transactions are automatically synced to ensure accurate loyalty tracking. Connection is monitored continuously for data integrity."
+                  isExpanded={expandedItems.has('data-sync-database')}
+                  onToggle={() => toggleItem('data-sync-database')}
+                />
 
-                {/* Customer Sync */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: data.shopSettings?.customersInitialSynced ? '#f0fdf4' :
-                                   data.shopSettings?.customersSyncInProgress ? '#fef3c7' : '#fee2e2',
-                  border: `1px solid ${data.shopSettings?.customersInitialSynced ? '#86efac' :
-                                        data.shopSettings?.customersSyncInProgress ? '#fbbf24' : '#fca5a5'}`,
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: data.shopSettings?.customersInitialSynced ? 'rgba(34, 197, 94, 0.2)' :
-                                     data.shopSettings?.customersSyncInProgress ? 'rgba(234, 179, 8, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: data.shopSettings?.customersInitialSynced ? '#22c55e' :
-                                       data.shopSettings?.customersSyncInProgress ? '#eab308' : '#ef4444',
-                      boxShadow: `0 0 6px ${data.shopSettings?.customersInitialSynced ? 'rgba(34, 197, 94, 0.6)' :
-                                            data.shopSettings?.customersSyncInProgress ? 'rgba(234, 179, 8, 0.6)' : 'rgba(239, 68, 68, 0.6)'}`
-                    }} />
-                  </div>
-                  <Text variant="bodyMd" as="span" fontWeight="medium">
-                    Customer Database
-                  </Text>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <Badge tone={data.shopSettings?.customersInitialSynced ? 'success' :
-                                 data.shopSettings?.customersSyncInProgress ? 'attention' : 'critical'}>
-                      {data.shopSettings?.customersInitialSynced ? `${data.metrics.totalCustomers} SYNCED` :
-                       data.shopSettings?.customersSyncInProgress ? 'SYNCING...' : 'NOT SYNCED'}
-                    </Badge>
-                  </div>
-                </div>
+                <StatusItem
+                  id="customer-sync"
+                  label="Customer Database"
+                  status={data.shopSettings?.customersInitialSynced ? 'success' : data.shopSettings?.customersSyncInProgress ? 'warning' : 'critical'}
+                  statusText={data.shopSettings?.customersInitialSynced ? `${data.metrics.totalCustomers} SYNCED` : data.shopSettings?.customersSyncInProgress ? 'SYNCING...' : 'NOT SYNCED'}
+                  description="Customer data synchronization imports your Shopify customers into the RewardsPro system. This includes customer profiles, order history, and contact information needed for loyalty tracking. The initial sync runs when you install the app, then webhooks keep data updated in real-time as customers place orders."
+                  isExpanded={expandedItems.has('customer-sync')}
+                  onToggle={() => toggleItem('customer-sync')}
+                />
               </BlockStack>
 
               {/* Overall System Status */}
