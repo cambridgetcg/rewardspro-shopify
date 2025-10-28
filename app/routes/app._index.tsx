@@ -16,7 +16,6 @@ import {
   EmptyState,
   DataTable,
   Banner,
-  Select,
   Modal,
   Divider,
   Collapsible,
@@ -41,45 +40,6 @@ import { formatCurrency } from "../utils/currency";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 import { useShopifyNavigation } from "~/utils/shopify-navigation";
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-const CURRENCY_OPTIONS = [
-  { label: "🇺🇸 US Dollar (USD)", value: "USD" },
-  { label: "🇪🇺 Euro (EUR)", value: "EUR" },
-  { label: "🇬🇧 British Pound (GBP)", value: "GBP" },
-  { label: "🇨🇦 Canadian Dollar (CAD)", value: "CAD" },
-  { label: "🇦🇺 Australian Dollar (AUD)", value: "AUD" },
-  { label: "🇯🇵 Japanese Yen (JPY)", value: "JPY" },
-  { label: "🇨🇭 Swiss Franc (CHF)", value: "CHF" },
-  { label: "🇨🇳 Chinese Yuan (CNY)", value: "CNY" },
-  { label: "🇸🇪 Swedish Krona (SEK)", value: "SEK" },
-  { label: "🇳🇿 New Zealand Dollar (NZD)", value: "NZD" },
-  { label: "🇳🇴 Norwegian Krone (NOK)", value: "NOK" },
-  { label: "🇲🇽 Mexican Peso (MXN)", value: "MXN" },
-  { label: "🇸🇬 Singapore Dollar (SGD)", value: "SGD" },
-  { label: "🇭🇰 Hong Kong Dollar (HKD)", value: "HKD" },
-  { label: "🇰🇷 South Korean Won (KRW)", value: "KRW" },
-  { label: "🇹🇷 Turkish Lira (TRY)", value: "TRY" },
-  { label: "🇮🇳 Indian Rupee (INR)", value: "INR" },
-  { label: "🇷🇺 Russian Ruble (RUB)", value: "RUB" },
-  { label: "🇧🇷 Brazilian Real (BRL)", value: "BRL" },
-  { label: "🇿🇦 South African Rand (ZAR)", value: "ZAR" },
-  { label: "🇦🇪 UAE Dirham (AED)", value: "AED" },
-  { label: "🇵🇱 Polish Zloty (PLN)", value: "PLN" },
-  { label: "🇩🇰 Danish Krone (DKK)", value: "DKK" },
-  { label: "🇹🇭 Thai Baht (THB)", value: "THB" },
-  { label: "🇮🇩 Indonesian Rupiah (IDR)", value: "IDR" },
-  { label: "🇭🇺 Hungarian Forint (HUF)", value: "HUF" },
-  { label: "🇨🇿 Czech Koruna (CZK)", value: "CZK" },
-  { label: "🇮🇱 Israeli Shekel (ILS)", value: "ILS" },
-  { label: "🇨🇱 Chilean Peso (CLP)", value: "CLP" },
-  { label: "🇵🇭 Philippine Peso (PHP)", value: "PHP" },
-  { label: "🇷🇴 Romanian Leu (RON)", value: "RON" },
-  { label: "🇲🇾 Malaysian Ringgit (MYR)", value: "MYR" },
-];
 
 // ============================================
 // HELPER FUNCTIONS
@@ -504,10 +464,6 @@ export default function Dashboard() {
   const { navigate: shopifyNavigate } = useShopifyNavigation();
   const fetcher = useFetcher();
 
-  // Currency selection state
-  const [selectedCurrency, setSelectedCurrency] = useState(data.shopSettings?.storeCurrency || "USD");
-  const [isSavingCurrency, setIsSavingCurrency] = useState(false);
-
   // System status expanded items state
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
@@ -522,32 +478,6 @@ export default function Dashboard() {
       return newSet;
     });
   }, []);
-
-  // Handle currency selection and save
-  const handleSaveCurrency = useCallback(async () => {
-    setIsSavingCurrency(true);
-    try {
-      const response = await fetch('/api/set-currency', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currency: selectedCurrency,
-          displayType: 'SYMBOL', // Default to symbol
-        }),
-      });
-
-      if (response.ok) {
-        // Reload to update dashboard with new currency
-        window.location.reload();
-      } else {
-        console.error('Failed to save currency');
-        setIsSavingCurrency(false);
-      }
-    } catch (error) {
-      console.error('Error saving currency:', error);
-      setIsSavingCurrency(false);
-    }
-  }, [selectedCurrency]);
 
   // Handle feature toggle
   const handleToggleFeature = useCallback((feature: string, currentValue: boolean) => {
@@ -718,39 +648,6 @@ export default function Dashboard() {
                   variant="primary"
                 >
                   Enable customer account block
-                </Button>
-              </BlockStack>
-            </Banner>
-          </Layout.Section>
-        )}
-
-        {/* Currency Selection Banner - Only show if not selected */}
-        {!data.shopSettings?.currencySelected && (
-          <Layout.Section>
-            <Banner
-              title="Select your cashback currency"
-              tone="info"
-            >
-              <BlockStack gap="300">
-                <Text variant="bodyMd" as="p">
-                  Choose the currency you want to use for cashback rewards. This will affect how rewards are displayed throughout your loyalty program.
-                </Text>
-
-                <Box maxWidth="300px">
-                  <Select
-                    label="Store Currency"
-                    options={CURRENCY_OPTIONS}
-                    value={selectedCurrency}
-                    onChange={setSelectedCurrency}
-                  />
-                </Box>
-
-                <Button
-                  onClick={handleSaveCurrency}
-                  loading={isSavingCurrency}
-                  variant="primary"
-                >
-                  Save Currency
                 </Button>
               </BlockStack>
             </Banner>
@@ -944,16 +841,6 @@ export default function Dashboard() {
                   description="Loyalty tiers define the membership levels in your rewards program. Each tier has a spending threshold and cashback percentage. Customers automatically move between tiers based on their purchase history. Configure tiers in Settings to set up your program structure and reward levels."
                   isExpanded={expandedItems.has('loyalty-tiers')}
                   onToggle={() => toggleItem('loyalty-tiers')}
-                />
-
-                <StatusItem
-                  id="store-currency"
-                  label="Store Currency"
-                  status={data.shopSettings?.currencySelected ? 'success' : 'warning'}
-                  statusText={data.shopSettings?.currencySelected ? `${data.shopSettings.storeCurrency} SET` : 'USING DEFAULT'}
-                  description="Store currency determines how rewards, cashback, and credit are displayed throughout the app. Select your primary store currency to ensure consistent formatting in customer communications, dashboard displays, and transaction records. You can change this in Settings."
-                  isExpanded={expandedItems.has('store-currency')}
-                  onToggle={() => toggleItem('store-currency')}
                 />
 
                 <StatusItem
