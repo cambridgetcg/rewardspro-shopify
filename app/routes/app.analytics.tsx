@@ -25,6 +25,33 @@ import {
   ButtonGroup,
 } from "@shopify/polaris";
 import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  type ChartOptions,
+} from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+import {
   MetricCard,
   StatsOverview,
   EnhancedDataTable,
@@ -309,6 +336,136 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 // HELPER FUNCTIONS
 // ============================================
 
+// Chart.js Configuration for Shopify Analytics Style
+const getShopifyChartOptions = (yAxisConfig?: {
+  max?: number;
+  callback?: (value: any) => string;
+}): ChartOptions<'line'> => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false, // We'll use custom legend
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      padding: 12,
+      cornerRadius: 4,
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      borderWidth: 1,
+    },
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false, // No vertical grid lines
+      },
+      ticks: {
+        color: '#8c9196',
+        font: {
+          size: 12,
+        },
+      },
+      border: {
+        display: false,
+      },
+    },
+    y: {
+      beginAtZero: true,
+      max: yAxisConfig?.max,
+      grid: {
+        color: '#e3e5e7',
+        lineWidth: 0.5,
+      },
+      ticks: {
+        color: '#8c9196',
+        font: {
+          size: 12,
+        },
+        callback: yAxisConfig?.callback || ((value) => value.toString()),
+      },
+      border: {
+        display: false,
+      },
+    },
+  },
+  elements: {
+    line: {
+      tension: 0.1, // Slight curve for smoother lines
+      borderWidth: 2,
+    },
+    point: {
+      radius: 0, // No points by default
+      hitRadius: 8, // Larger hit area for hover
+      hoverRadius: 4, // Show point on hover
+    },
+  },
+  interaction: {
+    mode: 'index',
+    intersect: false,
+  },
+});
+
+const getShopifyBarChartOptions = (isHorizontal = false): ChartOptions<'bar'> => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  indexAxis: isHorizontal ? 'y' : 'x',
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      padding: 12,
+      cornerRadius: 4,
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      borderWidth: 1,
+    },
+  },
+  scales: {
+    x: {
+      grid: {
+        display: !isHorizontal,
+        color: '#e3e5e7',
+        lineWidth: 0.5,
+      },
+      ticks: {
+        color: '#8c9196',
+        font: {
+          size: 12,
+        },
+      },
+      border: {
+        display: false,
+      },
+    },
+    y: {
+      beginAtZero: true,
+      grid: {
+        display: isHorizontal,
+        color: '#e3e5e7',
+        lineWidth: 0.5,
+      },
+      ticks: {
+        color: '#8c9196',
+        font: {
+          size: 12,
+        },
+      },
+      border: {
+        display: false,
+      },
+    },
+  },
+});
 
 function generateTrendData(customers: any[], transactions: any[]): AnalyticsData['trends'] {
   // Legacy function - keeping for backward compatibility
@@ -1293,86 +1450,29 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Chart Area - Shopify Analytics Style */}
-                          <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
-                            {/* Y-axis labels */}
-                            <div style={{
-                              position: 'absolute',
-                              left: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: '50px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              paddingRight: '15px'
-                            }}>
-                              {[6, 5, 4, 3, 2, 1, 0].map(val => (
-                                <div key={val} style={{ fontSize: '12px', color: '#8c9196', textAlign: 'right', fontWeight: '400' }}>
-                                  {val.toFixed(1)}
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Chart - Clean Shopify Style */}
-                            <div style={{
-                              marginLeft: '60px',
-                              height: '100%',
-                              position: 'relative'
-                            }}>
-                              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                                {/* Subtle grid lines - Shopify style */}
-                                {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                                  <line
-                                    key={i}
-                                    x1="0"
-                                    y1={(i / 6) * 100}
-                                    x2="100"
-                                    y2={(i / 6) * 100}
-                                    stroke="#e3e5e7"
-                                    strokeWidth="0.2"
-                                  />
-                                ))}
-
-                                {/* Tier lines - No circles, clean lines only */}
-                                {data.tierPerformance.map((tier, tierIndex) => {
-                                  // Softer, Shopify-style colors
+                          {/* Chart.js Line Chart */}
+                          <div style={{ height: '300px', padding: '20px 0' }}>
+                            <Line
+                              data={{
+                                labels: data.monthlyTierTrends.map(m => m.month),
+                                datasets: data.tierPerformance.map((tier, tierIndex) => {
                                   const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
                                   const color = colors[tierIndex] || '#5C6AC4';
 
-                                  // Get this tier's data points
-                                  const points = data.monthlyTierTrends.map((month, monthIndex) => {
-                                    const tierData = month.tiers.find(t => t.tierName === tier.name);
-                                    const value = tierData?.orderFrequency || 0;
-                                    const x = (monthIndex / (data.monthlyTierTrends.length - 1)) * 100;
-                                    const y = 100 - (value / 6) * 100; // Normalize to 0-6 scale
-                                    return `${x},${y}`;
-                                  }).join(' ');
-
-                                  return (
-                                    <polyline
-                                      key={tier.id}
-                                      points={points}
-                                      fill="none"
-                                      stroke={color}
-                                      strokeWidth="0.6"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      vectorEffect="non-scaling-stroke"
-                                    />
-                                  );
-                                })}
-                              </svg>
-                            </div>
-                          </div>
-
-                          {/* X-axis labels */}
-                          <div style={{ marginLeft: '60px', display: 'flex', justifyContent: 'space-between' }}>
-                            {data.monthlyTierTrends.map((month, index) => (
-                              <Text key={index} variant="bodySm" tone="subdued" as="span">
-                                {month.month}
-                              </Text>
-                            ))}
+                                  return {
+                                    label: tier.name,
+                                    data: data.monthlyTierTrends.map(month => {
+                                      const tierData = month.tiers.find(t => t.tierName === tier.name);
+                                      return tierData?.orderFrequency || 0;
+                                    }),
+                                    borderColor: color,
+                                    backgroundColor: color,
+                                    tension: 0.1,
+                                  };
+                                }),
+                              }}
+                              options={getShopifyChartOptions({ max: 6 })}
+                            />
                           </div>
 
                           {/* Legend */}
@@ -1416,59 +1516,21 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Bar Chart */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            justifyContent: 'space-around',
-                            height: '250px',
-                            padding: '20px 0',
-                            borderBottom: '2px solid #e5e7eb',
-                            gap: '8px'
-                          }}>
-                            {sortTiersByPriority(data.tierPerformance).map((tier, index) => {
-                              const maxValue = Math.max(...data.tierPerformance.map(t => t.monthlyOrderFrequency));
-                              const heightPercent = (tier.monthlyOrderFrequency / maxValue) * 100;
-
-                              return (
-                                <div key={tier.id} style={{
-                                  flex: 1,
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: '8px'
-                                }}>
-                                  {/* Value label above bar */}
-                                  <Text variant="bodySm" fontWeight="semibold" as="span">
-                                    {tier.monthlyOrderFrequency.toFixed(1)}
-                                  </Text>
-
-                                  {/* Bar */}
-                                  <div style={{
-                                    width: '100%',
-                                    maxWidth: '80px',
-                                    height: `${heightPercent}%`,
-                                    backgroundColor: '#5C6AC4', // Shopify Polaris indigo
-                                    borderRadius: '4px 4px 0 0',
-                                    minHeight: '30px',
-                                    transition: 'all 0.3s ease'
-                                  }} />
-
-                                  {/* Tier label */}
-                                  <div style={{ textAlign: 'center', marginTop: '8px' }}>
-                                    <TierBadge
-                                      tierName={tier.name}
-                                      size="small"
-                                      showIcon={false}
-                                      cashbackPercent={tier.cashbackPercent}
-                                    />
-                                    <Text variant="bodySm" tone="subdued" as="p" alignment="center">
-                                      {tier.members} members
-                                    </Text>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                          {/* Chart.js Bar Chart */}
+                          <div style={{ height: '300px', padding: '20px 0' }}>
+                            <Bar
+                              data={{
+                                labels: sortTiersByPriority(data.tierPerformance).map(tier => tier.name),
+                                datasets: [{
+                                  label: 'Order Frequency',
+                                  data: sortTiersByPriority(data.tierPerformance).map(tier => tier.monthlyOrderFrequency),
+                                  backgroundColor: '#5C6AC4',
+                                  borderRadius: 4,
+                                  barPercentage: 0.6,
+                                }],
+                              }}
+                              options={getShopifyBarChartOptions(false)}
+                            />
                           </div>
 
                           {/* Chart footer */}
@@ -1498,52 +1560,22 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          <BlockStack gap="300">
-                            {sortTiersByPriority(data.tierPerformance).map((tier) => {
-                              const maxRevenue = Math.max(...data.tierPerformance.map(t => t.revenuePerOrder));
-                              const widthPercent = (tier.revenuePerOrder / maxRevenue) * 100;
-
-                              return (
-                                <BlockStack key={tier.id} gap="200">
-                                  <InlineStack align="space-between" blockAlign="center">
-                                    <InlineStack gap="200" blockAlign="center">
-                                      <div style={{ minWidth: '120px' }}>
-                                        <TierBadge
-                                          tierName={tier.name}
-                                          size="small"
-                                          showIcon={false}
-                                          cashbackPercent={tier.cashbackPercent}
-                                        />
-                                      </div>
-                                      <Text variant="bodySm" tone="subdued" as="span">
-                                        {tier.members} members
-                                      </Text>
-                                    </InlineStack>
-                                    <Text variant="bodyMd" fontWeight="semibold" as="span">
-                                      {formatAmount(tier.revenuePerOrder)}
-                                    </Text>
-                                  </InlineStack>
-
-                                  {/* Horizontal bar with 2:1 bar-to-gap ratio per Polaris */}
-                                  <div style={{
-                                    height: '28px', // Bar thickness
-                                    backgroundColor: '#f1f1f1',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden',
-                                    marginBottom: '14px' // Gap (half of bar thickness for 2:1 ratio)
-                                  }}>
-                                    <div style={{
-                                      height: '100%',
-                                      width: `${widthPercent}%`,
-                                      backgroundColor: '#5C6AC4', // Shopify Polaris indigo
-                                      transition: 'width 0.5s ease',
-                                      borderRadius: '4px'
-                                    }} />
-                                  </div>
-                                </BlockStack>
-                              );
-                            })}
-                          </BlockStack>
+                          {/* Chart.js Horizontal Bar Chart */}
+                          <div style={{ height: '300px', padding: '20px 0' }}>
+                            <Bar
+                              data={{
+                                labels: sortTiersByPriority(data.tierPerformance).map(tier => tier.name),
+                                datasets: [{
+                                  label: 'Revenue Per Order',
+                                  data: sortTiersByPriority(data.tierPerformance).map(tier => tier.revenuePerOrder),
+                                  backgroundColor: '#5C6AC4',
+                                  borderRadius: 4,
+                                  barPercentage: 0.6,
+                                }],
+                              }}
+                              options={getShopifyBarChartOptions(true)}
+                            />
+                          </div>
 
                           <Text variant="bodySm" tone="subdued" as="p">
                             Revenue per order (current month average)
@@ -1566,98 +1598,25 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Chart Area - Shopify Style */}
-                          <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
-                            {/* Y-axis labels */}
-                            <div style={{
-                              position: 'absolute',
-                              left: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: '50px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              paddingRight: '15px'
-                            }}>
-                              {[100, 80, 60, 40, 20, 0].map(val => (
-                                <div key={val} style={{ fontSize: '12px', color: '#8c9196', textAlign: 'right', fontWeight: '400' }}>
-                                  {val}%
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Chart - Clean Shopify Style */}
-                            <div style={{
-                              marginLeft: '60px',
-                              height: '100%',
-                              position: 'relative'
-                            }}>
-                              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                                {/* Subtle grid lines */}
-                                {[0, 20, 40, 60, 80, 100].map(i => (
-                                  <line
-                                    key={i}
-                                    x1="0"
-                                    y1={i}
-                                    x2="100"
-                                    y2={i}
-                                    stroke="#e3e5e7"
-                                    strokeWidth="0.2"
-                                  />
-                                ))}
-
-                                {/* Cumulative usage rate line */}
-                                {(() => {
-                                  // Mock cumulative data: starts low, grows over time
-                                  const usageRates = [12, 18, 24, 31, 38, 45, 52, 58, 64, 69, 74, 78];
-                                  const points = usageRates.map((rate, index) => {
-                                    const x = (index / (usageRates.length - 1)) * 100;
-                                    const y = 100 - rate; // Invert for SVG coordinates
-                                    return `${x},${y}`;
-                                  }).join(' ');
-
-                                  return (
-                                    <>
-                                      {/* Area fill under the line */}
-                                      <polygon
-                                        points={`0,100 ${points} 100,100`}
-                                        fill="url(#rewardUsageGradient)"
-                                        opacity="0.2"
-                                      />
-
-                                      {/* Line - no circles */}
-                                      <polyline
-                                        points={points}
-                                        fill="none"
-                                        stroke="#8B5CF6"
-                                        strokeWidth="0.6"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        vectorEffect="non-scaling-stroke"
-                                      />
-                                    </>
-                                  );
-                                })()}
-
-                                {/* Gradient definition */}
-                                <defs>
-                                  <linearGradient id="rewardUsageGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.6" />
-                                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-                                  </linearGradient>
-                                </defs>
-                              </svg>
-                            </div>
-                          </div>
-
-                          {/* X-axis labels */}
-                          <div style={{ marginLeft: '60px', display: 'flex', justifyContent: 'space-between' }}>
-                            {data.monthlyTierTrends.map((month, index) => (
-                              <Text key={index} variant="bodySm" tone="subdued" as="span">
-                                {month.month}
-                              </Text>
-                            ))}
+                          {/* Chart.js Area Chart */}
+                          <div style={{ height: '300px', padding: '20px 0' }}>
+                            <Line
+                              data={{
+                                labels: data.monthlyTierTrends.map(m => m.month),
+                                datasets: [{
+                                  label: 'Reward Usage Rate',
+                                  data: [12, 18, 24, 31, 38, 45, 52, 58, 64, 69, 74, 78],
+                                  borderColor: '#8B5CF6',
+                                  backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                                  fill: true,
+                                  tension: 0.1,
+                                }],
+                              }}
+                              options={getShopifyChartOptions({
+                                max: 100,
+                                callback: (value) => `${value}%`,
+                              })}
+                            />
                           </div>
 
                           <Text variant="bodySm" tone="subdued" as="p">
@@ -1681,100 +1640,25 @@ export default function AnalyticsPage() {
                             </Text>
                           </BlockStack>
 
-                          {/* Chart Area - Shopify Style */}
-                          <div style={{ position: 'relative', height: '300px', padding: '20px 0' }}>
-                            {/* Y-axis labels */}
-                            <div style={{
-                              position: 'absolute',
-                              left: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: '50px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              paddingRight: '15px'
-                            }}>
-                              {[600, 500, 400, 300, 200, 100, 0].map(val => (
-                                <div key={val} style={{ fontSize: '12px', color: '#8c9196', textAlign: 'right', fontWeight: '400' }}>
-                                  ${val}k
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Chart - Clean Shopify Style */}
-                            <div style={{
-                              marginLeft: '60px',
-                              height: '100%',
-                              position: 'relative'
-                            }}>
-                              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                                {/* Subtle grid lines */}
-                                {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                                  <line
-                                    key={i}
-                                    x1="0"
-                                    y1={(i / 6) * 100}
-                                    x2="100"
-                                    y2={(i / 6) * 100}
-                                    stroke="#e3e5e7"
-                                    strokeWidth="0.2"
-                                  />
-                                ))}
-
-                                {/* Cumulative sales line */}
-                                {(() => {
-                                  // Mock cumulative data: steady growth from $25k to $585k
-                                  const salesData = [25, 68, 125, 195, 272, 355, 422, 475, 512, 538, 558, 585];
-                                  const maxSales = 600; // $600k max for scale
-
-                                  const points = salesData.map((sales, index) => {
-                                    const x = (index / (salesData.length - 1)) * 100;
-                                    const y = 100 - (sales / maxSales) * 100;
-                                    return `${x},${y}`;
-                                  }).join(' ');
-
-                                  return (
-                                    <>
-                                      {/* Area fill under the line */}
-                                      <polygon
-                                        points={`0,100 ${points} 100,100`}
-                                        fill="url(#salesInfluenceGradient)"
-                                        opacity="0.2"
-                                      />
-
-                                      {/* Line - no circles */}
-                                      <polyline
-                                        points={points}
-                                        fill="none"
-                                        stroke="#22c55e"
-                                        strokeWidth="0.6"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        vectorEffect="non-scaling-stroke"
-                                      />
-                                    </>
-                                  );
-                                })()}
-
-                                {/* Gradient definition */}
-                                <defs>
-                                  <linearGradient id="salesInfluenceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.6" />
-                                    <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
-                                  </linearGradient>
-                                </defs>
-                              </svg>
-                            </div>
-                          </div>
-
-                          {/* X-axis labels */}
-                          <div style={{ marginLeft: '60px', display: 'flex', justifyContent: 'space-between' }}>
-                            {data.monthlyTierTrends.map((month, index) => (
-                              <Text key={index} variant="bodySm" tone="subdued" as="span">
-                                {month.month}
-                              </Text>
-                            ))}
+                          {/* Chart.js Area Chart */}
+                          <div style={{ height: '300px', padding: '20px 0' }}>
+                            <Line
+                              data={{
+                                labels: data.monthlyTierTrends.map(m => m.month),
+                                datasets: [{
+                                  label: 'Sales Influenced',
+                                  data: [25000, 68000, 125000, 195000, 272000, 355000, 422000, 475000, 512000, 538000, 558000, 585000],
+                                  borderColor: '#22c55e',
+                                  backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                  fill: true,
+                                  tension: 0.1,
+                                }],
+                              }}
+                              options={getShopifyChartOptions({
+                                max: 600000,
+                                callback: (value) => `$${(Number(value) / 1000).toFixed(0)}k`,
+                              })}
+                            />
                           </div>
 
                           <Text variant="bodySm" tone="subdued" as="p">
