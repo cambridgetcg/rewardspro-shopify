@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Page,
   Layout,
@@ -10,6 +10,8 @@ import {
   BlockStack,
   Text,
   Box,
+  InlineStack,
+  Badge,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
@@ -151,9 +153,30 @@ export default function FeatureToggles() {
     tierProductsEnabled: features.tierProductsEnabled,
   });
 
-  const handleToggle = useCallback((field: keyof typeof toggleStates) => {
-    setToggleStates((prev) => ({ ...prev, [field]: !prev[field] }));
+  const [lastToggled, setLastToggled] = useState<{
+    feature: string;
+    newState: boolean;
+    timestamp: number;
+  } | null>(null);
+
+  const handleToggle = useCallback((field: keyof typeof toggleStates, label: string) => {
+    setToggleStates((prev) => {
+      const newState = !prev[field];
+      setLastToggled({
+        feature: label,
+        newState,
+        timestamp: Date.now(),
+      });
+      return { ...prev, [field]: newState };
+    });
   }, []);
+
+  // Calculate enabled/disabled counts
+  const featureSummary = useMemo(() => {
+    const enabled = Object.values(toggleStates).filter(Boolean).length;
+    const total = Object.keys(toggleStates).length;
+    return { enabled, disabled: total - enabled, total };
+  }, [toggleStates]);
 
   return (
     <Page
@@ -174,6 +197,79 @@ export default function FeatureToggles() {
           </Banner>
         </Layout.Section>
 
+        {/* Feature Summary Card */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="headingMd" as="h2">
+                  Feature Status Summary
+                </Text>
+                <InlineStack gap="200" blockAlign="center">
+                  <Badge tone="success">{featureSummary.enabled} Enabled</Badge>
+                  <Badge>{featureSummary.disabled} Disabled</Badge>
+                </InlineStack>
+              </InlineStack>
+
+              {/* Last Toggled Feedback */}
+              {lastToggled && (
+                <Box
+                  padding="300"
+                  background={lastToggled.newState ? "bg-fill-success-secondary" : "bg-fill-secondary"}
+                  borderRadius="200"
+                >
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: lastToggled.newState ? '#22c55e' : '#6b7280',
+                      boxShadow: lastToggled.newState
+                        ? '0 0 8px rgba(34, 197, 94, 0.6)'
+                        : '0 0 8px rgba(107, 114, 128, 0.4)',
+                    }} />
+                    <Text variant="bodyMd" as="span" fontWeight="medium">
+                      {lastToggled.feature}
+                    </Text>
+                    <Text variant="bodyMd" as="span">
+                      is now
+                    </Text>
+                    <Badge tone={lastToggled.newState ? "success" : undefined}>
+                      {lastToggled.newState ? "ENABLED" : "DISABLED"}
+                    </Badge>
+                  </InlineStack>
+                </Box>
+              )}
+
+              {/* Progress Bar Visualization */}
+              <Box>
+                <div style={{
+                  width: '100%',
+                  height: '8px',
+                  backgroundColor: '#e5e7eb',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    width: `${(featureSummary.enabled / featureSummary.total) * 100}%`,
+                    height: '100%',
+                    backgroundColor: '#22c55e',
+                    transition: 'width 0.3s ease',
+                  }} />
+                </div>
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodySm" as="span" tone="subdued">
+                    {featureSummary.enabled} of {featureSummary.total} features enabled
+                  </Text>
+                  <Text variant="bodySm" as="span" tone="subdued">
+                    {Math.round((featureSummary.enabled / featureSummary.total) * 100)}%
+                  </Text>
+                </InlineStack>
+              </Box>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
@@ -187,7 +283,7 @@ export default function FeatureToggles() {
                   label="Advanced Analytics"
                   description="Enable detailed analytics charts, ROI calculations, and tier performance tracking"
                   enabled={toggleStates.advancedAnalyticsEnabled}
-                  onToggle={() => handleToggle("advancedAnalyticsEnabled")}
+                  onToggle={() => handleToggle("advancedAnalyticsEnabled", "Advanced Analytics")}
                 />
 
                 {/* Automatic Cashback Processing */}
@@ -195,7 +291,7 @@ export default function FeatureToggles() {
                   label="Automatic Cashback Processing"
                   description="Automatically process and credit cashback for completed orders"
                   enabled={toggleStates.autoCashbackProcessingEnabled}
-                  onToggle={() => handleToggle("autoCashbackProcessingEnabled")}
+                  onToggle={() => handleToggle("autoCashbackProcessingEnabled", "Automatic Cashback Processing")}
                 />
 
                 {/* Email Marketing Campaign */}
@@ -203,7 +299,7 @@ export default function FeatureToggles() {
                   label="Email Marketing Campaigns"
                   description="Enable email marketing campaigns and automated customer communications"
                   enabled={toggleStates.emailMarketingEnabled}
-                  onToggle={() => handleToggle("emailMarketingEnabled")}
+                  onToggle={() => handleToggle("emailMarketingEnabled", "Email Marketing Campaigns")}
                 />
 
                 {/* Tier Products Module */}
@@ -211,7 +307,7 @@ export default function FeatureToggles() {
                   label="Tier Products Module"
                   description="Allow customers to purchase tier access via Shopify products and subscriptions"
                   enabled={toggleStates.tierProductsEnabled}
-                  onToggle={() => handleToggle("tierProductsEnabled")}
+                  onToggle={() => handleToggle("tierProductsEnabled", "Tier Products Module")}
                 />
               </BlockStack>
             </BlockStack>
