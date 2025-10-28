@@ -2023,12 +2023,9 @@ export default function AnalyticsPage() {
                         <Box padding="400">
                           <BlockStack gap="300">
                             {/* Header with badges */}
-                            <InlineStack align="space-between" blockAlign="start">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="critical">High Priority</Badge>
-                                <Badge tone="info">Engagement</Badge>
-                              </InlineStack>
-                              <div style={{ fontSize: '24px' }}>📧</div>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="critical">High Priority</Badge>
+                              <Badge tone="info">Engagement</Badge>
                             </InlineStack>
 
                             {/* Title and Description */}
@@ -2088,12 +2085,9 @@ export default function AnalyticsPage() {
                       <Card>
                         <Box padding="400">
                           <BlockStack gap="300">
-                            <InlineStack align="space-between" blockAlign="start">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="attention">Medium Priority</Badge>
-                                <Badge tone="info">Growth</Badge>
-                              </InlineStack>
-                              <div style={{ fontSize: '24px' }}>🎯</div>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="attention">Medium Priority</Badge>
+                              <Badge tone="info">Growth</Badge>
                             </InlineStack>
 
                             <BlockStack gap="200">
@@ -2150,12 +2144,9 @@ export default function AnalyticsPage() {
                       <Card>
                         <Box padding="400">
                           <BlockStack gap="300">
-                            <InlineStack align="space-between" blockAlign="start">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="critical">High Priority</Badge>
-                                <Badge tone="info">Retention</Badge>
-                              </InlineStack>
-                              <div style={{ fontSize: '24px' }}>⏰</div>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="critical">High Priority</Badge>
+                              <Badge tone="info">Retention</Badge>
                             </InlineStack>
 
                             <BlockStack gap="200">
@@ -2212,12 +2203,9 @@ export default function AnalyticsPage() {
                       <Card>
                         <Box padding="400">
                           <BlockStack gap="300">
-                            <InlineStack align="space-between" blockAlign="start">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="critical">High Priority</Badge>
-                                <Badge tone="info">Revenue</Badge>
-                              </InlineStack>
-                              <div style={{ fontSize: '24px' }}>💰</div>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="critical">High Priority</Badge>
+                              <Badge tone="info">Revenue</Badge>
                             </InlineStack>
 
                             <BlockStack gap="200">
@@ -2274,12 +2262,9 @@ export default function AnalyticsPage() {
                       <Card>
                         <Box padding="400">
                           <BlockStack gap="300">
-                            <InlineStack align="space-between" blockAlign="start">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="attention">Medium Priority</Badge>
-                                <Badge tone="info">Engagement</Badge>
-                              </InlineStack>
-                              <div style={{ fontSize: '24px' }}>🎁</div>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="attention">Medium Priority</Badge>
+                              <Badge tone="info">Engagement</Badge>
                             </InlineStack>
 
                             <BlockStack gap="200">
@@ -2336,12 +2321,9 @@ export default function AnalyticsPage() {
                       <Card>
                         <Box padding="400">
                           <BlockStack gap="300">
-                            <InlineStack align="space-between" blockAlign="start">
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="attention">Medium Priority</Badge>
-                                <Badge tone="info">Retention</Badge>
-                              </InlineStack>
-                              <div style={{ fontSize: '24px' }}>📊</div>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="attention">Medium Priority</Badge>
+                              <Badge tone="info">Retention</Badge>
                             </InlineStack>
 
                             <BlockStack gap="200">
