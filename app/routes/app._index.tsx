@@ -32,6 +32,8 @@ import {
   InfoIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ToggleOnIcon,
+  ToggleOffIcon,
 } from "~/utils/polaris-icons";
 import {
   StatsOverview,
@@ -860,7 +862,7 @@ export default function Dashboard() {
               <BlockStack gap="400">
                 {/* Advanced Analytics */}
                 <InlineStack align="space-between" blockAlign="start">
-                  <Box width="80%">
+                  <Box width="85%">
                     <BlockStack gap="100">
                       <Text variant="bodyMd" as="p" fontWeight="semibold">
                         Advanced Analytics
@@ -876,30 +878,16 @@ export default function Dashboard() {
                     aria-checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
                     onClick={() => handleToggleFeature('advancedAnalyticsEnabled', data.shopSettings?.advancedAnalyticsEnabled ?? true)}
                     style={{
-                      width: '51px',
-                      height: '31px',
-                      backgroundColor: data.shopSettings?.advancedAnalyticsEnabled ? '#008060' : '#e4e5e7',
+                      background: 'none',
                       border: 'none',
-                      borderRadius: '15.5px',
-                      position: 'relative',
                       cursor: 'pointer',
-                      transition: 'background-color 200ms ease',
-                      flexShrink: 0,
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: data.shopSettings?.advancedAnalyticsEnabled ? '#008060' : '#8c9196',
                     }}
                   >
-                    <span
-                      style={{
-                        width: '27px',
-                        height: '27px',
-                        backgroundColor: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: data.shopSettings?.advancedAnalyticsEnabled ? '22px' : '2px',
-                        transition: 'left 200ms ease',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                      }}
-                    />
+                    <Icon source={data.shopSettings?.advancedAnalyticsEnabled ? ToggleOnIcon : ToggleOffIcon} />
                   </button>
                 </InlineStack>
 
@@ -907,7 +895,7 @@ export default function Dashboard() {
 
                 {/* Automatic Cashback Processing */}
                 <InlineStack align="space-between" blockAlign="start">
-                  <Box width="80%">
+                  <Box width="85%">
                     <BlockStack gap="100">
                       <Text variant="bodyMd" as="p" fontWeight="semibold">
                         Automatic Cashback Processing
@@ -923,30 +911,16 @@ export default function Dashboard() {
                     aria-checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
                     onClick={() => handleToggleFeature('autoCashbackProcessingEnabled', data.shopSettings?.autoCashbackProcessingEnabled ?? true)}
                     style={{
-                      width: '51px',
-                      height: '31px',
-                      backgroundColor: data.shopSettings?.autoCashbackProcessingEnabled ? '#008060' : '#e4e5e7',
+                      background: 'none',
                       border: 'none',
-                      borderRadius: '15.5px',
-                      position: 'relative',
                       cursor: 'pointer',
-                      transition: 'background-color 200ms ease',
-                      flexShrink: 0,
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: data.shopSettings?.autoCashbackProcessingEnabled ? '#008060' : '#8c9196',
                     }}
                   >
-                    <span
-                      style={{
-                        width: '27px',
-                        height: '27px',
-                        backgroundColor: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: data.shopSettings?.autoCashbackProcessingEnabled ? '22px' : '2px',
-                        transition: 'left 200ms ease',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                      }}
-                    />
+                    <Icon source={data.shopSettings?.autoCashbackProcessingEnabled ? ToggleOnIcon : ToggleOffIcon} />
                   </button>
                 </InlineStack>
 
@@ -954,7 +928,7 @@ export default function Dashboard() {
 
                 {/* Email Marketing Campaigns */}
                 <InlineStack align="space-between" blockAlign="start">
-                  <Box width="80%">
+                  <Box width="85%">
                     <BlockStack gap="100">
                       <Text variant="bodyMd" as="p" fontWeight="semibold">
                         Email Marketing Campaigns
@@ -970,30 +944,16 @@ export default function Dashboard() {
                     aria-checked={data.shopSettings?.emailMarketingEnabled ?? false}
                     onClick={() => handleToggleFeature('emailMarketingEnabled', data.shopSettings?.emailMarketingEnabled ?? false)}
                     style={{
-                      width: '51px',
-                      height: '31px',
-                      backgroundColor: data.shopSettings?.emailMarketingEnabled ? '#008060' : '#e4e5e7',
+                      background: 'none',
                       border: 'none',
-                      borderRadius: '15.5px',
-                      position: 'relative',
                       cursor: 'pointer',
-                      transition: 'background-color 200ms ease',
-                      flexShrink: 0,
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: data.shopSettings?.emailMarketingEnabled ? '#008060' : '#8c9196',
                     }}
                   >
-                    <span
-                      style={{
-                        width: '27px',
-                        height: '27px',
-                        backgroundColor: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: data.shopSettings?.emailMarketingEnabled ? '22px' : '2px',
-                        transition: 'left 200ms ease',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                      }}
-                    />
+                    <Icon source={data.shopSettings?.emailMarketingEnabled ? ToggleOnIcon : ToggleOffIcon} />
                   </button>
                 </InlineStack>
 
@@ -1001,7 +961,7 @@ export default function Dashboard() {
 
                 {/* Tier Products Module */}
                 <InlineStack align="space-between" blockAlign="start">
-                  <Box width="80%">
+                  <Box width="85%">
                     <BlockStack gap="100">
                       <Text variant="bodyMd" as="p" fontWeight="semibold">
                         Tier Products Module
@@ -1017,30 +977,16 @@ export default function Dashboard() {
                     aria-checked={data.shopSettings?.tierProductsEnabled ?? true}
                     onClick={() => handleToggleFeature('tierProductsEnabled', data.shopSettings?.tierProductsEnabled ?? true)}
                     style={{
-                      width: '51px',
-                      height: '31px',
-                      backgroundColor: data.shopSettings?.tierProductsEnabled ? '#008060' : '#e4e5e7',
+                      background: 'none',
                       border: 'none',
-                      borderRadius: '15.5px',
-                      position: 'relative',
                       cursor: 'pointer',
-                      transition: 'background-color 200ms ease',
-                      flexShrink: 0,
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: data.shopSettings?.tierProductsEnabled ? '#008060' : '#8c9196',
                     }}
                   >
-                    <span
-                      style={{
-                        width: '27px',
-                        height: '27px',
-                        backgroundColor: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: data.shopSettings?.tierProductsEnabled ? '22px' : '2px',
-                        transition: 'left 200ms ease',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                      }}
-                    />
+                    <Icon source={data.shopSettings?.tierProductsEnabled ? ToggleOnIcon : ToggleOffIcon} />
                   </button>
                 </InlineStack>
               </BlockStack>
