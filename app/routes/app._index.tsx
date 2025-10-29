@@ -52,7 +52,7 @@ import {
 } from "~/utils/polaris-icons";
 import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
-import { CurrentPlanCard } from "~/components/Billing";
+import { SystemMonitorPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 
 // ============================================
@@ -430,7 +430,7 @@ export default function Dashboard() {
         <Layout.Section variant="oneThird">
           <BlockStack gap="400">
             {/* Plan Details Card */}
-            <CurrentPlanCard
+            <SystemMonitorPlanCard
               activeSubscription={data.activeSubscription}
               currentPlan={data.currentPlan}
               monthlyOrderUsage={{
@@ -441,9 +441,6 @@ export default function Dashboard() {
               }}
               showUpgradeButton={true}
               showOverageBanner={false}
-              showCountStrategy={false}
-              showProjectedUsage={true}
-              compact={false}
               onUpgrade={() => navigate("/app/billing")}
             />
           </BlockStack>
