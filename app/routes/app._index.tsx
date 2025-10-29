@@ -524,60 +524,38 @@ export default function Dashboard() {
               </Text>
 
               {/* Status Legend */}
-              <Box
-                padding="300"
-                background="bg-surface-secondary"
-                borderRadius="200"
-              >
+              <Box paddingBlockStart="400">
                 <BlockStack gap="200">
-                  <Text variant="headingSm" as="h3" fontWeight="semibold">
-                    Status Indicators
-                  </Text>
-
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '16px',
-                  }}>
-                    {/* Operating Normally */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Text variant="bodySm" as="span" fontWeight="semibold">Status Indicators:</Text>
+                  <InlineStack gap="400">
+                    <InlineStack gap="100" blockAlign="center">
                       <div style={{
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: '#22c55e',
+                        backgroundColor: '#22c55e'
                       }} />
-                      <Text variant="bodySm" as="span" fontWeight="medium">
-                        Operating normally
-                      </Text>
-                    </div>
-
-                    {/* Configuration Recommended */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Text variant="bodySm" tone="subdued" as="span">Operating normally</Text>
+                    </InlineStack>
+                    <InlineStack gap="100" blockAlign="center">
                       <div style={{
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: '#eab308',
+                        backgroundColor: '#eab308'
                       }} />
-                      <Text variant="bodySm" as="span" fontWeight="medium">
-                        Configuration recommended
-                      </Text>
-                    </div>
-
-                    {/* Needs Attention */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Text variant="bodySm" tone="subdued" as="span">Configuration recommended</Text>
+                    </InlineStack>
+                    <InlineStack gap="100" blockAlign="center">
                       <div style={{
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: '#ef4444',
+                        backgroundColor: '#ef4444'
                       }} />
-                      <Text variant="bodySm" as="span" fontWeight="medium">
-                        Needs attention
-                      </Text>
-                    </div>
-                  </div>
+                      <Text variant="bodySm" tone="subdued" as="span">Needs attention</Text>
+                    </InlineStack>
+                  </InlineStack>
                 </BlockStack>
               </Box>
 
