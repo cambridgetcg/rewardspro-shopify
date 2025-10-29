@@ -93,10 +93,16 @@ interface AnalyticsData {
     id: string;
     name: string;
     members: number;
+    customerCount: number; // For Doughnut chart
     cashbackPercent: number;
     monthlyOrderFrequency: number;
     revenuePerOrder: number;
     grossProfitPerCustomerPerMonth: number;
+    // For Radar chart
+    averageOrderValue: number;
+    lifetimeValue: number;
+    retentionRate: number;
+    totalCashbackEarned: number;
   }[];
 
   // Monthly time-series data for charts (last 12 months)
@@ -107,6 +113,7 @@ interface AnalyticsData {
       orderFrequency: number;
       revenuePerOrder: number;
       grossProfit: number;
+      revenue: number; // For Stacked Area chart
     }[];
   }[];
 
@@ -224,15 +231,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const revenuePerOrders = [87.23, 118.45, 176.82, 263.17];
         // Realistic monthly gross profit per customer - CURRENT month values
         const grossProfits = [38.47, 93.82, 206.34, 417.19];
+        // Average order values (increases with tier)
+        const avgOrderValues = [75.50, 112.80, 165.40, 245.90];
+        // Customer lifetime values (increases significantly with tier)
+        const lifetimeValues = [850, 1840, 3520, 6890];
+        // Retention rates (increases with tier) - percentage
+        const retentionRates = [68.5, 78.2, 86.7, 92.4];
+        // Total cashback earned per tier member
+        const cashbackEarned = [42.50, 156.80, 389.20, 847.60];
 
         return {
           id: tier.id,
           name: tier.name,
           members: memberCounts[index] || 50,
+          customerCount: memberCounts[index] || 50, // For Doughnut chart
           cashbackPercent: tier.cashbackPercent,
           monthlyOrderFrequency: orderFrequencies[index] || 2.0,
           revenuePerOrder: revenuePerOrders[index] || 100,
           grossProfitPerCustomerPerMonth: grossProfits[index] || 60,
+          // For Radar chart
+          averageOrderValue: avgOrderValues[index] || 100,
+          lifetimeValue: lifetimeValues[index] || 1000,
+          retentionRate: retentionRates[index] || 75,
+          totalCashbackEarned: cashbackEarned[index] || 100,
         };
       }),
 
@@ -274,11 +295,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               const grossProfit = baseGrossProfits[index] +
                 (currentGrossProfits[index] - baseGrossProfits[index]) * progress * randomFactor;
 
+              // Calculate total revenue for this tier in this month
+              // Revenue = customers * order frequency * revenue per order
+              const memberCounts = [453, 312, 178, 57];
+              const tierRevenue = memberCounts[index] * orderFreq * revenue;
+
               return {
                 tierName: tier.name,
                 orderFrequency: Math.round(orderFreq * 100) / 100,
                 revenuePerOrder: Math.round(revenue * 100) / 100,
                 grossProfit: Math.round(grossProfit * 100) / 100,
+                revenue: Math.round(tierRevenue * 100) / 100, // For Stacked Area chart
               };
             }),
           });
