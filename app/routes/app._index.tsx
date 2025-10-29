@@ -651,55 +651,6 @@ export default function Dashboard() {
                   </BlockStack>
                 </Card>
 
-                {/* Billing Plan Component */}
-                <Card>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="start">
-                      <Box
-                        padding="200"
-                        background="bg-surface-secondary"
-                        borderRadius="200"
-                      >
-                        <Icon source={CashDollarIcon} tone="base" />
-                      </Box>
-                      <Badge tone={data.activeSubscription ? 'success' : 'info'}>
-                        {data.activeSubscription ? 'Active' : 'Free'}
-                      </Badge>
-                    </InlineStack>
-
-                    <Text variant="headingSm" as="h3" fontWeight="semibold">
-                      Billing Plan
-                    </Text>
-
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Plan:</Text>
-                        <Text variant="bodySm" fontWeight="medium">
-                          {data.activeSubscription ? data.activeSubscription.name : 'RewardsPro Free'}
-                        </Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Orders:</Text>
-                        <Text variant="bodySm" fontWeight="medium">
-                          {data.monthlyOrderUsage?.orderCount || 0} / {data.monthlyOrderUsage?.planLimit || 100}
-                        </Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Status:</Text>
-                        <Text variant="bodySm" fontWeight="medium">
-                          {data.activeSubscription ? 'Paid' : 'Free Tier'}
-                        </Text>
-                      </InlineStack>
-                    </BlockStack>
-
-                    <Divider />
-
-                    <Text variant="bodySm" tone="subdued">
-                      Feature access and usage limits based on plan
-                    </Text>
-                  </BlockStack>
-                </Card>
-
                 {/* Features Component */}
                 <Card>
                   <BlockStack gap="300">
