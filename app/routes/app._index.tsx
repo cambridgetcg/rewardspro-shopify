@@ -368,20 +368,55 @@ export default function Dashboard() {
   const [toastActive, setToastActive] = useState(false);
   const [toastContent, setToastContent] = useState('');
 
-  // Handle feature toggle - web component fires 'change' event
-  const handleToggleFeature = useCallback((feature: string) => {
-    return (event: Event) => {
-      const target = event.currentTarget as HTMLInputElement;
-      const enabled = target.checked;
+  // Handle feature toggle submission
+  const handleToggleFeature = useCallback((feature: string, enabled: boolean) => {
+    const formData = new FormData();
+    formData.append("action", "toggle-feature");
+    formData.append("feature", feature);
+    formData.append("enabled", enabled.toString());
 
-      const formData = new FormData();
-      formData.append("action", "toggle-feature");
-      formData.append("feature", feature);
-      formData.append("enabled", enabled.toString());
-
-      fetcher.submit(formData, { method: "post" });
-    };
+    fetcher.submit(formData, { method: "post" });
   }, [fetcher]);
+
+  // Attach event listeners to s-switch web components
+  useEffect(() => {
+    const analyticsToggle = document.getElementById('advanced-analytics-toggle');
+    const cashbackToggle = document.getElementById('auto-cashback-toggle');
+    const marketingToggle = document.getElementById('email-marketing-toggle');
+    const tierProductsToggle = document.getElementById('tier-products-toggle');
+
+    const handleAnalyticsChange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      handleToggleFeature('advancedAnalyticsEnabled', target.checked);
+    };
+
+    const handleCashbackChange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      handleToggleFeature('autoCashbackProcessingEnabled', target.checked);
+    };
+
+    const handleMarketingChange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      handleToggleFeature('emailMarketingEnabled', target.checked);
+    };
+
+    const handleTierProductsChange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      handleToggleFeature('tierProductsEnabled', target.checked);
+    };
+
+    analyticsToggle?.addEventListener('change', handleAnalyticsChange);
+    cashbackToggle?.addEventListener('change', handleCashbackChange);
+    marketingToggle?.addEventListener('change', handleMarketingChange);
+    tierProductsToggle?.addEventListener('change', handleTierProductsChange);
+
+    return () => {
+      analyticsToggle?.removeEventListener('change', handleAnalyticsChange);
+      cashbackToggle?.removeEventListener('change', handleCashbackChange);
+      marketingToggle?.removeEventListener('change', handleMarketingChange);
+      tierProductsToggle?.removeEventListener('change', handleTierProductsChange);
+    };
+  }, [handleToggleFeature]);
 
   // Show toast message when feature toggle completes
   useEffect(() => {
@@ -852,25 +887,21 @@ export default function Dashboard() {
                   id="advanced-analytics-toggle"
                   label="Advanced Analytics"
                   checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
-                  onChange={handleToggleFeature('advancedAnalyticsEnabled')}
                 />
                 <s-switch
                   id="auto-cashback-toggle"
                   label="Automatic Cashback Processing"
                   checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
-                  onChange={handleToggleFeature('autoCashbackProcessingEnabled')}
                 />
                 <s-switch
                   id="email-marketing-toggle"
                   label="Email Marketing Campaigns"
                   checked={data.shopSettings?.emailMarketingEnabled ?? false}
-                  onChange={handleToggleFeature('emailMarketingEnabled')}
                 />
                 <s-switch
                   id="tier-products-toggle"
                   label="Tier Products Module"
                   checked={data.shopSettings?.tierProductsEnabled ?? true}
-                  onChange={handleToggleFeature('tierProductsEnabled')}
                 />
               </s-stack>
             </BlockStack>

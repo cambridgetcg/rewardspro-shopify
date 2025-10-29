@@ -71,9 +71,9 @@ export function SystemMonitorPlanCard({
   const renewalDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
     .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-  const projectedUsage = monthlyOrderUsage?.projectedOrders && monthlyOrderUsage.planLimit
-    ? (monthlyOrderUsage.projectedOrders / monthlyOrderUsage.planLimit) * 100
-    : 0;
+  // Use correct field names from calculateUsageMetrics
+  const utilization = usageMetrics.usagePercentage;
+  const projectedUtilization = usageMetrics.projectedPercentage;
 
   return (
     <BlockStack gap="400">
@@ -139,13 +139,13 @@ export function SystemMonitorPlanCard({
                   Resource Utilization
                 </Text>
                 <Text variant="bodySm" tone="subdued">
-                  {usageMetrics.percentageUsed.toFixed(2)}%
+                  {utilization.toFixed(2)}%
                 </Text>
               </InlineStack>
 
               <ProgressBar
-                progress={usageMetrics.percentageUsed}
-                tone={usageMetrics.percentageUsed > 90 ? 'critical' : usageMetrics.percentageUsed > 75 ? 'warning' : 'success'}
+                progress={utilization}
+                tone={utilization > 90 ? 'critical' : utilization > 75 ? 'warning' : 'success'}
               />
 
               <InlineStack align="space-between" blockAlign="center">
@@ -243,7 +243,7 @@ export function SystemMonitorPlanCard({
                   Efficiency
                 </Text>
                 <Text variant="headingMd" as="p">
-                  {usageMetrics.percentageUsed.toFixed(1)}%
+                  {utilization.toFixed(1)}%
                 </Text>
               </BlockStack>
             </Box>
@@ -252,7 +252,7 @@ export function SystemMonitorPlanCard({
           {/* Next Billing */}
           <Box
             padding="300"
-            background={projectedUsage > 100 ? "bg-surface-critical-subdued" : "bg-surface"}
+            background={projectedUtilization > 100 ? "bg-surface-critical-subdued" : "bg-surface"}
             borderRadius="200"
           >
             <BlockStack gap="100">
@@ -260,14 +260,14 @@ export function SystemMonitorPlanCard({
                 <Text variant="bodySm" fontWeight="semibold">
                   Next Billing Event
                 </Text>
-                {projectedUsage > 100 && (
+                {projectedUtilization > 100 && (
                   <Badge tone="critical">Alert</Badge>
                 )}
               </InlineStack>
               <Text variant="bodySm" tone="subdued">
                 {renewalDate} • ${planDetails.price}
               </Text>
-              {projectedUsage > 100 && monthlyOrderUsage && (
+              {projectedUtilization > 100 && monthlyOrderUsage && (
                 <Text variant="bodySm" tone="critical">
                   Estimated overage: +${((monthlyOrderUsage.projectedOrders - monthlyOrderUsage.planLimit) * (planDetails.overageRate || 0.05)).toFixed(2)}
                 </Text>
