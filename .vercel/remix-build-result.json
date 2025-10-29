@@ -51,6 +51,7 @@
       "routes/_index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.$": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.recalculate-cashback": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.dashboard-mockups": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.tier-products": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.orders-sync": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.additional": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -448,6 +449,15 @@
         "parentId": "routes/app",
         "file": "app/routes/app.recalculate-cashback.tsx",
         "path": "recalculate-cashback",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.dashboard-mockups": {
+        "id": "routes/app.dashboard-mockups",
+        "parentId": "routes/app",
+        "file": "app/routes/app.dashboard-mockups.tsx",
+        "path": "dashboard-mockups",
         "config": {
           "runtime": "nodejs"
         }
@@ -867,6 +877,12 @@
         "parentId": "routes/app",
         "file": "routes/app.recalculate-cashback.tsx",
         "path": "recalculate-cashback"
+      },
+      "routes/app.dashboard-mockups": {
+        "id": "routes/app.dashboard-mockups",
+        "parentId": "routes/app",
+        "file": "routes/app.dashboard-mockups.tsx",
+        "path": "dashboard-mockups"
       },
       "routes/app.tier-products": {
         "id": "routes/app.tier-products",
