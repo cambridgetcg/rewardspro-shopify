@@ -372,86 +372,10 @@ export default function Dashboard() {
     data.shopSettings?.tierProductsEnabled,
   ].filter(Boolean).length;
 
-  // Calculate plan usage percentage
-  const planUsagePercent = data.monthlyOrderUsage
-    ? (data.monthlyOrderUsage.orderCount / data.monthlyOrderUsage.planLimit) * 100
-    : 0;
-
   return (
     <Frame>
       <Page title="Dashboard">
       <Layout>
-        {/* Key Metrics Section */}
-        <Layout.Section>
-          <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            {/* Orders This Month */}
-            <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Text variant="bodySm" tone="subdued">Orders This Month</Text>
-                  <Icon source={ChartVerticalIcon} tone="base" />
-                </InlineStack>
-                <Text variant="heading2xl" as="h3">
-                  {data.monthlyOrderUsage?.orderCount || 0}
-                </Text>
-                <Text variant="bodySm" tone="subdued">
-                  {data.daysRemaining} days remaining
-                </Text>
-              </BlockStack>
-            </Card>
-
-            {/* Plan Usage */}
-            <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Text variant="bodySm" tone="subdued">Plan Usage</Text>
-                  <Icon source={StatusActiveIcon} tone="base" />
-                </InlineStack>
-                <Text variant="heading2xl" as="h3">
-                  {Math.round(planUsagePercent)}%
-                </Text>
-                <ProgressBar
-                  progress={planUsagePercent}
-                  tone={planUsagePercent > 90 ? 'critical' : planUsagePercent > 75 ? 'warning' : 'primary'}
-                  size="small"
-                />
-              </BlockStack>
-            </Card>
-
-            {/* Store Currency */}
-            <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Text variant="bodySm" tone="subdued">Store Currency</Text>
-                  <Icon source={CashDollarIcon} tone="base" />
-                </InlineStack>
-                <Text variant="heading2xl" as="h3">
-                  {data.shopSettings?.storeCurrency || 'USD'}
-                </Text>
-                <Text variant="bodySm" tone="subdued">
-                  Primary currency
-                </Text>
-              </BlockStack>
-            </Card>
-
-            {/* Active Features */}
-            <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Text variant="bodySm" tone="subdued">Active Features</Text>
-                  <Icon source={SettingsIcon} tone="base" />
-                </InlineStack>
-                <Text variant="heading2xl" as="h3">
-                  {activeFeaturesCount}/4
-                </Text>
-                <Text variant="bodySm" tone="subdued">
-                  Modules enabled
-                </Text>
-              </BlockStack>
-            </Card>
-          </InlineGrid>
-        </Layout.Section>
-
         {/* Two-Column Layout */}
         <Layout.Section variant="oneThird">
           <BlockStack gap="400">
