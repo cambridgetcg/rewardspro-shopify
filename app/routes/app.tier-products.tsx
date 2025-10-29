@@ -2330,8 +2330,8 @@ export default function TierProducts() {
             </Card>
           </Layout.Section>
 
-          {/* Products Grid - Symmetric Card Layout */}
-          <Layout.Section>
+          {/* Products Grid - Symmetric Card Layout - HIDDEN (Legacy Display) */}
+          {false && <Layout.Section>
             {isRefreshing && data.tierProducts.length === 0 ? (
               <Card>
                 <Box padding="400">
@@ -2513,7 +2513,7 @@ export default function TierProducts() {
                 </div>
               </>
             )}
-          </Layout.Section>
+          </Layout.Section>}
         </Layout>
         
         {/* Create Product Modal */}
