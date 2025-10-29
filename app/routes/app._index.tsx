@@ -30,17 +30,20 @@ import {
   Text,
   BlockStack,
   InlineStack,
+  InlineGrid,
   Icon,
   Box,
   Badge,
-  Banner,
-  Collapsible,
   Toast,
   Frame,
+  Divider,
+  ProgressBar,
 } from "@shopify/polaris";
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
+  StatusActiveIcon,
+  SettingsIcon,
+  ChartVerticalIcon,
+  CashDollarIcon,
 } from "~/utils/polaris-icons";
 import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
@@ -302,142 +305,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // DASHBOARD COMPONENT
 // ============================================
 
-// ============================================
-// STATUS ITEM COMPONENT
-// ============================================
-
-interface StatusItemProps {
-  id: string;
-  label: string;
-  status: 'success' | 'warning' | 'critical';
-  statusText: string;
-  description: string;
-  isExpanded: boolean;
-  onToggle: () => void;
-}
-
-function StatusItem({ id, label, status, statusText, description, isExpanded, onToggle }: StatusItemProps) {
-  const getBackgroundColor = () => {
-    switch (status) {
-      case 'success': return '#f0fdf4';
-      case 'warning': return '#fef3c7';
-      case 'critical': return '#fee2e2';
-      default: return '#f9fafb';
-    }
-  };
-
-  const getBorderColor = () => {
-    switch (status) {
-      case 'success': return '#86efac';
-      case 'warning': return '#fbbf24';
-      case 'critical': return '#fca5a5';
-      default: return '#e5e7eb';
-    }
-  };
-
-  const getLightColor = () => {
-    switch (status) {
-      case 'success': return { color: '#22c55e' };
-      case 'warning': return { color: '#eab308' };
-      case 'critical': return { color: '#ef4444' };
-      default: return { color: '#9ca3af' };
-    }
-  };
-
-  const getBadgeTone = (): 'success' | 'warning' | 'critical' => {
-    return status === 'success' ? 'success' : status === 'warning' ? 'warning' : 'critical';
-  };
-
-  const lightColors = getLightColor();
-
-  return (
-    <div>
-      <div
-        onClick={onToggle}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '12px 16px',
-          backgroundColor: getBackgroundColor(),
-          border: `1px solid ${getBorderColor()}`,
-          borderRadius: '8px',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-        }}
-      >
-        {/* Status light indicator */}
-        <div style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: lightColors.color,
-        }} />
-
-        {/* Label */}
-        <Text variant="bodyMd" as="span" fontWeight="medium">
-          {label}
-        </Text>
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* Status badge */}
-        <Badge tone={getBadgeTone()}>
-          {statusText}
-        </Badge>
-
-        {/* Expand/collapse icon */}
-        <Icon source={isExpanded ? ChevronUpIcon : ChevronDownIcon} />
-      </div>
-
-      {/* Collapsible description */}
-      <Collapsible
-        open={isExpanded}
-        id={`collapsible-${id}`}
-        transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
-      >
-        <div style={{
-          padding: '16px',
-          backgroundColor: '#fafafa',
-          borderLeft: `1px solid ${getBorderColor()}`,
-          borderRight: `1px solid ${getBorderColor()}`,
-          borderBottom: `1px solid ${getBorderColor()}`,
-          borderRadius: '0 0 8px 8px',
-          marginTop: '-8px'
-        }}>
-          <Text variant="bodySm" as="p" tone="subdued">
-            {description}
-          </Text>
-        </div>
-      </Collapsible>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>() as DashboardData;
   const navigate = useNavigate();
   const fetcher = useFetcher();
 
-  // System status expanded items state
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-
   // Toast state for feature toggle feedback
   const [toastActive, setToastActive] = useState(false);
   const [toastContent, setToastContent] = useState('');
-
-  const toggleItem = useCallback((itemId: string) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  }, []);
 
   // Handle feature toggle - web component fires 'change' event
   const handleToggleFeature = useCallback((feature: string) => {
@@ -485,82 +360,134 @@ export default function Dashboard() {
     />
   ) : null;
 
+  // Calculate active features count
+  const activeFeaturesCount = [
+    data.shopSettings?.advancedAnalyticsEnabled,
+    data.shopSettings?.autoCashbackProcessingEnabled,
+    data.shopSettings?.emailMarketingEnabled,
+    data.shopSettings?.tierProductsEnabled,
+  ].filter(Boolean).length;
+
+  // Calculate plan usage percentage
+  const planUsagePercent = data.monthlyOrderUsage
+    ? (data.monthlyOrderUsage.orderCount / data.monthlyOrderUsage.planLimit) * 100
+    : 0;
+
   return (
     <Frame>
-      <Page
-        title="Dashboard"
-    >
+      <Page title="Dashboard">
       <Layout>
-        {/* Plan Details Card - Using shared component */}
+        {/* Key Metrics Section */}
         <Layout.Section>
-          <CurrentPlanCard
-            activeSubscription={data.activeSubscription}
-            currentPlan={data.currentPlan}
-            monthlyOrderUsage={{
-              orderCount: data.monthlyOrderUsage?.orderCount || 0,
-              planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
-              projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
-              currentMonth: data.currentMonth
-            }}
-            showUpgradeButton={true}
-            showOverageBanner={false}
-            showCountStrategy={false}
-            showProjectedUsage={true}
-            compact={false}
-            onUpgrade={() => navigate("/app/billing")}
-          />
+          <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
+            {/* Orders This Month */}
+            <Card>
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="start">
+                  <Text variant="bodySm" tone="subdued">Orders This Month</Text>
+                  <Icon source={ChartVerticalIcon} tone="base" />
+                </InlineStack>
+                <Text variant="heading2xl" as="h3">
+                  {data.monthlyOrderUsage?.orderCount || 0}
+                </Text>
+                <Text variant="bodySm" tone="subdued">
+                  {data.daysRemaining} days remaining
+                </Text>
+              </BlockStack>
+            </Card>
+
+            {/* Plan Usage */}
+            <Card>
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="start">
+                  <Text variant="bodySm" tone="subdued">Plan Usage</Text>
+                  <Icon source={StatusActiveIcon} tone="base" />
+                </InlineStack>
+                <Text variant="heading2xl" as="h3">
+                  {Math.round(planUsagePercent)}%
+                </Text>
+                <ProgressBar
+                  progress={planUsagePercent}
+                  tone={planUsagePercent > 90 ? 'critical' : planUsagePercent > 75 ? 'warning' : 'primary'}
+                  size="small"
+                />
+              </BlockStack>
+            </Card>
+
+            {/* Store Currency */}
+            <Card>
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="start">
+                  <Text variant="bodySm" tone="subdued">Store Currency</Text>
+                  <Icon source={CashDollarIcon} tone="base" />
+                </InlineStack>
+                <Text variant="heading2xl" as="h3">
+                  {data.shopSettings?.storeCurrency || 'USD'}
+                </Text>
+                <Text variant="bodySm" tone="subdued">
+                  Primary currency
+                </Text>
+              </BlockStack>
+            </Card>
+
+            {/* Active Features */}
+            <Card>
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="start">
+                  <Text variant="bodySm" tone="subdued">Active Features</Text>
+                  <Icon source={SettingsIcon} tone="base" />
+                </InlineStack>
+                <Text variant="heading2xl" as="h3">
+                  {activeFeaturesCount}/4
+                </Text>
+                <Text variant="bodySm" tone="subdued">
+                  Modules enabled
+                </Text>
+              </BlockStack>
+            </Card>
+          </InlineGrid>
         </Layout.Section>
 
-        {/* System Status Dashboard - Pre-Flight Checklist */}
-        <Layout.Section>
+        {/* Two-Column Layout */}
+        <Layout.Section variant="oneThird">
+          <BlockStack gap="400">
+            {/* Plan Details Card */}
+            <CurrentPlanCard
+              activeSubscription={data.activeSubscription}
+              currentPlan={data.currentPlan}
+              monthlyOrderUsage={{
+                orderCount: data.monthlyOrderUsage?.orderCount || 0,
+                planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
+                projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
+                currentMonth: data.currentMonth
+              }}
+              showUpgradeButton={true}
+              showOverageBanner={false}
+              showCountStrategy={false}
+              showProjectedUsage={true}
+              compact={false}
+              onUpgrade={() => navigate("/app/billing")}
+            />
+          </BlockStack>
+        </Layout.Section>
+
+        {/* System Status Dashboard - Compact Version */}
+        <Layout.Section variant="twoThirds">
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <Text variant="headingMd" as="h2">System Status</Text>
-                <Text variant="bodySm" tone="subdued" as="span">
-                  Pre-Flight Checklist
-                </Text>
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={StatusActiveIcon} tone="base" />
+                  <Text variant="headingMd" as="h2">System Status</Text>
+                </InlineStack>
+                <Badge tone="success">All Systems Operational</Badge>
               </InlineStack>
 
               <Text variant="bodyMd" tone="subdued" as="p">
-                Real-time status of all app systems and integrations
+                Real-time health monitoring and configuration status
               </Text>
 
-              {/* Status Legend */}
-              <Box paddingBlockStart="400">
-                <BlockStack gap="200">
-                  <Text variant="bodySm" as="span" fontWeight="semibold">Status Indicators:</Text>
-                  <InlineStack gap="400">
-                    <InlineStack gap="100" blockAlign="center">
-                      <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#22c55e'
-                      }} />
-                      <Text variant="bodySm" tone="subdued" as="span">Operating normally</Text>
-                    </InlineStack>
-                    <InlineStack gap="100" blockAlign="center">
-                      <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#eab308'
-                      }} />
-                      <Text variant="bodySm" tone="subdued" as="span">Configuration recommended</Text>
-                    </InlineStack>
-                    <InlineStack gap="100" blockAlign="center">
-                      <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#ef4444'
-                      }} />
-                      <Text variant="bodySm" tone="subdued" as="span">Needs attention</Text>
-                    </InlineStack>
-                  </InlineStack>
-                </BlockStack>
-              </Box>
+              <Divider />
 
               {/* Core Systems */}
               <BlockStack gap="300">
@@ -568,26 +495,33 @@ export default function Dashboard() {
                   Core Systems
                 </Text>
 
-                <StatusItem
-                  id="database-connection"
-                  label="Database Connection"
-                  status="success"
-                  statusText="CONNECTED"
-                  description="Your app is connected to the AWS Aurora PostgreSQL database where all customer data, tier assignments, transaction history, and loyalty rewards are securely stored. This connection is monitored 24/7 for optimal performance and reliability."
-                  isExpanded={expandedItems.has('database-connection')}
-                  onToggle={() => toggleItem('database-connection')}
-                />
+                <InlineGrid columns={2} gap="300">
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Database</Text>
+                      <Text variant="bodySm" tone="subdued">Connected</Text>
+                    </BlockStack>
+                  </InlineStack>
 
-                <StatusItem
-                  id="shopify-api"
-                  label="Shopify API (ShopifyQL)"
-                  status={data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'success' : 'warning'}
-                  statusText={data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' ? 'OPERATIONAL' : 'LIMITED'}
-                  description="ShopifyQL provides advanced analytics and order data from Shopify Plus stores. When available, it enables real-time order counting and enhanced dashboard metrics. If unavailable, the app automatically falls back to GraphQL API for data fetching with slightly delayed metrics."
-                  isExpanded={expandedItems.has('shopify-api')}
-                  onToggle={() => toggleItem('shopify-api')}
-                />
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopifyMetrics?.source !== 'unavailable' ? '#22c55e' : '#eab308'
+                    }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Shopify API</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {data.shopifyMetrics?.source !== 'unavailable' ? 'Operational' : 'Limited'}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                </InlineGrid>
               </BlockStack>
+
+              <Divider />
 
               {/* Configuration */}
               <BlockStack gap="300">
@@ -595,87 +529,110 @@ export default function Dashboard() {
                   Configuration
                 </Text>
 
-                <StatusItem
-                  id="loyalty-tiers"
-                  label="Loyalty Tiers"
-                  status="success"
-                  statusText="CONFIGURED"
-                  description="Loyalty tiers define the membership levels in your rewards program. Each tier has a spending threshold and cashback percentage. Customers automatically move between tiers based on their purchase history. Configure tiers in Settings to set up your program structure and reward levels."
-                  isExpanded={expandedItems.has('loyalty-tiers')}
-                  onToggle={() => toggleItem('loyalty-tiers')}
-                />
+                <InlineGrid columns={2} gap="300">
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Loyalty Tiers</Text>
+                      <Text variant="bodySm" tone="subdued">Configured</Text>
+                    </BlockStack>
+                  </InlineStack>
 
-                <StatusItem
-                  id="billing-plan"
-                  label="Billing Plan"
-                  status={data.activeSubscription ? 'success' : 'warning'}
-                  statusText={data.activeSubscription ? data.activeSubscription.name.toUpperCase() : 'FREE PLAN'}
-                  description="Your billing plan determines feature access and usage limits. The Free plan includes basic loyalty features with limited monthly orders. Paid plans unlock advanced analytics, automation, email campaigns, and higher order limits. Upgrade in the Billing section to access premium features."
-                  isExpanded={expandedItems.has('billing-plan')}
-                  onToggle={() => toggleItem('billing-plan')}
-                />
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.activeSubscription ? '#22c55e' : '#eab308'
+                    }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Billing Plan</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {data.activeSubscription ? data.activeSubscription.name : 'Free Plan'}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
 
-                <StatusItem
-                  id="tier-automation"
-                  label="Tier Automation"
-                  status={data.shopSettings?.tierRecalculationEnabled ? 'success' : 'warning'}
-                  statusText={data.shopSettings?.tierRecalculationEnabled ? 'ENABLED' : 'DISABLED'}
-                  description={`Tier automation automatically recalculates customer tier assignments based on their spending history at a set frequency (${data.shopSettings?.tierRecalculationFrequency || 'WEEKLY'}). When enabled, customers are automatically promoted or demoted between tiers as they reach spending thresholds. Last run: ${data.shopSettings?.tierRecalculationLastRun ? new Date(data.shopSettings.tierRecalculationLastRun).toLocaleDateString() : 'Never'}. Configure frequency in Settings.`}
-                  isExpanded={expandedItems.has('tier-automation')}
-                  onToggle={() => toggleItem('tier-automation')}
-                />
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.tierRecalculationEnabled ? '#22c55e' : '#eab308'
+                    }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Tier Automation</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {data.shopSettings?.tierRecalculationEnabled ? 'Enabled' : 'Disabled'}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
 
-                <StatusItem
-                  id="store-currency"
-                  label="Store Currency"
-                  status={data.shopSettings?.storeCurrency ? 'success' : 'warning'}
-                  statusText={data.shopSettings?.storeCurrency || 'NOT SET'}
-                  description="Your store currency determines how reward values, cashback amounts, and tier thresholds are displayed throughout the app. All monetary calculations are performed in this currency. If you operate in multiple currencies, analytics will normalize all values to your store currency for accurate reporting. Change this in Settings if needed."
-                  isExpanded={expandedItems.has('store-currency')}
-                  onToggle={() => toggleItem('store-currency')}
-                />
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: data.shopSettings?.storeCurrency ? '#22c55e' : '#eab308'
+                    }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Store Currency</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        {data.shopSettings?.storeCurrency || 'Not Set'}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                </InlineGrid>
               </BlockStack>
 
-              {/* Data Sync */}
+              <Divider />
+
+              {/* Data Synchronization */}
               <BlockStack gap="300">
                 <Text variant="headingSm" as="h3" fontWeight="semibold">
                   Data Synchronization
                 </Text>
 
-                <StatusItem
-                  id="data-sync-database"
-                  label="Database Connection"
-                  status="success"
-                  statusText="ACTIVE"
-                  description="Real-time synchronization between your Shopify store and the RewardsPro database. All customer orders, tier assignments, and reward transactions are automatically synced to ensure accurate loyalty tracking. Connection is monitored continuously for data integrity."
-                  isExpanded={expandedItems.has('data-sync-database')}
-                  onToggle={() => toggleItem('data-sync-database')}
-                />
+                <InlineGrid columns={2} gap="300">
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Database Sync</Text>
+                      <Text variant="bodySm" tone="subdued">Active</Text>
+                    </BlockStack>
+                  </InlineStack>
 
-                <StatusItem
-                  id="customer-sync"
-                  label="Customer Database"
-                  status="success"
-                  statusText="READY"
-                  description="Customer data synchronization imports your Shopify customers into the RewardsPro system. This includes customer profiles, order history, and contact information needed for loyalty tracking. The initial sync runs when you install the app, then webhooks keep data updated in real-time as customers place orders."
-                  isExpanded={expandedItems.has('customer-sync')}
-                  onToggle={() => toggleItem('customer-sync')}
-                />
+                  <InlineStack gap="200" blockAlign="center">
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                    <BlockStack gap="050">
+                      <Text variant="bodySm" fontWeight="semibold">Customer Data</Text>
+                      <Text variant="bodySm" tone="subdued">Ready</Text>
+                    </BlockStack>
+                  </InlineStack>
+                </InlineGrid>
               </BlockStack>
 
-              {/* Overall System Status */}
-              <Box paddingBlockStart="400" paddingBlockEnd="200">
-                <InlineStack align="center" blockAlign="center" gap="200">
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#22c55e',
-                  }} />
-                  <Text variant="headingSm" as="h3" fontWeight="bold">
-                    ✓ All Systems Operational
-                  </Text>
-                </InlineStack>
+              <Divider />
+
+              {/* Status Legend */}
+              <Box paddingBlockStart="200">
+                <BlockStack gap="200">
+                  <Text variant="bodySm" as="span" fontWeight="semibold">Status Indicators:</Text>
+                  <InlineStack gap="400" wrap={false}>
+                    <InlineStack gap="100" blockAlign="center">
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                      <Text variant="bodySm" tone="subdued" as="span">Operational</Text>
+                    </InlineStack>
+                    <InlineStack gap="100" blockAlign="center">
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308' }} />
+                      <Text variant="bodySm" tone="subdued" as="span">Attention Needed</Text>
+                    </InlineStack>
+                    <InlineStack gap="100" blockAlign="center">
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+                      <Text variant="bodySm" tone="subdued" as="span">Critical</Text>
+                    </InlineStack>
+                  </InlineStack>
+                </BlockStack>
               </Box>
             </BlockStack>
           </Card>
@@ -686,15 +643,20 @@ export default function Dashboard() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
-                <Text variant="headingMd" as="h2">Feature Manager</Text>
-                <Text variant="bodySm" tone="subdued" as="span">
-                  Control which features are active
-                </Text>
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={SettingsIcon} tone="base" />
+                  <Text variant="headingMd" as="h2">Feature Manager</Text>
+                </InlineStack>
+                <Badge tone={activeFeaturesCount === 4 ? 'success' : activeFeaturesCount >= 2 ? 'info' : 'warning'}>
+                  {activeFeaturesCount}/4 Active
+                </Badge>
               </InlineStack>
 
               <Text variant="bodyMd" tone="subdued" as="p">
                 Enable or disable specific features for your store. Changes take effect immediately.
               </Text>
+
+              <Divider />
 
               <s-stack gap="small-200">
                 <s-switch
