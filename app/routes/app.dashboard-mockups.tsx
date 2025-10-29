@@ -33,6 +33,14 @@ import {
   ArrowUpIcon,
   StarFilledIcon,
   CartIcon,
+  EmailIcon,
+  ProductIcon,
+  PersonAddIcon,
+  CodeIcon,
+  XIcon,
+  InfoIcon,
+  AutomationIcon,
+  TargetIcon,
 } from "~/utils/polaris-icons";
 import { authenticate } from "../shopify.server";
 
@@ -95,6 +103,112 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         efficiency: "78%"
       }
     },
+
+    // Feature Manager Mock Data
+    features: [
+      {
+        id: "advanced-analytics",
+        name: "Advanced Analytics",
+        description: "Real-time dashboards, customer insights, and revenue tracking with historical trends",
+        category: "Analytics & Reporting",
+        enabled: true,
+        icon: "ChartVerticalIcon",
+        usageStats: {
+          activeUsers: 12,
+          viewsThisWeek: 247,
+          lastAccessed: "2 hours ago"
+        },
+        impact: "high",
+        requiredPlan: "Growth",
+        dependencies: [],
+        configOptions: ["Dashboard Layout", "Export Format", "Refresh Rate"]
+      },
+      {
+        id: "auto-cashback",
+        name: "Automatic Cashback Processing",
+        description: "Automatically calculate and apply cashback rewards when customers reach tier milestones",
+        category: "Automation",
+        enabled: true,
+        icon: "CashDollarIcon",
+        usageStats: {
+          activeUsers: 8,
+          processedToday: 156,
+          lastAccessed: "Just now"
+        },
+        impact: "high",
+        requiredPlan: "Growth",
+        dependencies: ["Tier Calculation Engine"],
+        configOptions: ["Processing Schedule", "Notification Settings", "Minimum Threshold"]
+      },
+      {
+        id: "email-marketing",
+        name: "Email Marketing Campaigns",
+        description: "Send targeted email campaigns to customers based on tier, purchase history, and behavior",
+        category: "Marketing",
+        enabled: false,
+        icon: "EmailIcon",
+        usageStats: {
+          activeUsers: 0,
+          campaignsSent: 0,
+          lastAccessed: "Never"
+        },
+        impact: "medium",
+        requiredPlan: "Growth",
+        dependencies: ["Email Service Provider"],
+        configOptions: ["Template Editor", "Send Schedule", "A/B Testing"]
+      },
+      {
+        id: "tier-products",
+        name: "Tier Products Module",
+        description: "Exclusive products visible only to specific loyalty tiers with automatic access control",
+        category: "Product Management",
+        enabled: true,
+        icon: "ProductIcon",
+        usageStats: {
+          activeUsers: 15,
+          activeProducts: 34,
+          lastAccessed: "15 minutes ago"
+        },
+        impact: "high",
+        requiredPlan: "Growth",
+        dependencies: ["Product Metafields"],
+        configOptions: ["Visibility Rules", "Tier Assignment", "Badge Display"]
+      },
+      {
+        id: "referral-program",
+        name: "Customer Referral Program",
+        description: "Enable customers to refer friends and earn rewards for successful referrals",
+        category: "Growth & Acquisition",
+        enabled: false,
+        icon: "PersonAddIcon",
+        usageStats: {
+          activeUsers: 0,
+          referralsGenerated: 0,
+          lastAccessed: "Never"
+        },
+        impact: "medium",
+        requiredPlan: "Max",
+        dependencies: ["Customer Portal"],
+        configOptions: ["Referral Rewards", "Tracking URLs", "Landing Pages"]
+      },
+      {
+        id: "api-webhooks",
+        name: "Advanced API & Webhooks",
+        description: "Custom integrations and real-time event notifications for third-party systems",
+        category: "Integration",
+        enabled: true,
+        icon: "CodeIcon",
+        usageStats: {
+          activeUsers: 3,
+          webhooksActive: 8,
+          lastAccessed: "1 day ago"
+        },
+        impact: "low",
+        requiredPlan: "Max",
+        dependencies: [],
+        configOptions: ["Endpoint Configuration", "Retry Policy", "Rate Limits"]
+      }
+    ],
 
     systemHealth: {
       overall: 98.5,
@@ -1187,6 +1301,480 @@ export default function DashboardMockups() {
                       {data.planDetails.usage.averageMonthly}
                     </Text>
                     <Text variant="bodySm" tone="subdued">Avg Monthly Orders</Text>
+                  </BlockStack>
+                </InlineGrid>
+              </Box>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* ========================================== */}
+        {/* FEATURE MANAGER LAYOUTS                    */}
+        {/* ========================================== */}
+
+        {/* Option G: Interactive Feature Cards */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Box paddingBlockEnd="200">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="headingLg" as="h2">
+                      Option G: Interactive Feature Cards
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Rich cards with icons, stats, and quick actions for each feature
+                    </Text>
+                  </BlockStack>
+                  <Badge tone="success">{data.features.filter(f => f.enabled).length}/{data.features.length} Active</Badge>
+                </InlineStack>
+              </Box>
+
+              <Divider />
+
+              {/* Feature Cards Grid */}
+              <InlineGrid columns={{ xs: 1, sm: 2 }} gap="400">
+                {data.features.map((feature) => {
+                  const getIconSource = (iconName: string) => {
+                    switch (iconName) {
+                      case 'ChartVerticalIcon': return ChartVerticalIcon;
+                      case 'CashDollarIcon': return CashDollarIcon;
+                      case 'EmailIcon': return EmailIcon;
+                      case 'ProductIcon': return ProductIcon;
+                      case 'PersonAddIcon': return PersonAddIcon;
+                      case 'CodeIcon': return CodeIcon;
+                      default: return SettingsIcon;
+                    }
+                  };
+
+                  const getImpactBadge = (impact: string) => {
+                    switch (impact) {
+                      case 'high': return <Badge tone="success">High Impact</Badge>;
+                      case 'medium': return <Badge tone="info">Medium Impact</Badge>;
+                      case 'low': return <Badge tone="subdued">Low Impact</Badge>;
+                      default: return <Badge>Unknown</Badge>;
+                    }
+                  };
+
+                  return (
+                    <Box
+                      key={feature.id}
+                      padding="400"
+                      background={feature.enabled ? "bg-surface-success-subdued" : "bg-surface-secondary"}
+                      borderRadius="300"
+                      borderWidth="025"
+                      borderColor={feature.enabled ? "border-success" : "border"}
+                    >
+                      <BlockStack gap="300">
+                        {/* Header */}
+                        <InlineStack align="space-between" blockAlign="start">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Box
+                              padding="200"
+                              background={feature.enabled ? "bg-surface-success" : "bg-surface"}
+                              borderRadius="200"
+                            >
+                              <Icon source={getIconSource(feature.icon)} tone={feature.enabled ? "success" : "subdued"} />
+                            </Box>
+                            <BlockStack gap="050">
+                              <Text variant="bodyMd" fontWeight="semibold">{feature.name}</Text>
+                              <Text variant="bodySm" tone="subdued">{feature.category}</Text>
+                            </BlockStack>
+                          </InlineStack>
+                          <InlineStack gap="100">
+                            {getImpactBadge(feature.impact)}
+                          </InlineStack>
+                        </InlineStack>
+
+                        {/* Description */}
+                        <Text variant="bodySm" tone="subdued">
+                          {feature.description}
+                        </Text>
+
+                        <Divider />
+
+                        {/* Usage Stats */}
+                        {feature.enabled ? (
+                          <InlineGrid columns={3} gap="200">
+                            <BlockStack gap="050">
+                              <Text variant="bodySm" tone="subdued">Users</Text>
+                              <Text variant="bodyMd" fontWeight="semibold">
+                                {feature.usageStats.activeUsers}
+                              </Text>
+                            </BlockStack>
+                            <BlockStack gap="050">
+                              <Text variant="bodySm" tone="subdued">Activity</Text>
+                              <Text variant="bodyMd" fontWeight="semibold">
+                                {feature.id === 'advanced-analytics' ? `${feature.usageStats.viewsThisWeek} views` :
+                                 feature.id === 'auto-cashback' ? `${feature.usageStats.processedToday} today` :
+                                 feature.id === 'tier-products' ? `${feature.usageStats.activeProducts} products` :
+                                 feature.id === 'api-webhooks' ? `${feature.usageStats.webhooksActive} hooks` :
+                                 'N/A'}
+                              </Text>
+                            </BlockStack>
+                            <BlockStack gap="050">
+                              <Text variant="bodySm" tone="subdued">Last Used</Text>
+                              <Text variant="bodyMd" fontWeight="semibold">
+                                {feature.usageStats.lastAccessed}
+                              </Text>
+                            </BlockStack>
+                          </InlineGrid>
+                        ) : (
+                          <Box
+                            padding="200"
+                            background="bg-surface-warning-subdued"
+                            borderRadius="200"
+                          >
+                            <InlineStack gap="200" blockAlign="center">
+                              <Icon source={InfoIcon} tone="warning" />
+                              <Text variant="bodySm">Feature not enabled • {feature.usageStats.lastAccessed}</Text>
+                            </InlineStack>
+                          </Box>
+                        )}
+
+                        {/* Dependencies & Requirements */}
+                        {(feature.dependencies.length > 0 || feature.requiredPlan !== 'Growth') && (
+                          <>
+                            <Divider />
+                            <BlockStack gap="100">
+                              {feature.requiredPlan !== 'Growth' && (
+                                <InlineStack gap="100" blockAlign="center">
+                                  <Icon source={StarFilledIcon} tone="warning" />
+                                  <Text variant="bodySm" tone="subdued">Requires {feature.requiredPlan} plan</Text>
+                                </InlineStack>
+                              )}
+                              {feature.dependencies.length > 0 && (
+                                <InlineStack gap="100" blockAlign="center">
+                                  <Icon source={AlertCircleIcon} tone="subdued" />
+                                  <Text variant="bodySm" tone="subdued">Depends on: {feature.dependencies.join(', ')}</Text>
+                                </InlineStack>
+                              )}
+                            </BlockStack>
+                          </>
+                        )}
+
+                        {/* Toggle Button Placeholder */}
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">
+                            {feature.configOptions.length} config options
+                          </Text>
+                          <Badge tone={feature.enabled ? "success" : "subdued"}>
+                            {feature.enabled ? "Enabled" : "Disabled"}
+                          </Badge>
+                        </InlineStack>
+                      </BlockStack>
+                    </Box>
+                  );
+                })}
+              </InlineGrid>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Option H: Category Groups */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Box paddingBlockEnd="200">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="headingLg" as="h2">
+                      Option H: Category Groups
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Features organized by category with usage indicators
+                    </Text>
+                  </BlockStack>
+                  <InlineStack gap="200">
+                    <Badge tone="success">{data.features.filter(f => f.enabled).length} Active</Badge>
+                    <Badge tone="subdued">{data.features.filter(f => !f.enabled).length} Inactive</Badge>
+                  </InlineStack>
+                </InlineStack>
+              </Box>
+
+              <Divider />
+
+              {/* Group by Category */}
+              {Object.entries(
+                data.features.reduce((acc, feature) => {
+                  if (!acc[feature.category]) acc[feature.category] = [];
+                  acc[feature.category].push(feature);
+                  return acc;
+                }, {} as Record<string, typeof data.features>)
+              ).map(([category, features]) => {
+                const categoryIcon =
+                  category.includes('Analytics') ? ChartVerticalIcon :
+                  category.includes('Automation') ? AutomationIcon :
+                  category.includes('Marketing') ? TargetIcon :
+                  category.includes('Product') ? ProductIcon :
+                  category.includes('Growth') ? PersonAddIcon :
+                  category.includes('Integration') ? CodeIcon :
+                  SettingsIcon;
+
+                const activeCount = features.filter(f => f.enabled).length;
+
+                return (
+                  <BlockStack key={category} gap="300">
+                    {/* Category Header */}
+                    <Box
+                      padding="300"
+                      background="bg-surface-secondary"
+                      borderRadius="200"
+                    >
+                      <InlineStack align="space-between" blockAlign="center">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Icon source={categoryIcon} tone="base" />
+                          <Text variant="headingSm" as="h3" fontWeight="semibold">
+                            {category}
+                          </Text>
+                        </InlineStack>
+                        <Badge tone={activeCount === features.length ? "success" : activeCount > 0 ? "info" : "subdued"}>
+                          {activeCount}/{features.length} Active
+                        </Badge>
+                      </InlineStack>
+                    </Box>
+
+                    {/* Features in Category */}
+                    <BlockStack gap="200">
+                      {features.map((feature) => {
+                        const getIconSource = (iconName: string) => {
+                          switch (iconName) {
+                            case 'ChartVerticalIcon': return ChartVerticalIcon;
+                            case 'CashDollarIcon': return CashDollarIcon;
+                            case 'EmailIcon': return EmailIcon;
+                            case 'ProductIcon': return ProductIcon;
+                            case 'PersonAddIcon': return PersonAddIcon;
+                            case 'CodeIcon': return CodeIcon;
+                            default: return SettingsIcon;
+                          }
+                        };
+
+                        return (
+                          <Box
+                            key={feature.id}
+                            padding="300"
+                            background={feature.enabled ? "bg-surface-success-subdued" : "bg-surface"}
+                            borderRadius="200"
+                          >
+                            <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                              {/* Left: Feature Info */}
+                              <InlineStack gap="300" blockAlign="center">
+                                <div style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  borderRadius: '50%',
+                                  backgroundColor: feature.enabled ? '#22c55e' : '#9ca3af',
+                                  flexShrink: 0
+                                }} />
+                                <Icon source={getIconSource(feature.icon)} tone={feature.enabled ? "base" : "subdued"} />
+                                <BlockStack gap="050">
+                                  <Text variant="bodyMd" fontWeight="semibold">{feature.name}</Text>
+                                  <Text variant="bodySm" tone="subdued">{feature.description}</Text>
+                                </BlockStack>
+                              </InlineStack>
+
+                              {/* Right: Stats & Badge */}
+                              <InlineStack gap="300" blockAlign="center">
+                                {feature.enabled ? (
+                                  <InlineStack gap="200" blockAlign="center">
+                                    <Icon source={PersonIcon} tone="subdued" />
+                                    <Text variant="bodySm" fontWeight="medium">
+                                      {feature.usageStats.activeUsers}
+                                    </Text>
+                                  </InlineStack>
+                                ) : (
+                                  <Text variant="bodySm" tone="subdued">Disabled</Text>
+                                )}
+                                <Badge
+                                  tone={
+                                    feature.impact === 'high' ? 'success' :
+                                    feature.impact === 'medium' ? 'info' :
+                                    'subdued'
+                                  }
+                                >
+                                  {feature.impact} impact
+                                </Badge>
+                              </InlineStack>
+                            </InlineStack>
+                          </Box>
+                        );
+                      })}
+                    </BlockStack>
+
+                    <Divider />
+                  </BlockStack>
+                );
+              })}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Option I: Compact Table View */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Box paddingBlockEnd="200">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="100">
+                    <Text variant="headingLg" as="h2">
+                      Option I: Compact Table View
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Dense list with all key information at a glance
+                    </Text>
+                  </BlockStack>
+                  <InlineStack gap="200">
+                    <Box
+                      padding="200"
+                      background="bg-surface-success-subdued"
+                      borderRadius="200"
+                    >
+                      <InlineStack gap="100" blockAlign="center">
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                        <Text variant="bodySm" fontWeight="medium">{data.features.filter(f => f.enabled).length} Enabled</Text>
+                      </InlineStack>
+                    </Box>
+                    <Box
+                      padding="200"
+                      background="bg-surface-secondary"
+                      borderRadius="200"
+                    >
+                      <InlineStack gap="100" blockAlign="center">
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#9ca3af' }} />
+                        <Text variant="bodySm" fontWeight="medium">{data.features.filter(f => !f.enabled).length} Disabled</Text>
+                      </InlineStack>
+                    </Box>
+                  </InlineStack>
+                </InlineStack>
+              </Box>
+
+              <Divider />
+
+              {/* Table Header */}
+              <Box
+                padding="300"
+                background="bg-surface-secondary"
+                borderRadius="200"
+              >
+                <InlineGrid columns="40% 20% 15% 15% 10%" gap="200">
+                  <Text variant="bodySm" fontWeight="semibold">Feature</Text>
+                  <Text variant="bodySm" fontWeight="semibold">Category</Text>
+                  <Text variant="bodySm" fontWeight="semibold">Impact</Text>
+                  <Text variant="bodySm" fontWeight="semibold">Activity</Text>
+                  <Text variant="bodySm" fontWeight="semibold" alignment="end">Status</Text>
+                </InlineGrid>
+              </Box>
+
+              {/* Table Rows */}
+              <BlockStack gap="100">
+                {data.features.map((feature, index) => {
+                  const getIconSource = (iconName: string) => {
+                    switch (iconName) {
+                      case 'ChartVerticalIcon': return ChartVerticalIcon;
+                      case 'CashDollarIcon': return CashDollarIcon;
+                      case 'EmailIcon': return EmailIcon;
+                      case 'ProductIcon': return ProductIcon;
+                      case 'PersonAddIcon': return PersonAddIcon;
+                      case 'CodeIcon': return CodeIcon;
+                      default: return SettingsIcon;
+                    }
+                  };
+
+                  return (
+                    <Box
+                      key={feature.id}
+                      padding="300"
+                      background={index % 2 === 0 ? "bg-surface" : "bg-surface-secondary"}
+                      borderRadius="200"
+                    >
+                      <InlineGrid columns="40% 20% 15% 15% 10%" gap="200">
+                        {/* Feature Name */}
+                        <InlineStack gap="200" blockAlign="center">
+                          <Icon source={getIconSource(feature.icon)} tone={feature.enabled ? "base" : "subdued"} />
+                          <BlockStack gap="050">
+                            <Text variant="bodyMd" fontWeight="semibold">{feature.name}</Text>
+                            <Text variant="bodySm" tone="subdued">{feature.usageStats.lastAccessed}</Text>
+                          </BlockStack>
+                        </InlineStack>
+
+                        {/* Category */}
+                        <InlineStack blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">{feature.category}</Text>
+                        </InlineStack>
+
+                        {/* Impact */}
+                        <InlineStack blockAlign="center">
+                          <Badge
+                            tone={
+                              feature.impact === 'high' ? 'success' :
+                              feature.impact === 'medium' ? 'info' :
+                              'subdued'
+                            }
+                          >
+                            {feature.impact}
+                          </Badge>
+                        </InlineStack>
+
+                        {/* Activity */}
+                        <InlineStack blockAlign="center">
+                          {feature.enabled ? (
+                            <InlineStack gap="100" blockAlign="center">
+                              <Icon source={PersonIcon} tone="subdued" />
+                              <Text variant="bodySm" fontWeight="medium">
+                                {feature.usageStats.activeUsers} users
+                              </Text>
+                            </InlineStack>
+                          ) : (
+                            <Text variant="bodySm" tone="subdued">—</Text>
+                          )}
+                        </InlineStack>
+
+                        {/* Status */}
+                        <InlineStack align="end" blockAlign="center">
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '50%',
+                            backgroundColor: feature.enabled ? '#22c55e' : '#e5e7eb',
+                            border: `2px solid ${feature.enabled ? '#16a34a' : '#9ca3af'}`,
+                          }} />
+                        </InlineStack>
+                      </InlineGrid>
+                    </Box>
+                  );
+                })}
+              </BlockStack>
+
+              {/* Footer Summary */}
+              <Box
+                padding="300"
+                background="bg-surface-secondary"
+                borderRadius="200"
+              >
+                <InlineGrid columns={4} gap="400">
+                  <BlockStack gap="050" inlineAlign="center">
+                    <Text variant="headingSm" as="p" fontWeight="semibold">
+                      {data.features.filter(f => f.enabled && f.impact === 'high').length}
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">High Impact Active</Text>
+                  </BlockStack>
+                  <BlockStack gap="050" inlineAlign="center">
+                    <Text variant="headingSm" as="p" fontWeight="semibold">
+                      {data.features.reduce((sum, f) => sum + (f.enabled ? f.usageStats.activeUsers : 0), 0)}
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">Total Active Users</Text>
+                  </BlockStack>
+                  <BlockStack gap="050" inlineAlign="center">
+                    <Text variant="headingSm" as="p" fontWeight="semibold">
+                      {data.features.filter(f => f.dependencies.length > 0).length}
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">Have Dependencies</Text>
+                  </BlockStack>
+                  <BlockStack gap="050" inlineAlign="center">
+                    <Text variant="headingSm" as="p" fontWeight="semibold">
+                      {data.features.reduce((sum, f) => sum + f.configOptions.length, 0)}
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">Config Options</Text>
                   </BlockStack>
                 </InlineGrid>
               </Box>
