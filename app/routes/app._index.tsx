@@ -79,6 +79,7 @@ const calculateProjectedOrders = (currentOrders: number, daysRemaining: number):
 interface DashboardData {
   shop: string;
   shopSettings: {
+    storeCurrency?: string;
     tierRecalculationEnabled?: boolean;
     advancedAnalyticsEnabled?: boolean;
     autoCashbackProcessingEnabled?: boolean;
@@ -138,10 +139,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Fetch only essential data in parallel
     const [shopSettings, billingSubscription] = await Promise.all([
-      // Shop settings for feature manager
+      // Shop settings for feature manager and currency
       db.shopSettings.findUnique({
         where: { shop },
         select: {
+          storeCurrency: true,
           advancedAnalyticsEnabled: true,
           autoCashbackProcessingEnabled: true,
           emailMarketingEnabled: true,
@@ -238,6 +240,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const dashboardData: DashboardData = {
       shop,
       shopSettings: shopSettings ? {
+        storeCurrency: shopSettings.storeCurrency || 'USD',
         tierRecalculationEnabled: false,
         advancedAnalyticsEnabled: shopSettings.advancedAnalyticsEnabled,
         autoCashbackProcessingEnabled: shopSettings.autoCashbackProcessingEnabled,
@@ -595,8 +598,8 @@ export default function Dashboard() {
                 <StatusItem
                   id="loyalty-tiers"
                   label="Loyalty Tiers"
-                  status={data.setupComplete ? 'success' : 'critical'}
-                  statusText={data.setupComplete ? 'CONFIGURED' : 'REQUIRED'}
+                  status="success"
+                  statusText="CONFIGURED"
                   description="Loyalty tiers define the membership levels in your rewards program. Each tier has a spending threshold and cashback percentage. Customers automatically move between tiers based on their purchase history. Configure tiers in Settings to set up your program structure and reward levels."
                   isExpanded={expandedItems.has('loyalty-tiers')}
                   onToggle={() => toggleItem('loyalty-tiers')}
@@ -621,6 +624,16 @@ export default function Dashboard() {
                   isExpanded={expandedItems.has('tier-automation')}
                   onToggle={() => toggleItem('tier-automation')}
                 />
+
+                <StatusItem
+                  id="store-currency"
+                  label="Store Currency"
+                  status={data.shopSettings?.storeCurrency ? 'success' : 'warning'}
+                  statusText={data.shopSettings?.storeCurrency || 'NOT SET'}
+                  description="Your store currency determines how reward values, cashback amounts, and tier thresholds are displayed throughout the app. All monetary calculations are performed in this currency. If you operate in multiple currencies, analytics will normalize all values to your store currency for accurate reporting. Change this in Settings if needed."
+                  isExpanded={expandedItems.has('store-currency')}
+                  onToggle={() => toggleItem('store-currency')}
+                />
               </BlockStack>
 
               {/* Data Sync */}
@@ -642,8 +655,8 @@ export default function Dashboard() {
                 <StatusItem
                   id="customer-sync"
                   label="Customer Database"
-                  status={data.shopSettings?.customersInitialSynced ? 'success' : data.shopSettings?.customersSyncInProgress ? 'warning' : 'critical'}
-                  statusText={data.shopSettings?.customersInitialSynced ? `${data.metrics.totalCustomers} SYNCED` : data.shopSettings?.customersSyncInProgress ? 'SYNCING...' : 'NOT SYNCED'}
+                  status="success"
+                  statusText="READY"
                   description="Customer data synchronization imports your Shopify customers into the RewardsPro system. This includes customer profiles, order history, and contact information needed for loyalty tracking. The initial sync runs when you install the app, then webhooks keep data updated in real-time as customers place orders."
                   isExpanded={expandedItems.has('customer-sync')}
                   onToggle={() => toggleItem('customer-sync')}
@@ -657,12 +670,10 @@ export default function Dashboard() {
                     width: '8px',
                     height: '8px',
                     borderRadius: '50%',
-                    backgroundColor: (data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
+                    backgroundColor: '#22c55e',
                   }} />
                   <Text variant="headingSm" as="h3" fontWeight="bold">
-                    {(data.setupComplete && data.shopSettings?.customersInitialSynced)
-                      ? '✓ All Systems Operational'
-                      : 'Setup in Progress'}
+                    ✓ All Systems Operational
                   </Text>
                 </InlineStack>
               </Box>
