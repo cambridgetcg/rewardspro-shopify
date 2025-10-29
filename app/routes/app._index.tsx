@@ -334,10 +334,10 @@ function StatusItem({ id, label, status, statusText, description, isExpanded, on
 
   const getLightColor = () => {
     switch (status) {
-      case 'success': return { bg: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', shadow: 'rgba(34, 197, 94, 0.6)' };
-      case 'warning': return { bg: 'rgba(234, 179, 8, 0.2)', color: '#eab308', shadow: 'rgba(234, 179, 8, 0.6)' };
-      case 'critical': return { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', shadow: 'rgba(239, 68, 68, 0.6)' };
-      default: return { bg: 'rgba(156, 163, 175, 0.2)', color: '#9ca3af', shadow: 'rgba(156, 163, 175, 0.6)' };
+      case 'success': return { color: '#22c55e' };
+      case 'warning': return { color: '#eab308' };
+      case 'critical': return { color: '#ef4444' };
+      default: return { color: '#9ca3af' };
     }
   };
 
@@ -365,22 +365,11 @@ function StatusItem({ id, label, status, statusText, description, isExpanded, on
       >
         {/* Status light indicator */}
         <div style={{
-          width: '16px',
-          height: '16px',
+          width: '8px',
+          height: '8px',
           borderRadius: '50%',
-          backgroundColor: lightColors.bg,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: lightColors.color,
-            boxShadow: `0 0 6px ${lightColors.shadow}`
-          }} />
-        </div>
+          backgroundColor: lightColors.color,
+        }} />
 
         {/* Label */}
         <Text variant="bodyMd" as="span" fontWeight="medium">
@@ -554,22 +543,11 @@ export default function Dashboard() {
                     {/* Operating Normally */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
-                        width: '16px',
-                        height: '16px',
+                        width: '8px',
+                        height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#22c55e',
-                          boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)'
-                        }} />
-                      </div>
+                        backgroundColor: '#22c55e',
+                      }} />
                       <Text variant="bodySm" as="span" fontWeight="medium">
                         Operating normally
                       </Text>
@@ -578,22 +556,11 @@ export default function Dashboard() {
                     {/* Configuration Recommended */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
-                        width: '16px',
-                        height: '16px',
+                        width: '8px',
+                        height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: 'rgba(234, 179, 8, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#eab308',
-                          boxShadow: '0 0 6px rgba(234, 179, 8, 0.6)'
-                        }} />
-                      </div>
+                        backgroundColor: '#eab308',
+                      }} />
                       <Text variant="bodySm" as="span" fontWeight="medium">
                         Configuration recommended
                       </Text>
@@ -602,22 +569,11 @@ export default function Dashboard() {
                     {/* Needs Attention */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
-                        width: '16px',
-                        height: '16px',
+                        width: '8px',
+                        height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ef4444',
-                          boxShadow: '0 0 6px rgba(239, 68, 68, 0.6)'
-                        }} />
-                      </div>
+                        backgroundColor: '#ef4444',
+                      }} />
                       <Text variant="bodySm" as="span" fontWeight="medium">
                         Needs attention
                       </Text>
@@ -721,22 +677,11 @@ export default function Dashboard() {
               <Box paddingBlockStart="400" paddingBlockEnd="200">
                 <InlineStack align="center" blockAlign="center" gap="200">
                   <div style={{
-                    width: '20px',
-                    height: '20px',
+                    width: '8px',
+                    height: '8px',
                     borderRadius: '50%',
-                    backgroundColor: (data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: (data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
-                      boxShadow: `0 0 8px ${(data.setupComplete && data.shopSettings?.customersInitialSynced) ? 'rgba(34, 197, 94, 0.6)' : 'rgba(234, 179, 8, 0.6)'}`
-                    }} />
-                  </div>
+                    backgroundColor: (data.setupComplete && data.shopSettings?.customersInitialSynced) ? '#22c55e' : '#eab308',
+                  }} />
                   <Text variant="headingSm" as="h3" fontWeight="bold">
                     {(data.setupComplete && data.shopSettings?.customersInitialSynced)
                       ? '✓ All Systems Operational'
