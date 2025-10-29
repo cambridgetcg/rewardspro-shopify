@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
 
@@ -30,39 +30,22 @@ import {
   Text,
   BlockStack,
   InlineStack,
-  Button,
   Icon,
   Box,
   Badge,
-  EmptyState,
-  DataTable,
   Banner,
-  Modal,
-  Divider,
   Collapsible,
   Toast,
   Frame,
 } from "@shopify/polaris";
 import {
-  PersonIcon,
-  CashDollarIcon,
-  RewardIcon,
-  ChartVerticalIcon,
-  CheckCircleIcon,
-  InfoIcon,
   ChevronDownIcon,
   ChevronUpIcon,
 } from "~/utils/polaris-icons";
-import {
-  StatsOverview,
-  EnhancedDataTable,
-} from "../components/DesignSystem";
 import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
-import { formatCurrency } from "../utils/currency";
 import { CurrentPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
-import { useShopifyNavigation } from "~/utils/shopify-navigation";
 
 // ============================================
 // HELPER FUNCTIONS
@@ -95,32 +78,15 @@ const calculateProjectedOrders = (currentOrders: number, daysRemaining: number):
 
 interface DashboardData {
   shop: string;
-  metrics: {
-    totalCustomers: number;
-    customersWithCredit: number;
-    customersWithTiers: number;
-  };
-  // ShopifyQL-powered metrics (Shopify native data)
-  shopifyMetrics: {
-    totalRevenue: number;
-    totalOrders: number;
-    averageOrderValue: number;
-    shopifyCustomers: number;
-    conversionRate: number;
-    source: 'shopifyql' | 'cache' | 'unavailable';
-  } | null;
-  setupComplete: boolean;
   shopSettings: {
-    storeCurrency: string;
-    currencyDisplayType: string;
-    customersInitialSynced?: boolean;
-    customersSyncInProgress?: boolean;
-    currencySelected?: boolean;
     tierRecalculationEnabled?: boolean;
     advancedAnalyticsEnabled?: boolean;
     autoCashbackProcessingEnabled?: boolean;
     emailMarketingEnabled?: boolean;
     tierProductsEnabled?: boolean;
+  } | null;
+  shopifyMetrics: {
+    source: 'shopifyql' | 'cache' | 'unavailable';
   } | null;
   // Billing data
   currentPlan: any | null;
@@ -172,12 +138,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Fetch only essential data in parallel
     const [shopSettings, billingSubscription] = await Promise.all([
-      // Shop settings for feature manager and currency
+      // Shop settings for feature manager
       db.shopSettings.findUnique({
         where: { shop },
         select: {
-          storeCurrency: true,
-          currencyDisplayType: true,
           advancedAnalyticsEnabled: true,
           autoCashbackProcessingEnabled: true,
           emailMarketingEnabled: true,
@@ -273,25 +237,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Simplified dashboard data
     const dashboardData: DashboardData = {
       shop,
-      metrics: {
-        totalCustomers: 0,
-        customersWithCredit: 0,
-        customersWithTiers: 0,
-      },
-      shopifyMetrics: null,
-      setupComplete: true,  // Simplified - assume setup complete
       shopSettings: shopSettings ? {
-        storeCurrency: shopSettings.storeCurrency,
-        currencyDisplayType: shopSettings.currencyDisplayType,
-        customersInitialSynced: true,
-        customersSyncInProgress: false,
-        currencySelected: true,
         tierRecalculationEnabled: false,
         advancedAnalyticsEnabled: shopSettings.advancedAnalyticsEnabled,
         autoCashbackProcessingEnabled: shopSettings.autoCashbackProcessingEnabled,
         emailMarketingEnabled: shopSettings.emailMarketingEnabled,
         tierProductsEnabled: shopSettings.tierProductsEnabled,
       } : null,
+      shopifyMetrics: { source: 'unavailable' },
       currentPlan: serializedPlan,
       activeSubscription,
       monthlyOrderUsage,
@@ -336,7 +289,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       data: updateData,
     });
 
-    return json({ success: true });
+    return json({ success: true, feature, enabled });
   }
 
   return json({ success: false });
@@ -541,74 +494,12 @@ export default function Dashboard() {
     />
   ) : null;
 
-  // If setup is not complete, show onboarding
-  if (!data.setupComplete) {
-    return (
-      <Frame>
-        <Page title="Welcome to RewardsPro">
-          <Layout>
-            <Layout.Section>
-              <EmptyState
-                heading="Get started with RewardsPro"
-                action={{
-                  content: "Manage customers & tiers",
-                  url: "/app/customers",
-                }}
-                secondaryAction={{
-                  content: "Configure settings",
-                  url: "/app/settings",
-                }}
-                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-              >
-                <p>Set up loyalty tiers and start rewarding your customers with cashback.</p>
-              </EmptyState>
-            </Layout.Section>
-          </Layout>
-
-          {/* Bottom spacer to prevent content from touching the bottom */}
-          <div style={{ height: '80px', width: '100%' }} aria-hidden="true" />
-        </Page>
-        {toastMarkup}
-      </Frame>
-    );
-  }
-
   return (
     <Frame>
       <Page
         title="Dashboard"
     >
       <Layout>
-        {/* Customer Sync Status Banner */}
-        {data.shopSettings?.customersSyncInProgress && (
-          <Layout.Section>
-            <Banner tone="info">
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  🔄 Syncing your customers from Shopify...
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  This may take a few minutes. You can continue using the app while this completes in the background.
-                </Text>
-              </BlockStack>
-            </Banner>
-          </Layout.Section>
-        )}
-
-        {!data.shopSettings?.customersInitialSynced && !data.shopSettings?.customersSyncInProgress && (
-          <Layout.Section>
-            <Banner
-              title="Customer sync needed"
-              tone="warning"
-              action={{ content: "Sync customers", url: "/app/customers" }}
-            >
-              <Text variant="bodyMd" as="p">
-                Your customers haven't been synced yet. Sync them to start tracking rewards and tiers.
-              </Text>
-            </Banner>
-          </Layout.Section>
-        )}
-
         {/* Plan Details Card - Using shared component */}
         <Layout.Section>
           <CurrentPlanCard
@@ -760,16 +651,6 @@ export default function Dashboard() {
                   isExpanded={expandedItems.has('shopify-api')}
                   onToggle={() => toggleItem('shopify-api')}
                 />
-
-                <StatusItem
-                  id="customer-account-block"
-                  label="Customer Account Block"
-                  status={data.hasCustomerAccountBlock ? 'success' : 'warning'}
-                  statusText={data.hasCustomerAccountBlock ? 'ACTIVE' : 'NOT DETECTED'}
-                  description="The Customer Account Block is a UI extension that displays loyalty information directly in customer accounts. It shows tier status, rewards balance, transaction history, and redemption options. Customers can view and manage their loyalty benefits without leaving their account page."
-                  isExpanded={expandedItems.has('customer-account-block')}
-                  onToggle={() => toggleItem('customer-account-block')}
-                />
               </BlockStack>
 
               {/* Configuration */}
@@ -911,44 +792,6 @@ export default function Dashboard() {
             </BlockStack>
           </Card>
         </Layout.Section>
-
-        {/* Shopify Analytics - Native Data powered by ShopifyQL */}
-        {data.shopifyMetrics && data.shopifyMetrics.source !== 'unavailable' && (
-          <Layout.Section>
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text variant="headingMd" as="h2">Shopify Analytics (Last Month)</Text>
-                <Text variant="bodySm" tone="subdued">
-                  Powered by ShopifyQL {data.shopifyMetrics.source === 'cache' && '(cached)'}
-                </Text>
-              </InlineStack>
-              <StatsOverview
-                stats={[
-                  {
-                    label: "Total Revenue Impact",
-                    value: formatAmount(data.shopifyMetrics.totalRevenue),
-                    icon: CashDollarIcon,
-                  },
-                  {
-                    label: "Active Shopify Customers",
-                    value: data.shopifyMetrics.shopifyCustomers.toString(),
-                    icon: PersonIcon,
-                  },
-                  {
-                    label: "Avg Order Value",
-                    value: formatAmount(data.shopifyMetrics.averageOrderValue),
-                    icon: ChartVerticalIcon,
-                  },
-                  {
-                    label: "Conversion Rate",
-                    value: `${data.shopifyMetrics.conversionRate.toFixed(1)}%`,
-                    icon: RewardIcon,
-                  },
-                ]}
-              />
-            </BlockStack>
-          </Layout.Section>
-        )}
       </Layout>
     </Page>
     {toastMarkup}
