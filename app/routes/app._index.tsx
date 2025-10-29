@@ -48,6 +48,7 @@ import {
   DatabaseIcon,
   RefreshIcon,
   CheckCircleIcon,
+  AlertCircleIcon,
 } from "~/utils/polaris-icons";
 import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
@@ -96,6 +97,13 @@ interface DashboardData {
   shopifyMetrics: {
     source: 'shopifyql' | 'cache' | 'unavailable';
   } | null;
+  webhookStats: {
+    processedLast24h: number;
+    errorsLast24h: number;
+    errorsLastHour: number;
+    successRate: number;
+    status: 'healthy' | 'degraded' | 'critical';
+  };
   // Billing data
   currentPlan: any | null;
   activeSubscription: any;
@@ -243,6 +251,41 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         : billingSubscription.updatedAt,
     } : null;
 
+    // Webhook statistics for health monitoring
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const lastHour = new Date(Date.now() - 60 * 60 * 1000);
+
+    const [webhookProcessedCount, webhookErrorsLast24h, webhookErrorsLastHour] = await Promise.all([
+      db.webhookProcessed.count({
+        where: {
+          shop,
+          processedAt: { gte: last24Hours }
+        }
+      }),
+      db.webhookError.count({
+        where: {
+          shop,
+          createdAt: { gte: last24Hours }
+        }
+      }),
+      db.webhookError.count({
+        where: {
+          shop,
+          createdAt: { gte: lastHour }
+        }
+      })
+    ]);
+
+    const totalWebhooks = webhookProcessedCount + webhookErrorsLast24h;
+    const successRate = totalWebhooks > 0 ? (webhookProcessedCount / totalWebhooks) * 100 : 100;
+
+    let webhookStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
+    if (webhookErrorsLastHour > 10 || successRate < 90) {
+      webhookStatus = 'critical';
+    } else if (webhookErrorsLastHour > 5 || successRate < 95) {
+      webhookStatus = 'degraded';
+    }
+
     // Simplified dashboard data
     const dashboardData: DashboardData = {
       shop,
@@ -255,6 +298,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         tierProductsEnabled: shopSettings.tierProductsEnabled,
       } : null,
       shopifyMetrics: { source: 'unavailable' },
+      webhookStats: {
+        processedLast24h: webhookProcessedCount,
+        errorsLast24h: webhookErrorsLast24h,
+        errorsLastHour: webhookErrorsLastHour,
+        successRate: Math.round(successRate * 10) / 10,
+        status: webhookStatus
+      },
       currentPlan: serializedPlan,
       activeSubscription,
       monthlyOrderUsage,
@@ -704,6 +754,57 @@ export default function Dashboard() {
 
                     <Text variant="bodySm" tone="subdued">
                       Real-time synchronization with Shopify store
+                    </Text>
+                  </BlockStack>
+                </Card>
+
+                {/* Webhook Processing Component */}
+                <Card>
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="start">
+                      <Box
+                        padding="200"
+                        background="bg-surface-secondary"
+                        borderRadius="200"
+                      >
+                        <Icon source={AlertCircleIcon} tone="base" />
+                      </Box>
+                      <Badge tone={
+                        data.webhookStats.status === 'healthy' ? 'success' :
+                        data.webhookStats.status === 'degraded' ? 'warning' : 'critical'
+                      }>
+                        {data.webhookStats.status === 'healthy' ? 'Healthy' :
+                         data.webhookStats.status === 'degraded' ? 'Degraded' : 'Critical'}
+                      </Badge>
+                    </InlineStack>
+
+                    <Text variant="headingSm" as="h3" fontWeight="semibold">
+                      Webhook Processing
+                    </Text>
+
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Processed (24h):</Text>
+                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.processedLast24h}</Text>
+                      </InlineStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Errors (24h):</Text>
+                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.errorsLast24h}</Text>
+                      </InlineStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Recent (1h):</Text>
+                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.errorsLastHour}</Text>
+                      </InlineStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Success Rate:</Text>
+                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.successRate}%</Text>
+                      </InlineStack>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <Text variant="bodySm" tone="subdued">
+                      Order webhook processing and error tracking
                     </Text>
                   </BlockStack>
                 </Card>
