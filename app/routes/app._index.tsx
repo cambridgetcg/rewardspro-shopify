@@ -415,7 +415,6 @@ function StatusItem({ id, label, status, statusText, description, isExpanded, on
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>() as DashboardData;
   const navigate = useNavigate();
-  const { navigate: shopifyNavigate } = useShopifyNavigation();
   const fetcher = useFetcher();
 
   // System status expanded items state
