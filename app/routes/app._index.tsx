@@ -3,7 +3,7 @@ import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
 
-// Declare s-switch web component for TypeScript
+// Declare s-switch and s-stack web components for TypeScript
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -15,6 +15,9 @@ declare global {
         disabled?: boolean;
         name?: string;
         value?: string;
+      }, HTMLElement>;
+      's-stack': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
+        gap?: string;
       }, HTMLElement>;
     }
   }
@@ -879,49 +882,32 @@ export default function Dashboard() {
                 Enable or disable specific features for your store. Changes take effect immediately.
               </Text>
 
-              <BlockStack gap="300">
-                {/* Advanced Analytics */}
+              <s-stack gap="small-200">
                 <s-switch
                   id="advanced-analytics-toggle"
                   label="Advanced Analytics"
-                  details="Detailed analytics charts and ROI calculations"
                   checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
                   onChange={handleToggleFeature('advancedAnalyticsEnabled')}
                 />
-
-                <Divider />
-
-                {/* Automatic Cashback Processing */}
                 <s-switch
                   id="auto-cashback-toggle"
                   label="Automatic Cashback Processing"
-                  details="Automatically credit cashback for completed orders"
                   checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
                   onChange={handleToggleFeature('autoCashbackProcessingEnabled')}
                 />
-
-                <Divider />
-
-                {/* Email Marketing Campaigns */}
                 <s-switch
                   id="email-marketing-toggle"
                   label="Email Marketing Campaigns"
-                  details="Automated email campaigns and communications"
                   checked={data.shopSettings?.emailMarketingEnabled ?? false}
                   onChange={handleToggleFeature('emailMarketingEnabled')}
                 />
-
-                <Divider />
-
-                {/* Tier Products Module */}
                 <s-switch
                   id="tier-products-toggle"
                   label="Tier Products Module"
-                  details="Allow customers to purchase tier access"
                   checked={data.shopSettings?.tierProductsEnabled ?? true}
                   onChange={handleToggleFeature('tierProductsEnabled')}
                 />
-              </BlockStack>
+              </s-stack>
             </BlockStack>
           </Card>
         </Layout.Section>
