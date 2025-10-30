@@ -40,11 +40,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Fetch current automation settings
   const shopSettings = await db.shopSettings.findUnique({
     where: { shop },
-    select: {
-      autoCashbackProcessingEnabled: true,
-      tierRecalculationEnabled: true,
-      emailMarketingEnabled: true,
-    },
   });
 
   // If no settings exist, create them with defaults
@@ -263,14 +258,16 @@ export default function AutomationManager() {
 
   // Update local state when fetcher completes
   useEffect(() => {
-    if (fetcher.data?.success) {
+    if (fetcher.data?.success && 'field' in fetcher.data && 'enabled' in fetcher.data) {
+      const field = fetcher.data.field as keyof AutomationSettings;
+      const enabled = fetcher.data.enabled as boolean;
       setAutomationStates(prev => ({
         ...prev,
-        [fetcher.data.field]: fetcher.data.enabled
+        [field]: enabled
       }));
       setLastUpdated({
-        automation: getAutomationName(fetcher.data.field),
-        enabled: fetcher.data.enabled,
+        automation: getAutomationName(field),
+        enabled: enabled,
         timestamp: Date.now(),
       });
     }
