@@ -463,30 +463,33 @@ export default function Dashboard() {
       <Layout>
         {/* Two-Column Layout */}
         <Layout.Section variant="oneThird">
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Plan Details Card */}
-            <SystemMonitorPlanCard
-              activeSubscription={data.activeSubscription}
-              currentPlan={data.currentPlan}
-              monthlyOrderUsage={{
-                orderCount: data.monthlyOrderUsage?.orderCount || 0,
-                planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
-                projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
-                currentMonth: data.currentMonth
-              }}
-              showUpgradeButton={true}
-              showOverageBanner={false}
-              onUpgrade={() => navigate("/app/billing")}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {/* Plan Details Card */}
+              <SystemMonitorPlanCard
+                activeSubscription={data.activeSubscription}
+                currentPlan={data.currentPlan}
+                monthlyOrderUsage={{
+                  orderCount: data.monthlyOrderUsage?.orderCount || 0,
+                  planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
+                  projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
+                  currentMonth: data.currentMonth
+                }}
+                showUpgradeButton={true}
+                showOverageBanner={false}
+                onUpgrade={() => navigate("/app/billing")}
+              />
+            </div>
           </div>
         </Layout.Section>
 
         {/* System Status - Mission Control Style */}
         <Layout.Section variant="twoThirds">
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <Card>
-                <BlockStack gap="400">
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Card>
+                  <BlockStack gap="400">
               {/* Header */}
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="200" blockAlign="center">
@@ -795,7 +798,8 @@ export default function Dashboard() {
                 </Card>
               </InlineGrid>
             </BlockStack>
-              </Card>
+                </Card>
+              </div>
             </div>
           </div>
         </Layout.Section>

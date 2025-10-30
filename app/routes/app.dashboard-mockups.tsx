@@ -606,11 +606,11 @@ export default function DashboardMockups() {
                     Feature Manager
                   </Text>
                   <Text variant="bodySm" tone="subdued">
-                    {activeCount} of {totalCount} features enabled
+                    {activeCountR} of {totalCount} features enabled
                   </Text>
                 </BlockStack>
-                <Badge tone={activeCount === totalCount ? 'success' : activeCount >= 2 ? 'info' : 'warning'}>
-                  {Math.round((activeCount / totalCount) * 100)}% Active
+                <Badge tone={activeCountR === totalCount ? 'success' : activeCountR >= 2 ? 'info' : 'warning'}>
+                  {Math.round((activeCountR / totalCount) * 100)}% Active
                 </Badge>
               </InlineStack>
 

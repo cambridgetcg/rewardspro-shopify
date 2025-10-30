@@ -1523,6 +1523,142 @@ export default function AnalyticsPage() {
 
                     <Divider />
 
+                    {/* Multi-Dimensional Tier Performance - Radar Chart */}
+                    {data.tierPerformance.length > 0 && (
+                      <BlockStack gap="400">
+                        <Card>
+                          <Box padding="400">
+                            <BlockStack gap="400">
+                              <BlockStack gap="200">
+                                <InlineStack align="space-between" blockAlign="center">
+                                  <Text variant="headingMd" as="h2">Multi-Dimensional Tier Performance</Text>
+                                  <Badge tone="info">Radar Chart</Badge>
+                                </InlineStack>
+                                <Text variant="bodySm" tone="subdued" as="p">
+                                  Compare multiple performance dimensions across tiers simultaneously
+                                </Text>
+                              </BlockStack>
+
+                              {/* Chart.js Radar Chart */}
+                              <div style={{ height: '400px', padding: '20px 0', display: 'flex', justifyContent: 'center' }}>
+                                <Radar
+                                  data={{
+                                    labels: [
+                                      'Order Frequency',
+                                      'Avg Order Value',
+                                      'Customer LTV',
+                                      'Retention Rate',
+                                      'Revenue/Order',
+                                      'Cashback Earned'
+                                    ],
+                                    datasets: data.tierPerformance.map((tier, tierIndex) => {
+                                      const colors = [
+                                        { border: '#5C6AC4', bg: 'rgba(92, 106, 196, 0.2)' },
+                                        { border: '#006FBB', bg: 'rgba(0, 111, 187, 0.2)' },
+                                        { border: '#00848E', bg: 'rgba(0, 132, 142, 0.2)' },
+                                        { border: '#47C1BF', bg: 'rgba(71, 193, 191, 0.2)' },
+                                      ];
+                                      const color = colors[tierIndex] || colors[0];
+
+                                      // Normalize values to 0-100 scale for radar chart
+                                      const normalizeValue = (value: number, max: number) => (value / max) * 100;
+
+                                      return {
+                                        label: tier.name,
+                                        data: [
+                                          normalizeValue(tier.monthlyOrderFrequency, 6), // Order Frequency (max 6)
+                                          normalizeValue(tier.averageOrderValue, 300), // AOV (max $300)
+                                          normalizeValue(tier.lifetimeValue, 5000), // LTV (max $5000)
+                                          tier.retentionRate, // Already percentage (0-100)
+                                          normalizeValue(tier.revenuePerOrder, 300), // Revenue/Order (max $300)
+                                          normalizeValue(tier.totalCashbackEarned, 1000), // Cashback (max $1000)
+                                        ],
+                                        borderColor: color.border,
+                                        backgroundColor: color.bg,
+                                        borderWidth: 2,
+                                        pointBackgroundColor: color.border,
+                                        pointBorderColor: '#fff',
+                                        pointHoverBackgroundColor: '#fff',
+                                        pointHoverBorderColor: color.border,
+                                      };
+                                    }),
+                                  }}
+                                  options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                      r: {
+                                        angleLines: {
+                                          display: true,
+                                          color: 'rgba(0, 0, 0, 0.1)'
+                                        },
+                                        suggestedMin: 0,
+                                        suggestedMax: 100,
+                                        ticks: {
+                                          stepSize: 20,
+                                          callback: function(value) {
+                                            return value + '%';
+                                          }
+                                        },
+                                        pointLabels: {
+                                          font: { size: 11 }
+                                        }
+                                      }
+                                    },
+                                    plugins: {
+                                      legend: {
+                                        display: true,
+                                        position: 'top',
+                                        labels: { boxWidth: 12, padding: 10 }
+                                      },
+                                      tooltip: {
+                                        callbacks: {
+                                          label: function(context) {
+                                            return `${context.dataset.label}: ${context.parsed.r.toFixed(1)}%`;
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }}
+                                />
+                              </div>
+
+                              {/* Legend */}
+                              <InlineStack gap="400" blockAlign="center" wrap={true}>
+                                {data.tierPerformance.map((tier, index) => {
+                                  const colors = ['#5C6AC4', '#006FBB', '#00848E', '#47C1BF'];
+                                  return (
+                                    <InlineStack key={tier.id} gap="200" blockAlign="center">
+                                      <div style={{
+                                        width: '12px',
+                                        height: '12px',
+                                        backgroundColor: colors[index] || '#5C6AC4',
+                                        borderRadius: '50%',
+                                        border: '2px solid white',
+                                        boxShadow: '0 0 0 1px ' + (colors[index] || '#5C6AC4')
+                                      }} />
+                                      <TierBadge
+                                        tierName={tier.name}
+                                        size="small"
+                                        showIcon={false}
+                                        cashbackPercent={tier.cashbackPercent}
+                                      />
+                                    </InlineStack>
+                                  );
+                                })}
+                              </InlineStack>
+
+                              <Text variant="bodySm" tone="subdued" as="p">
+                                Each axis normalized to 0-100% scale for comparison across different metrics
+                              </Text>
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                      </BlockStack>
+                    )}
+
+                    <Divider />
+
                     {/* Program Impact */}
                     <BlockStack gap="400">
                       <Text variant="headingMd" as="h2">
@@ -1587,69 +1723,126 @@ export default function AnalyticsPage() {
                         gap: '24px',
                         marginTop: '16px'
                       }}>
-                        {/* Reward Usage Rate Chart */}
+                        {/* Combined Reward Usage & Influenced Sales Chart */}
                         <Card>
                           <Box padding="400">
                             <BlockStack gap="300">
                               <BlockStack gap="100">
                                 <Text variant="headingSm" as="h3">
-                                  Reward Usage Rate Over Time
+                                  Reward Usage & Influenced Sales Over Time
                                 </Text>
                                 <Text variant="bodySm" tone="subdued" as="p">
-                                  Monthly redemption rate
+                                  Monthly redemption rate and cumulative revenue
                                 </Text>
                               </BlockStack>
-                              <div style={{ height: '250px' }}>
-                                <Line
-                                  data={{
-                                    labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
-                                    datasets: [{
-                                      label: 'Usage Rate',
-                                      data: [65.2, 72.4, 68.1, 75.3, 71.7, 78.5, 74.2, 69.8, 73.1, 76.4, 70.5, 77.3],
-                                      borderColor: '#8B5CF6',
-                                      backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                                      fill: true,
-                                      tension: 0.4,
-                                    }],
-                                  }}
-                                  options={getShopifyChartOptions({
-                                    max: 100,
-                                    callback: (value) => `${value}%`,
-                                  })}
-                                />
-                              </div>
-                            </BlockStack>
-                          </Box>
-                        </Card>
 
-                        {/* Influenced Sales Chart */}
-                        <Card>
-                          <Box padding="400">
-                            <BlockStack gap="300">
-                              <BlockStack gap="100">
-                                <Text variant="headingSm" as="h3">
-                                  Influenced Sales Over Time
-                                </Text>
-                                <Text variant="bodySm" tone="subdued" as="p">
-                                  Cumulative revenue from program
-                                </Text>
-                              </BlockStack>
-                              <div style={{ height: '250px' }}>
+                              {/* Custom Legend */}
+                              <InlineStack gap="400" blockAlign="center">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <div style={{ width: '12px', height: '12px', backgroundColor: '#8B5CF6', borderRadius: '2px' }}></div>
+                                  <Text variant="bodySm" as="span">Usage Rate (%)</Text>
+                                </InlineStack>
+                                <InlineStack gap="200" blockAlign="center">
+                                  <div style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', borderRadius: '2px' }}></div>
+                                  <Text variant="bodySm" as="span">Cumulative Sales</Text>
+                                </InlineStack>
+                              </InlineStack>
+
+                              <div style={{ height: '300px' }}>
                                 <Line
                                   data={{
                                     labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
-                                    datasets: [{
-                                      label: 'Cumulative Sales',
-                                      data: [25340, 68020, 124920, 194770, 272000, 354560, 421900, 474790, 511910, 538250, 558100, 585420],
-                                      borderColor: '#22c55e',
-                                      backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                                      fill: true,
-                                      tension: 0.1,
-                                    }],
+                                    datasets: [
+                                      {
+                                        label: 'Usage Rate',
+                                        data: [65.2, 72.4, 68.1, 75.3, 71.7, 78.5, 74.2, 69.8, 73.1, 76.4, 70.5, 77.3],
+                                        borderColor: '#8B5CF6',
+                                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                        fill: true,
+                                        tension: 0.4,
+                                        yAxisID: 'y',
+                                      },
+                                      {
+                                        label: 'Cumulative Sales',
+                                        data: [25340, 68020, 124920, 194770, 272000, 354560, 421900, 474790, 511910, 538250, 558100, 585420],
+                                        borderColor: '#22c55e',
+                                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                        fill: true,
+                                        tension: 0.1,
+                                        yAxisID: 'y1',
+                                      }
+                                    ],
                                   }}
-                                  options={getShopifyChartOptions({
-                                    callback: (value) => formatAmount(Number(value)),
-                                  })}
+                                  options={{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    interaction: {
+                                      mode: 'index',
+                                      intersect: false,
+                                    },
+                                    plugins: {
+                                      legend: {
+                                        display: false,
+                                      },
+                                      tooltip: {
+                                        mode: 'index',
+                                        intersect: false,
+                                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                        padding: 12,
+                                        cornerRadius: 4,
+                                        callbacks: {
+                                          label: (context) => {
+                                            const label = context.dataset.label || '';
+                                            const value = context.parsed.y;
+                                            if (context.datasetIndex === 0) {
+                                              return `${label}: ${value.toFixed(1)}%`;
+                                            } else {
+                                              return `${label}: ${formatAmount(value)}`;
+                                            }
+                                          },
+                                        },
+                                      },
+                                    },
+                                    scales: {
+                                      x: {
+                                        grid: {
+                                          display: false,
+                                        },
+                                        border: {
+                                          display: false,
+                                        },
+                                      },
+                                      y: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'left',
+                                        max: 100,
+                                        grid: {
+                                          color: 'rgba(0, 0, 0, 0.05)',
+                                        },
+                                        border: {
+                                          display: false,
+                                        },
+                                        ticks: {
+                                          callback: (value) => `${value}%`,
+                                        },
+                                      },
+                                      y1: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'right',
+                                        grid: {
+                                          drawOnChartArea: false,
+                                        },
+                                        border: {
+                                          display: false,
+                                        },
+                                        ticks: {
+                                          callback: (value) => formatAmount(Number(value)),
+                                        },
+                                      },
+                                    },
+                                  }}
                                 />
                               </div>
                             </BlockStack>
@@ -1658,8 +1851,7 @@ export default function AnalyticsPage() {
                       </div>
 
                       <Text variant="bodySm" tone="subdued" as="p">
-                        Reward usage rate shows the percentage of earned rewards that customers have redeemed.
-                        Influenced sales include all orders from customers who are active loyalty program participants.
+                        Track redemption rates alongside program revenue growth. Usage rate (left axis) shows the percentage of earned rewards redeemed monthly, while cumulative sales (right axis) displays total revenue influenced by the loyalty program.
                       </Text>
                     </BlockStack>
                   </BlockStack>

@@ -1443,3 +1443,145 @@ model SystemAlert {
   @@index([type, resolved])
   @@index([severity, createdAt(sort: Desc)])
 }
+
+// ============================================
+// EMAIL MARKETING MODELS
+// ============================================
+
+model EmailTemplate {
+  id                String              @id @default(uuid())
+  shop              String
+
+  // Template details
+  name              String              // Template name (e.g., "Welcome Email", "Tier Upgrade")
+  type              String              // welcome, tier_change, points_reminder, etc.
+  subject           String              // Email subject line
+  content           Json                // Block-based content structure
+
+  // Status
+  isActive          Boolean             @default(true)
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  campaigns         EmailCampaign[]
+  automations       EmailAutomation[]
+
+  @@index([shop, type])
+  @@index([shop, isActive])
+}
+
+model EmailCampaign {
+  id                String              @id @default(uuid())
+  shop              String
+
+  // Campaign details
+  name              String              // Campaign name
+  templateId        String              // Reference to EmailTemplate
+  template          EmailTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // Status
+  status            String              // draft, scheduled, sending, sent, failed
+
+  // Segmentation
+  segmentRules      Json                // Segment criteria
+
+  // Scheduling
+  scheduledFor      DateTime?           // When to send
+  sentAt            DateTime?           // When actually sent
+
+  // Metrics
+  metrics           Json?               // { sent, delivered, opened, clicked, revenue, orders }
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([shop, status])
+  @@index([shop, scheduledFor])
+  @@index([sentAt(sort: Desc)])
+}
+
+model EmailAutomation {
+  id                String              @id @default(uuid())
+  shop              String
+
+  // Automation details
+  name              String              // Automation name
+  trigger           String              // welcome, tier_upgrade, points_expiry, etc.
+  templateId        String              // Reference to EmailTemplate
+  template          EmailTemplate       @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // Status
+  isEnabled         Boolean             @default(true)
+
+  // Conditions & Timing
+  conditions        Json                // Conditional logic
+  delayMinutes      Int                 @default(0)  // Delay before sending
+
+  // Metrics
+  totalSent         Int                 @default(0)
+  totalOpened       Int                 @default(0)
+  totalClicked      Int                 @default(0)
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([shop, trigger])
+  @@index([shop, isEnabled])
+}
+
+model EmailSettings {
+  shop              String              @id  // Shop domain (primary key)
+
+  // Sender configuration
+  senderName        String              @default("Store")
+  senderEmail       String              // From email
+  replyToEmail      String?             // Reply-to email
+
+  // Brand customization
+  brandColors       Json                @default("{\"primary\":\"#5C6AC4\",\"secondary\":\"#F4F6F8\"}")
+  typography        Json                @default("{\"fontFamily\":\"Inter\"}")
+  headerContent     Json?               // Logo, navigation, etc.
+  footerContent     Json?               // Legal, social, etc.
+
+  // Compliance
+  suppressionList   String[]            @default([])  // Emails to never send to
+  includeUnsubscribe Boolean            @default(true)
+  includePhysicalAddress Boolean        @default(true)
+  gdprEnabled       Boolean             @default(true)
+
+  // Send controls
+  sendTimePrefs     Json                @default("{\"preferredTime\":\"10:00\",\"timezone\":\"America/New_York\",\"dailyLimit\":1000,\"hourlyLimit\":100}")
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model EmailEvent {
+  id                String              @id @default(uuid())
+  shop              String
+
+  // Event details
+  campaignId        String?             // Reference to campaign if applicable
+  automationId      String?             // Reference to automation if applicable
+  customerId        String?             // Shopify customer ID
+  customerEmail     String              // Customer email
+
+  // Event type
+  eventType         String              // sent, delivered, opened, clicked, bounced, complained, unsubscribed
+
+  // Metadata
+  metadata          Json?               // Additional event data (links clicked, bounce reason, etc.)
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+
+  @@index([shop, eventType, createdAt(sort: Desc)])
+  @@index([campaignId, eventType])
+  @@index([customerEmail, eventType])
+}
