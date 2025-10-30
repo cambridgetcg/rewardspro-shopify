@@ -12,6 +12,7 @@ import {
   Icon,
   Divider,
   InlineGrid,
+  Banner,
 } from "@shopify/polaris";
 import {
   EmailIcon,
@@ -48,20 +49,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Step 3: Get automation stats (safe - table might not exist)
     console.log('[Marketing Hub] Step 3: Fetching automation stats...');
-    let automationStats: any[] = [];
     let activeAutomations = 0;
     let totalAutomations = 0;
     try {
-      automationStats = await db.emailAutomation.groupBy({
-        by: ['isEnabled'],
+      // Use findMany instead of groupBy (Data API adapter doesn't support groupBy)
+      const allAutomations = await db.emailAutomation.findMany({
         where: { shop },
-        _count: true,
+        select: { isEnabled: true },
       });
-      activeAutomations = automationStats.find(s => s.isEnabled)?._count || 0;
-      totalAutomations = automationStats.reduce((sum, s) => sum + s._count, 0);
+      totalAutomations = allAutomations.length;
+      activeAutomations = allAutomations.filter(a => a.isEnabled).length;
       console.log('[Marketing Hub] ✓ Automation stats - Active:', activeAutomations, 'Total:', totalAutomations);
     } catch (automationError: any) {
-      console.error('[Marketing Hub] ⚠️ EmailAutomation table may not exist:', automationError.message);
+      console.error('[Marketing Hub] ⚠️ EmailAutomation table error:', automationError.message);
+      console.error('[Marketing Hub] Error name:', automationError.name);
       console.log('[Marketing Hub] Using default values');
     }
 
@@ -107,20 +108,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       const last30Days = new Date();
       last30Days.setDate(last30Days.getDate() - 30);
 
-      const emailMetrics = await db.emailEvent.groupBy({
-        by: ['eventType'],
+      // Use findMany instead of groupBy (Data API adapter doesn't support groupBy)
+      const allEvents = await db.emailEvent.findMany({
         where: {
           shop,
           createdAt: { gte: last30Days },
         },
-        _count: true,
+        select: { eventType: true },
       });
 
-      sentCount = emailMetrics.find(e => e.eventType === 'sent')?._count || 0;
-      openedCount = emailMetrics.find(e => e.eventType === 'opened')?._count || 0;
+      sentCount = allEvents.filter(e => e.eventType === 'sent').length;
+      openedCount = allEvents.filter(e => e.eventType === 'opened').length;
       console.log('[Marketing Hub] ✓ Email metrics - Sent:', sentCount, 'Opened:', openedCount);
     } catch (metricsError: any) {
-      console.error('[Marketing Hub] ⚠️ EmailEvent table may not exist:', metricsError.message);
+      console.error('[Marketing Hub] ⚠️ EmailEvent table error:', metricsError.message);
+      console.error('[Marketing Hub] Error name:', metricsError.name);
       console.log('[Marketing Hub] Using default metrics');
     }
 
@@ -160,13 +162,41 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error('[Marketing Hub] Error code:', error.code);
     console.error('[Marketing Hub] Error stack:', error.stack);
 
-    // If it's a Prisma error, log the specific details
+    // If it's a Prisma/Data API error, log the specific details
     if (error.code) {
-      console.error('[Marketing Hub] Prisma error code:', error.code);
-      console.error('[Marketing Hub] Prisma meta:', JSON.stringify(error.meta, null, 2));
+      console.error('[Marketing Hub] Error code:', error.code);
+      console.error('[Marketing Hub] Error meta:', JSON.stringify(error.meta, null, 2));
     }
 
-    throw error;
+    // Check for groupBy error specifically (Data API adapter doesn't support it)
+    if (error.message && error.message.includes('groupBy is not a function')) {
+      console.error('[Marketing Hub] 🔴 CRITICAL: groupBy is not supported by Data API adapter!');
+      console.error('[Marketing Hub] This should have been fixed - check if code was deployed correctly');
+    }
+
+    // Return error response with graceful fallback data matching the expected structure
+    console.error('[Marketing Hub] Returning error response with fallback data');
+    return json({
+      error: {
+        message: error.message || 'Unknown error',
+        name: error.name || 'Error',
+        code: error.code,
+      },
+      shop: 'unknown',
+      emailSettings: null,
+      metrics: {
+        emailsSent: 0,
+        openRate: "0.0",
+        revenue: 0,
+      },
+      automationStats: {
+        active: 0,
+        total: 0,
+      },
+      recentCampaigns: [],
+      recommendations: [],
+      highPriorityRecommendations: [],
+    }, { status: 500 });
   }
 };
 
@@ -202,6 +232,23 @@ export default function MarketingDashboard() {
       subtitle="Engage customers with targeted loyalty emails"
     >
       <Layout>
+        {/* Error Banner */}
+        {(data as any).error && (
+          <Layout.Section>
+            <Banner
+              title="Error Loading Marketing Data"
+              tone="critical"
+            >
+              <p>
+                There was an error loading marketing data: {(data as any).error.message}
+              </p>
+              <p style={{ marginTop: '8px' }}>
+                Check the server logs for details. The page is showing with fallback data.
+              </p>
+            </Banner>
+          </Layout.Section>
+        )}
+
         {/* Metrics Section */}
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
