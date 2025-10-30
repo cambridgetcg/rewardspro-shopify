@@ -77,6 +77,7 @@ import { getTierStyle, sortTiersByPriority, formatTierName } from "../utils/tier
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { formatCurrency } from "../utils/currency";
+import { AnalyticsRecommendationsService } from "~/services/analytics-recommendations.server";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -169,6 +170,18 @@ interface AnalyticsData {
     targetRoiPercent: string | null;
     metricsLastUpdated: string | null;
   } | null;
+
+  // Marketing recommendations from analytics insights
+  recommendations?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    affectedCount: number;
+    predictedRevenue: number | null;
+    priority: number;
+    status: string;
+  }>;
 }
 
 interface TrendData {
@@ -202,7 +215,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
 
   try {
-    // Fetch minimal data for UI structure
+    // Fetch minimal data for UI structure and recommendations
     const [shopSettings, tiers] = await Promise.all([
       db.shopSettings.findUnique({ where: { shop } }),
       db.tier.findMany({
@@ -210,6 +223,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         orderBy: { minSpend: 'asc' },
       }),
     ]);
+
+    // Fetch analytics-powered recommendations
+    let recommendations: any[] = [];
+    try {
+      const recommendationsService = new AnalyticsRecommendationsService(shop);
+      recommendations = await recommendationsService.getActionRecommendations({
+        status: 'pending',
+        limit: 5 // Show top 5 recommendations in analytics view
+      });
+    } catch (error) {
+      console.error('[Analytics] Error fetching recommendations:', error);
+      // Continue without recommendations if there's an error
+    }
 
     // PLACEHOLDER DATA - Will be replaced with real data fetching later
     // Realistic data for a medium-sized shop with ~1000 members
@@ -368,6 +394,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         targetRoiPercent: shopSettings.targetRoiPercent?.toString() || null,
         metricsLastUpdated: shopSettings.metricsLastUpdated?.toISOString() || null,
       } : null,
+
+      // Add marketing recommendations from analytics insights
+      recommendations: recommendations.map(rec => ({
+        id: rec.id,
+        type: rec.type,
+        title: rec.title,
+        description: rec.description,
+        affectedCount: rec.affectedCount,
+        predictedRevenue: rec.predictedRevenue,
+        priority: rec.priority,
+        status: rec.status
+      }))
     };
 
     return json(analyticsData);
@@ -1326,7 +1364,7 @@ export default function AnalyticsPage() {
     { id: 'overview', content: 'Overview' },
     { id: 'charts', content: 'Charts' },
     { id: 'financial', content: 'Financial' },
-    { id: 'actions', content: 'Recommended Actions', badge: '5' },
+    { id: 'actions', content: 'Recommended Actions', badge: data.recommendations?.length.toString() || '0' },
     { id: 'behaviour', content: 'Customer Behaviour' },
   ];
 
@@ -2350,68 +2388,167 @@ export default function AnalyticsPage() {
                   <BlockStack gap="500">
                     {/* Header Section */}
                     <BlockStack gap="300">
-                      <Text variant="headingMd" as="h2">
-                        Recommended Actions
-                      </Text>
-                      <Text variant="bodyMd" tone="subdued" as="p">
-                        Data-driven suggestions to increase engagement and revenue
-                      </Text>
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="200">
+                          <Text variant="headingMd" as="h2">
+                            Recommended Actions
+                          </Text>
+                          <Text variant="bodyMd" tone="subdued" as="p">
+                            Data-driven marketing opportunities from customer analytics
+                          </Text>
+                        </BlockStack>
+                        <Button onClick={() => navigate('/app/marketing/recommendations')}>
+                          View All
+                        </Button>
+                      </InlineStack>
 
-                      {/* Summary Metrics */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                        gap: '12px',
-                        marginTop: '8px'
-                      }}>
-                        <Card>
-                          <Box padding="300">
-                            <BlockStack gap="100">
-                              <Text variant="bodySm" tone="subdued" as="p">
-                                High Priority
-                              </Text>
-                              <Text variant="headingLg" as="h3">
-                                3
-                              </Text>
-                            </BlockStack>
-                          </Box>
-                        </Card>
-                        <Card>
-                          <Box padding="300">
-                            <BlockStack gap="100">
-                              <Text variant="bodySm" tone="subdued" as="p">
-                                Customers Affected
-                              </Text>
-                              <Text variant="headingLg" as="h3">
-                                412
-                              </Text>
-                            </BlockStack>
-                          </Box>
-                        </Card>
-                        <Card>
-                          <Box padding="300">
-                            <BlockStack gap="100">
-                              <Text variant="bodySm" tone="subdued" as="p">
-                                Potential Revenue
-                              </Text>
-                              <Text variant="headingLg" as="h3">
-                                $15,750
-                              </Text>
-                            </BlockStack>
-                          </Box>
-                        </Card>
-                      </div>
+                      {/* Summary Metrics - Dynamic from actual recommendations */}
+                      {data.recommendations && data.recommendations.length > 0 && (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                          gap: '12px',
+                          marginTop: '8px'
+                        }}>
+                          <Card>
+                            <Box padding="300">
+                              <BlockStack gap="100">
+                                <Text variant="bodySm" tone="subdued" as="p">
+                                  High Priority
+                                </Text>
+                                <Text variant="headingLg" as="h3">
+                                  {data.recommendations.filter(r => r.priority >= 8).length}
+                                </Text>
+                              </BlockStack>
+                            </Box>
+                          </Card>
+                          <Card>
+                            <Box padding="300">
+                              <BlockStack gap="100">
+                                <Text variant="bodySm" tone="subdued" as="p">
+                                  Customers Affected
+                                </Text>
+                                <Text variant="headingLg" as="h3">
+                                  {data.recommendations.reduce((sum, r) => sum + r.affectedCount, 0).toLocaleString()}
+                                </Text>
+                              </BlockStack>
+                            </Box>
+                          </Card>
+                          <Card>
+                            <Box padding="300">
+                              <BlockStack gap="100">
+                                <Text variant="bodySm" tone="subdued" as="p">
+                                  Potential Revenue
+                                </Text>
+                                <Text variant="headingLg" as="h3">
+                                  {formatAmount(data.recommendations.reduce((sum, r) => sum + (r.predictedRevenue || 0), 0))}
+                                </Text>
+                              </BlockStack>
+                            </Box>
+                          </Card>
+                        </div>
+                      )}
                     </BlockStack>
 
-                    {/* Action Cards Grid */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
-                      gap: '20px',
-                      marginTop: '16px'
-                    }}>
-                      {/* Action 1: Re-engagement Campaign */}
+                    {/* Action Cards - Dynamic from recommendations */}
+                    {!data.recommendations || data.recommendations.length === 0 ? (
                       <Card>
+                        <Box padding="400">
+                          <EmptyState
+                            heading="No recommendations yet"
+                            image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                          >
+                            <p>We'll generate marketing recommendations as your customer base grows and patterns emerge.</p>
+                            <Button onClick={() => navigate('/app/marketing')}>
+                              Go to Marketing Hub
+                            </Button>
+                          </EmptyState>
+                        </Box>
+                      </Card>
+                    ) : (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+                        gap: '20px',
+                        marginTop: '16px'
+                      }}>
+                        {data.recommendations.map((recommendation) => (
+                          <Card key={recommendation.id}>
+                            <Box padding="400">
+                              <BlockStack gap="300">
+                                {/* Header with badges */}
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Badge tone={recommendation.priority >= 8 ? 'critical' : recommendation.priority >= 5 ? 'attention' : 'info'}>
+                                    {recommendation.priority >= 8 ? 'High' : recommendation.priority >= 5 ? 'Medium' : 'Low'} Priority
+                                  </Badge>
+                                  <Badge tone="info">
+                                    {recommendation.type.replace(/_/g, ' ')}
+                                  </Badge>
+                                </InlineStack>
+
+                                {/* Title and Description */}
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" as="h3" fontWeight="semibold">
+                                    {recommendation.title}
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued" as="p">
+                                    {recommendation.description}
+                                  </Text>
+                                </BlockStack>
+
+                                {/* Metrics */}
+                                <div style={{
+                                  padding: '12px',
+                                  backgroundColor: '#f9fafb',
+                                  borderRadius: '8px'
+                                }}>
+                                  <BlockStack gap="200">
+                                    <InlineStack align="space-between" blockAlign="center">
+                                      <Text variant="bodySm" as="span" tone="subdued">
+                                        Affected Customers
+                                      </Text>
+                                      <Text variant="bodyMd" as="span" fontWeight="semibold">
+                                        {recommendation.affectedCount} customers
+                                      </Text>
+                                    </InlineStack>
+                                    {recommendation.predictedRevenue && (
+                                      <InlineStack align="space-between" blockAlign="center">
+                                        <Text variant="bodySm" as="span" tone="subdued">
+                                          Potential Revenue
+                                        </Text>
+                                        <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                                          {formatAmount(recommendation.predictedRevenue)}
+                                        </Text>
+                                      </InlineStack>
+                                    )}
+                                  </BlockStack>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <InlineStack gap="200" align="end">
+                                  <Button onClick={() => navigate(`/app/marketing/campaigns/smart-create?recommendationId=${recommendation.id}`)}>
+                                    View Details
+                                  </Button>
+                                  <Button
+                                    variant="primary"
+                                    onClick={() => navigate(`/app/marketing/campaigns/smart-create?recommendationId=${recommendation.id}`)}
+                                  >
+                                    Create Campaign
+                                  </Button>
+                                </InlineStack>
+                              </BlockStack>
+                            </Box>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </BlockStack>
+                </Box>
+              )}
+
+              {/* Customer Behaviour Tab */}
+              {selectedTab === 4 && (
+                <Card>
                         <Box padding="400">
                           <BlockStack gap="300">
                             {/* Header with badges */}
