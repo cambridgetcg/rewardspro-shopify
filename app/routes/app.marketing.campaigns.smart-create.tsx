@@ -1,5 +1,5 @@
 import { json, LoaderFunctionArgs, ActionFunctionArgs, redirect } from "@remix-run/node";
-import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
+import { useLoaderData, useFetcher, useNavigate, useSearchParams } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -11,25 +11,60 @@ import {
   Button,
   Banner,
   EmptyState,
+  TextField,
+  Select,
+  FormLayout,
+  Checkbox,
 } from "@shopify/polaris";
 import { authenticate } from "~/shopify.server";
-import { AnalyticsRecommendationsService, type MarketingRecommendation } from "~/services/marketing/analytics-recommendations.service";
+import { AnalyticsRecommendationsService } from "~/services/analytics-recommendations.server";
 import db from "~/db.server";
+import { v4 as uuidv4 } from "uuid";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  // Get analytics recommendations
-  const recommendations = await AnalyticsRecommendationsService.getRecommendations(shop);
+  const url = new URL(request.url);
+  const recommendationId = url.searchParams.get("recommendationId");
+  const campaignType = url.searchParams.get("campaignType");
+
+  const recommendationsService = new AnalyticsRecommendationsService(shop);
+
+  // If a specific recommendation ID is provided, fetch it
+  let specificRecommendation = null;
+  let prefillData = null;
+
+  if (recommendationId) {
+    specificRecommendation = await recommendationsService.getRecommendationById(recommendationId);
+
+    if (specificRecommendation) {
+      // Transform recommendation to campaign prefill data
+      prefillData = await recommendationsService.transformToCampaign(recommendationId);
+    }
+  }
+
+  // Get all pending recommendations
+  const recommendations = await recommendationsService.getActionRecommendations({
+    status: 'pending'
+  });
 
   // Get email settings to check if configured
-  const emailSettings = await db.emailSettings.findUnique({
-    where: { shop },
-  });
+  let emailSettings = null;
+  try {
+    emailSettings = await db.emailSettings.findUnique({
+      where: { shop },
+    });
+  } catch (error) {
+    console.error('[Smart Campaign Creator] Email settings error:', error);
+  }
 
   return json({
     shop,
+    recommendationId,
+    campaignType,
+    specificRecommendation,
+    prefillData,
     recommendations,
     emailSettings,
   });
@@ -40,98 +75,81 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shop = session.shop;
 
   const formData = await request.formData();
-  const recommendationId = formData.get("recommendationId") as string;
   const action = formData.get("action") as string;
 
   if (action === "create_campaign") {
-    // Get the recommendation details
-    const recommendations = await AnalyticsRecommendationsService.getRecommendations(shop);
-    const recommendation = recommendations.find(r => r.id === recommendationId);
+    const recommendationId = formData.get("recommendationId") as string;
+    const name = formData.get("name") as string;
+    const subject = formData.get("subject") as string;
+    const previewText = formData.get("previewText") as string;
+    const bodyHtml = formData.get("bodyHtml") as string;
+    const sendImmediately = formData.get("sendImmediately") === "true";
 
-    if (!recommendation) {
-      return json({ success: false, message: "Recommendation not found" }, { status: 404 });
+    const recommendationsService = new AnalyticsRecommendationsService(shop);
+
+    // If this is from a recommendation, mark it as applied
+    if (recommendationId) {
+      await recommendationsService.applyRecommendation(recommendationId);
     }
 
-    // Create a default template for this recommendation type
+    // Create email template
     const template = await db.emailTemplate.create({
       data: {
+        id: uuidv4(),
         shop,
-        name: `${recommendation.title} Template`,
-        type: recommendation.type,
-        subject: getDefaultSubject(recommendation.type),
-        content: getDefaultContent(recommendation.type),
+        name: `${name} Template`,
+        type: 'promotional',
+        subject,
+        previewText: previewText || '',
+        bodyHtml: bodyHtml || '<p>Email content here...</p>',
+        bodyText: bodyHtml?.replace(/<[^>]*>/g, '') || 'Email content here...',
         isActive: true,
       },
     });
 
-    // Create draft campaign
+    // Create campaign
     const campaign = await db.emailCampaign.create({
       data: {
+        id: uuidv4(),
         shop,
-        name: recommendation.title,
+        name,
         templateId: template.id,
-        status: 'draft',
-        segmentRules: recommendation.segmentRules,
+        status: sendImmediately ? 'scheduled' : 'draft',
+        scheduledFor: sendImmediately ? new Date() : null,
+        segmentRules: {},
+        metrics: {},
       },
     });
 
-    // Redirect to campaign editor
-    return redirect(`/app/marketing/campaigns/${campaign.id}/edit`);
+    // Redirect to campaign list or editor
+    return redirect(`/app/marketing/campaigns`);
+  }
+
+  if (action === "dismiss_recommendation") {
+    const recommendationId = formData.get("recommendationId") as string;
+    const recommendationsService = new AnalyticsRecommendationsService(shop);
+    await recommendationsService.dismissRecommendation(recommendationId);
+    return json({ success: true });
   }
 
   return json({ success: false, message: "Invalid action" }, { status: 400 });
 };
 
-function getDefaultSubject(type: string): string {
-  const subjects: Record<string, string> = {
-    inactive_reengagement: "We Miss You, {{customer.firstName}}! Here's Something Special",
-    tier_upgrade: "You're So Close to {{tier.nextTier}} Status!",
-    reward_expiry: "⏰ Your ${{rewards.cashbackValue}} Expires in {{rewards.daysToExpiry}} Days",
-    vip_retention: "Exclusive VIP Offer Just for You",
-    birthday: "Happy Birthday {{customer.firstName}}! 🎉 Here's Your Gift",
-    low_balance: "You Have ${{rewards.cashbackValue}} Waiting for You"
-  };
-  return subjects[type] || "Special Offer for You";
-}
-
-function getDefaultContent(type: string): any {
-  return {
-    blocks: [
-      {
-        type: 'header',
-        content: { logo: true, navigation: [] }
-      },
-      {
-        type: 'hero',
-        content: {
-          headline: `Based on ${type} campaign`,
-          subheadline: 'This is a template you can customize'
-        }
-      },
-      {
-        type: 'cta',
-        content: {
-          text: 'Shop Now',
-          url: '{{shop.url}}/collections/all'
-        }
-      },
-      {
-        type: 'footer',
-        content: { legal: true }
-      }
-    ]
-  };
-}
-
 export default function SmartCampaignCreator() {
   const data = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const fetcher = useFetcher();
+  const [searchParams] = useSearchParams();
 
-  const handleLaunchCampaign = (recommendationId: string) => {
+  const handleCreateCampaign = (formData: FormData) => {
+    formData.append("action", "create_campaign");
+    fetcher.submit(formData, { method: "post" });
+  };
+
+  const handleDismissRecommendation = (recommendationId: string) => {
     const formData = new FormData();
     formData.append("recommendationId", recommendationId);
-    formData.append("action", "create_campaign");
+    formData.append("action", "dismiss_recommendation");
     fetcher.submit(formData, { method: "post" });
   };
 
@@ -160,6 +178,157 @@ export default function SmartCampaignCreator() {
     );
   }
 
+  // If we have prefill data from a recommendation, show the campaign form
+  if (data.prefillData && data.specificRecommendation) {
+    return (
+      <Page
+        title="Create Campaign from Recommendation"
+        subtitle={`Based on: ${data.specificRecommendation.title}`}
+        backAction={{ content: "Marketing", url: "/app/marketing" }}
+      >
+        <Layout>
+          {/* Recommendation Context */}
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="start">
+                  <BlockStack gap="200">
+                    <Text variant="headingMd" as="h3">
+                      Recommendation Details
+                    </Text>
+                    <Text variant="bodyMd" tone="subdued" as="p">
+                      {data.specificRecommendation.description}
+                    </Text>
+                  </BlockStack>
+                  <Badge tone="success">
+                    {data.specificRecommendation.affectedCount} customers
+                  </Badge>
+                </InlineStack>
+
+                <div style={{
+                  padding: '12px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '8px'
+                }}>
+                  <InlineStack gap="400">
+                    <BlockStack gap="100">
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        Predicted Revenue
+                      </Text>
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">
+                        ${data.specificRecommendation.predictedRevenue?.toLocaleString() || '0'}
+                      </Text>
+                    </BlockStack>
+                    <BlockStack gap="100">
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        Priority
+                      </Text>
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">
+                        {data.specificRecommendation.priority >= 8 ? 'High' :
+                         data.specificRecommendation.priority >= 5 ? 'Medium' : 'Low'}
+                      </Text>
+                    </BlockStack>
+                    <BlockStack gap="100">
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        Type
+                      </Text>
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">
+                        {data.specificRecommendation.type.replace(/_/g, ' ')}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                </div>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          {/* Campaign Form */}
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h3">
+                  Campaign Details
+                </Text>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    if (data.recommendationId) {
+                      formData.append("recommendationId", data.recommendationId);
+                    }
+                    handleCreateCampaign(formData);
+                  }}
+                >
+                  <FormLayout>
+                    <TextField
+                      label="Campaign Name"
+                      name="name"
+                      value={data.prefillData.name}
+                      autoComplete="off"
+                      requiredIndicator
+                    />
+
+                    <TextField
+                      label="Email Subject"
+                      name="subject"
+                      value={data.prefillData.subject}
+                      autoComplete="off"
+                      helpText="You can use variables like {{customer_name}}, {{tier_name}}"
+                      requiredIndicator
+                    />
+
+                    <TextField
+                      label="Preview Text"
+                      name="previewText"
+                      value={data.prefillData.previewText || ''}
+                      autoComplete="off"
+                      helpText="Appears after the subject in email clients"
+                    />
+
+                    <TextField
+                      label="Email Content"
+                      name="bodyHtml"
+                      value={data.prefillData.bodyHtml}
+                      multiline={10}
+                      autoComplete="off"
+                      helpText="HTML content for the email"
+                      requiredIndicator
+                    />
+
+                    <Checkbox
+                      label="Send immediately after creation"
+                      name="sendImmediately"
+                    />
+
+                    <InlineStack gap="300">
+                      <Button submit variant="primary" loading={fetcher.state === "submitting"}>
+                        Create Campaign
+                      </Button>
+                      <Button onClick={() => navigate('/app/marketing')}>
+                        Cancel
+                      </Button>
+                      {data.recommendationId && (
+                        <Button
+                          onClick={() => handleDismissRecommendation(data.recommendationId!)}
+                          tone="critical"
+                          variant="plain"
+                        >
+                          Dismiss Recommendation
+                        </Button>
+                      )}
+                    </InlineStack>
+                  </FormLayout>
+                </form>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </Page>
+    );
+  }
+
+  // Otherwise show all recommendations
   return (
     <Page
       title="Smart Campaign Creator"
@@ -171,10 +340,11 @@ export default function SmartCampaignCreator() {
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd" as="h3">
-                Analytics-Powered Templates
+                Analytics-Powered Recommendations
               </Text>
               <Text variant="bodyMd" tone="subdued" as="p">
-                These campaigns are recommended based on your customer data and behavior patterns
+                These campaigns are recommended based on your customer data and behavior patterns.
+                Click on any recommendation to create a targeted campaign.
               </Text>
             </BlockStack>
           </Card>
@@ -184,20 +354,26 @@ export default function SmartCampaignCreator() {
           {data.recommendations.length === 0 ? (
             <Card>
               <EmptyState
-                heading="No recommendations yet"
+                heading="No recommendations available"
                 image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
               >
-                <p>Check back later as your customer base grows and we identify opportunities.</p>
+                <p>We'll generate recommendations as your customer base grows and patterns emerge.</p>
+                <Button onClick={() => navigate('/app/marketing')}>
+                  Back to Marketing Hub
+                </Button>
               </EmptyState>
             </Card>
           ) : (
             <BlockStack gap="400">
               {data.recommendations.map((recommendation) => (
-                <ActionTemplateCard
+                <RecommendationCard
                   key={recommendation.id}
                   recommendation={recommendation}
-                  onLaunch={handleLaunchCampaign}
-                  isLoading={fetcher.state === "submitting"}
+                  onSelect={() => {
+                    // Navigate with recommendation ID
+                    navigate(`?recommendationId=${recommendation.id}`);
+                  }}
+                  onDismiss={() => handleDismissRecommendation(recommendation.id)}
                 />
               ))}
             </BlockStack>
@@ -208,38 +384,42 @@ export default function SmartCampaignCreator() {
   );
 }
 
-interface ActionTemplateCardProps {
-  recommendation: MarketingRecommendation;
-  onLaunch: (id: string) => void;
-  isLoading: boolean;
+interface RecommendationCardProps {
+  recommendation: any;
+  onSelect: () => void;
+  onDismiss: () => void;
 }
 
-function ActionTemplateCard({ recommendation, onLaunch, isLoading }: ActionTemplateCardProps) {
-  const navigate = useNavigate();
-
+function RecommendationCard({ recommendation, onSelect, onDismiss }: RecommendationCardProps) {
   const getPriorityBadge = () => {
-    const toneMap: Record<string, any> = {
-      high: 'critical',
-      medium: 'attention',
-      low: 'info'
-    };
-    return (
-      <Badge tone={toneMap[recommendation.priority]}>
-        {recommendation.priority.charAt(0).toUpperCase() + recommendation.priority.slice(1)} Priority
-      </Badge>
-    );
+    const priority = recommendation.priority;
+    let tone: any = 'info';
+    let text = 'Low';
+
+    if (priority >= 8) {
+      tone = 'critical';
+      text = 'High';
+    } else if (priority >= 5) {
+      tone = 'attention';
+      text = 'Medium';
+    }
+
+    return <Badge tone={tone}>{text} Priority</Badge>;
   };
 
-  const getCategoryBadge = () => {
-    const iconMap: Record<string, string> = {
-      engagement: '🎯',
-      growth: '📈',
-      retention: '🔒',
-      revenue: '💰'
+  const getTypeBadge = () => {
+    const typeLabels: Record<string, string> = {
+      inactive_customers: 'Re-engagement',
+      tier_upgrade_opportunity: 'Tier Upgrade',
+      expiring_rewards: 'Reward Expiry',
+      vip_at_risk: 'VIP Retention',
+      birthday_upcoming: 'Birthday',
+      low_balance_reengagement: 'Balance Reminder'
     };
+
     return (
       <Badge tone="info">
-        {iconMap[recommendation.category]} {recommendation.category.charAt(0).toUpperCase() + recommendation.category.slice(1)}
+        {typeLabels[recommendation.type] || recommendation.type}
       </Badge>
     );
   };
@@ -250,7 +430,10 @@ function ActionTemplateCard({ recommendation, onLaunch, isLoading }: ActionTempl
         {/* Header with badges */}
         <InlineStack gap="200" blockAlign="center">
           {getPriorityBadge()}
-          {getCategoryBadge()}
+          {getTypeBadge()}
+          {recommendation.status === 'pending' && (
+            <Badge tone="warning">Pending</Badge>
+          )}
         </InlineStack>
 
         {/* Title and Description */}
@@ -275,41 +458,46 @@ function ActionTemplateCard({ recommendation, onLaunch, isLoading }: ActionTempl
                 Affected Customers
               </Text>
               <Text variant="bodyMd" as="span" fontWeight="semibold">
-                {recommendation.affectedCustomers} customers
+                {recommendation.affectedCount} customers
               </Text>
             </InlineStack>
-            <InlineStack align="space-between" blockAlign="center">
-              <Text variant="bodySm" as="span" tone="subdued">
-                Potential Revenue
-              </Text>
-              <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
-                ${recommendation.potentialRevenue.toLocaleString()}
-              </Text>
-            </InlineStack>
-            <InlineStack align="space-between" blockAlign="center">
-              <Text variant="bodySm" as="span" tone="subdued">
-                Expected Response Rate
-              </Text>
-              <Text variant="bodyMd" as="span" fontWeight="semibold">
-                {recommendation.expectedResponseRate}%
-              </Text>
-            </InlineStack>
+            {recommendation.predictedRevenue && (
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="bodySm" as="span" tone="subdued">
+                  Potential Revenue
+                </Text>
+                <Text variant="bodyMd" as="span" fontWeight="semibold" tone="success">
+                  ${recommendation.predictedRevenue.toLocaleString()}
+                </Text>
+              </InlineStack>
+            )}
+            {recommendation.expiresAt && (
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="bodySm" as="span" tone="subdued">
+                  Expires
+                </Text>
+                <Text variant="bodyMd" as="span" fontWeight="semibold">
+                  {new Date(recommendation.expiresAt).toLocaleDateString()}
+                </Text>
+              </InlineStack>
+            )}
           </BlockStack>
         </div>
 
         {/* Action Buttons */}
-        <InlineStack gap="200" align="end">
+        <InlineStack gap="200" align="space-between">
           <Button
-            onClick={() => navigate(`/app/marketing/campaigns/preview?recommendation=${recommendation.id}`)}
+            variant="plain"
+            tone="critical"
+            onClick={onDismiss}
           >
-            Preview Segment
+            Dismiss
           </Button>
           <Button
             variant="primary"
-            onClick={() => onLaunch(recommendation.id)}
-            loading={isLoading}
+            onClick={onSelect}
           >
-            Launch Campaign →
+            Create Campaign →
           </Button>
         </InlineStack>
       </BlockStack>

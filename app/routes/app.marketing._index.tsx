@@ -22,7 +22,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import db from "~/db.server";
-import { AnalyticsRecommendationsService } from "~/services/marketing/analytics-recommendations.service";
+import { AnalyticsRecommendationsService } from "~/services/analytics-recommendations.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.log('[Marketing Hub] === Loader Started ===');
@@ -66,13 +66,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       console.log('[Marketing Hub] Using default values');
     }
 
-    // Step 4: Get recommendations (safe - handles missing tables)
+    // Step 4: Get recommendations from shared service
     console.log('[Marketing Hub] Step 4: Fetching analytics recommendations...');
     let recommendations: any[] = [];
     let highPriorityRecommendations: any[] = [];
     try {
-      recommendations = await AnalyticsRecommendationsService.getRecommendations(shop);
-      highPriorityRecommendations = recommendations.filter(r => r.priority === 'high');
+      const recommendationsService = new AnalyticsRecommendationsService(shop);
+
+      // Get pending recommendations only
+      recommendations = await recommendationsService.getActionRecommendations({
+        status: 'pending'
+      });
+
+      highPriorityRecommendations = recommendations.filter(r => r.priority >= 8);
       console.log('[Marketing Hub] ✓ Recommendations:', recommendations.length, 'High priority:', highPriorityRecommendations.length);
     } catch (recommendError: any) {
       console.error('[Marketing Hub] ⚠️ Error fetching recommendations:', recommendError.message);
@@ -226,6 +232,49 @@ export default function MarketingDashboard() {
     return <Badge tone={config.tone}>{config.text}</Badge>;
   };
 
+  // Get the appropriate action route for a recommendation
+  const getRecommendationAction = (recommendation: any) => {
+    const baseRoute = '/app/marketing/campaigns/smart-create';
+    const params = new URLSearchParams({
+      recommendationId: recommendation.id
+    });
+
+    // Different routes based on recommendation type
+    switch (recommendation.type) {
+      case 'expiring_rewards':
+      case 'birthday_upcoming':
+        // These could go to automation workflows
+        return `/app/marketing/automation/workflows/new?${params}`;
+
+      case 'vip_at_risk':
+        // VIP retention could have its own specialized route (future enhancement)
+        return `${baseRoute}?${params}&campaignType=retention`;
+
+      case 'inactive_customers':
+      case 'tier_upgrade_opportunity':
+      case 'low_balance_reengagement':
+      default:
+        // Standard smart campaign creation with context
+        return `${baseRoute}?${params}`;
+    }
+  };
+
+  // Get action button text based on recommendation type
+  const getActionButtonText = (recommendationType: string) => {
+    switch (recommendationType) {
+      case 'expiring_rewards':
+        return 'Create Reminder';
+      case 'vip_at_risk':
+        return 'Launch Retention';
+      case 'tier_upgrade_opportunity':
+        return 'Create Upgrade Campaign';
+      case 'inactive_customers':
+        return 'Re-engage Now';
+      default:
+        return 'Create Campaign';
+    }
+  };
+
   return (
     <Page
       title="Marketing Hub"
@@ -362,13 +411,14 @@ export default function MarketingDashboard() {
                             {recommendation.title}
                           </Text>
                           <Text variant="bodySm" tone="subdued" as="p">
-                            {recommendation.affectedCustomers} customers • Potential: ${recommendation.potentialRevenue.toLocaleString()}
+                            {recommendation.affectedCount} customers •
+                            {recommendation.predictedRevenue && ` Potential: $${recommendation.predictedRevenue.toLocaleString()}`}
                           </Text>
                         </BlockStack>
                         <Button
-                          onClick={() => navigate('/app/marketing/campaigns/smart-create')}
+                          onClick={() => navigate(getRecommendationAction(recommendation))}
                         >
-                          Launch
+                          {getActionButtonText(recommendation.type)}
                         </Button>
                       </InlineStack>
                     </div>
@@ -381,7 +431,7 @@ export default function MarketingDashboard() {
                     <InlineStack align="center">
                       <Button
                         variant="plain"
-                        onClick={() => navigate('/app/marketing/campaigns/smart-create')}
+                        onClick={() => navigate('/app/marketing/recommendations')}
                       >
                         View All {data.recommendations.length} Recommendations
                       </Button>
