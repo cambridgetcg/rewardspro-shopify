@@ -21,6 +21,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import db from "~/db.server";
+import { AnalyticsRecommendationsService } from "~/services/marketing/analytics-recommendations.service";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -40,6 +41,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const activeAutomations = automationStats.find(s => s.isEnabled)?._count || 0;
   const totalAutomations = automationStats.reduce((sum, s) => sum + s._count, 0);
+
+  // Get analytics recommendations for Quick Actions
+  const recommendations = await AnalyticsRecommendationsService.getRecommendations(shop);
+  const highPriorityRecommendations = recommendations.filter(r => r.priority === 'high');
 
   // Get recent campaigns
   const recentCampaigns = await db.emailCampaign.findMany({
@@ -92,6 +97,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       sentAt: c.sentAt,
       metrics: c.metrics,
     })),
+    recommendations,
+    highPriorityRecommendations,
   });
 };
 
@@ -188,15 +195,18 @@ export default function MarketingDashboard() {
               <InlineStack gap="300" wrap={true}>
                 <Button
                   variant="primary"
-                  onClick={() => navigate('/app/marketing/campaigns/new')}
+                  onClick={() => navigate('/app/marketing/campaigns/smart-create')}
                 >
-                  + New Campaign
+                  + Smart Campaign
                 </Button>
                 <Button onClick={() => navigate('/app/marketing/templates')}>
                   Edit Templates
                 </Button>
-                <Button onClick={() => navigate('/app/marketing/automation')}>
-                  Automation Rules
+                <Button onClick={() => navigate('/app/marketing/automation/workflows')}>
+                  Automation Workflows
+                </Button>
+                <Button onClick={() => navigate('/app/marketing/analytics')}>
+                  View Performance
                 </Button>
                 <Button onClick={() => navigate('/app/marketing/settings')}>
                   Settings
@@ -205,6 +215,68 @@ export default function MarketingDashboard() {
             </BlockStack>
           </Card>
         </Layout.Section>
+
+        {/* Analytics-Powered Actions */}
+        {data.highPriorityRecommendations.length > 0 && (
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="200">
+                    <Text variant="headingMd" as="h3">
+                      Recommended Actions
+                    </Text>
+                    <Text variant="bodySm" tone="subdued" as="p">
+                      Data-driven opportunities based on your analytics
+                    </Text>
+                  </BlockStack>
+                  <Badge tone="critical">
+                    {data.highPriorityRecommendations.length} High Priority
+                  </Badge>
+                </InlineStack>
+
+                <Divider />
+
+                <BlockStack gap="200">
+                  {data.highPriorityRecommendations.slice(0, 3).map((recommendation, index) => (
+                    <div key={recommendation.id}>
+                      {index > 0 && <Divider />}
+                      <InlineStack align="space-between" blockAlign="center">
+                        <BlockStack gap="100">
+                          <Text variant="bodyMd" as="p" fontWeight="medium">
+                            {recommendation.title}
+                          </Text>
+                          <Text variant="bodySm" tone="subdued" as="p">
+                            {recommendation.affectedCustomers} customers • Potential: ${recommendation.potentialRevenue.toLocaleString()}
+                          </Text>
+                        </BlockStack>
+                        <Button
+                          onClick={() => navigate('/app/marketing/campaigns/smart-create')}
+                        >
+                          Launch
+                        </Button>
+                      </InlineStack>
+                    </div>
+                  ))}
+                </BlockStack>
+
+                {data.recommendations.length > 3 && (
+                  <>
+                    <Divider />
+                    <InlineStack align="center">
+                      <Button
+                        variant="plain"
+                        onClick={() => navigate('/app/marketing/campaigns/smart-create')}
+                      >
+                        View All {data.recommendations.length} Recommendations
+                      </Button>
+                    </InlineStack>
+                  </>
+                )}
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        )}
 
         {/* Active Automations */}
         <Layout.Section>
