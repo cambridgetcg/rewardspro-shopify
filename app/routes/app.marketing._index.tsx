@@ -24,82 +24,150 @@ import db from "~/db.server";
 import { AnalyticsRecommendationsService } from "~/services/marketing/analytics-recommendations.service";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
+  console.log('[Marketing Hub] === Loader Started ===');
 
-  // Get email settings
-  const emailSettings = await db.emailSettings.findUnique({
-    where: { shop },
-  });
+  try {
+    // Step 1: Authentication
+    console.log('[Marketing Hub] Step 1: Authenticating...');
+    const { session } = await authenticate.admin(request);
+    const shop = session.shop;
+    console.log('[Marketing Hub] ✓ Authenticated for shop:', shop);
 
-  // Get automation counts
-  const automationStats = await db.emailAutomation.groupBy({
-    by: ['isEnabled'],
-    where: { shop },
-    _count: true,
-  });
+    // Step 2: Get email settings (safe - table might not exist)
+    console.log('[Marketing Hub] Step 2: Fetching email settings...');
+    let emailSettings = null;
+    try {
+      emailSettings = await db.emailSettings.findUnique({
+        where: { shop },
+      });
+      console.log('[Marketing Hub] ✓ Email settings:', emailSettings ? 'found' : 'not configured yet');
+    } catch (settingsError: any) {
+      console.error('[Marketing Hub] ⚠️ Email settings table may not exist:', settingsError.message);
+      console.log('[Marketing Hub] This is expected if migration hasn\'t run yet');
+    }
 
-  const activeAutomations = automationStats.find(s => s.isEnabled)?._count || 0;
-  const totalAutomations = automationStats.reduce((sum, s) => sum + s._count, 0);
+    // Step 3: Get automation stats (safe - table might not exist)
+    console.log('[Marketing Hub] Step 3: Fetching automation stats...');
+    let automationStats: any[] = [];
+    let activeAutomations = 0;
+    let totalAutomations = 0;
+    try {
+      automationStats = await db.emailAutomation.groupBy({
+        by: ['isEnabled'],
+        where: { shop },
+        _count: true,
+      });
+      activeAutomations = automationStats.find(s => s.isEnabled)?._count || 0;
+      totalAutomations = automationStats.reduce((sum, s) => sum + s._count, 0);
+      console.log('[Marketing Hub] ✓ Automation stats - Active:', activeAutomations, 'Total:', totalAutomations);
+    } catch (automationError: any) {
+      console.error('[Marketing Hub] ⚠️ EmailAutomation table may not exist:', automationError.message);
+      console.log('[Marketing Hub] Using default values');
+    }
 
-  // Get analytics recommendations for Quick Actions
-  const recommendations = await AnalyticsRecommendationsService.getRecommendations(shop);
-  const highPriorityRecommendations = recommendations.filter(r => r.priority === 'high');
+    // Step 4: Get recommendations (safe - handles missing tables)
+    console.log('[Marketing Hub] Step 4: Fetching analytics recommendations...');
+    let recommendations: any[] = [];
+    let highPriorityRecommendations: any[] = [];
+    try {
+      recommendations = await AnalyticsRecommendationsService.getRecommendations(shop);
+      highPriorityRecommendations = recommendations.filter(r => r.priority === 'high');
+      console.log('[Marketing Hub] ✓ Recommendations:', recommendations.length, 'High priority:', highPriorityRecommendations.length);
+    } catch (recommendError: any) {
+      console.error('[Marketing Hub] ⚠️ Error fetching recommendations:', recommendError.message);
+      console.error('[Marketing Hub] Stack:', recommendError.stack);
+      console.log('[Marketing Hub] Using empty recommendations');
+    }
 
-  // Get recent campaigns
-  const recentCampaigns = await db.emailCampaign.findMany({
-    where: { shop },
-    orderBy: { createdAt: 'desc' },
-    take: 5,
-    include: {
-      template: {
-        select: { name: true, type: true },
-      },
-    },
-  });
+    // Step 5: Get recent campaigns (safe - table might not exist)
+    console.log('[Marketing Hub] Step 5: Fetching recent campaigns...');
+    let recentCampaigns: any[] = [];
+    try {
+      recentCampaigns = await db.emailCampaign.findMany({
+        where: { shop },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          template: {
+            select: { name: true, type: true },
+          },
+        },
+      });
+      console.log('[Marketing Hub] ✓ Recent campaigns:', recentCampaigns.length);
+    } catch (campaignError: any) {
+      console.error('[Marketing Hub] ⚠️ EmailCampaign table may not exist:', campaignError.message);
+      console.log('[Marketing Hub] Using empty campaigns');
+    }
 
-  // Calculate aggregate metrics from campaigns
-  const last30Days = new Date();
-  last30Days.setDate(last30Days.getDate() - 30);
+    // Step 6: Calculate email metrics (safe - table might not exist)
+    console.log('[Marketing Hub] Step 6: Calculating email metrics...');
+    let sentCount = 0;
+    let openedCount = 0;
+    try {
+      const last30Days = new Date();
+      last30Days.setDate(last30Days.getDate() - 30);
 
-  const emailMetrics = await db.emailEvent.groupBy({
-    by: ['eventType'],
-    where: {
+      const emailMetrics = await db.emailEvent.groupBy({
+        by: ['eventType'],
+        where: {
+          shop,
+          createdAt: { gte: last30Days },
+        },
+        _count: true,
+      });
+
+      sentCount = emailMetrics.find(e => e.eventType === 'sent')?._count || 0;
+      openedCount = emailMetrics.find(e => e.eventType === 'opened')?._count || 0;
+      console.log('[Marketing Hub] ✓ Email metrics - Sent:', sentCount, 'Opened:', openedCount);
+    } catch (metricsError: any) {
+      console.error('[Marketing Hub] ⚠️ EmailEvent table may not exist:', metricsError.message);
+      console.log('[Marketing Hub] Using default metrics');
+    }
+
+    // Mock revenue data (would come from order tracking in production)
+    const revenueGenerated = 0;
+
+    console.log('[Marketing Hub] ✓ All data fetched successfully');
+    console.log('[Marketing Hub] === Loader Complete ===');
+
+    return json({
       shop,
-      createdAt: { gte: last30Days },
-    },
-    _count: true,
-  });
+      emailSettings,
+      metrics: {
+        emailsSent: sentCount,
+        openRate: sentCount > 0 ? ((openedCount / sentCount) * 100).toFixed(1) : "0.0",
+        revenue: revenueGenerated,
+      },
+      automationStats: {
+        active: activeAutomations,
+        total: totalAutomations,
+      },
+      recentCampaigns: recentCampaigns.map(c => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        scheduledFor: c.scheduledFor,
+        sentAt: c.sentAt,
+        metrics: c.metrics,
+      })),
+      recommendations,
+      highPriorityRecommendations,
+    });
+  } catch (error: any) {
+    console.error('[Marketing Hub] ❌ FATAL ERROR in loader');
+    console.error('[Marketing Hub] Error name:', error.name);
+    console.error('[Marketing Hub] Error message:', error.message);
+    console.error('[Marketing Hub] Error code:', error.code);
+    console.error('[Marketing Hub] Error stack:', error.stack);
 
-  const sentCount = emailMetrics.find(e => e.eventType === 'sent')?._count || 0;
-  const openedCount = emailMetrics.find(e => e.eventType === 'opened')?._count || 0;
+    // If it's a Prisma error, log the specific details
+    if (error.code) {
+      console.error('[Marketing Hub] Prisma error code:', error.code);
+      console.error('[Marketing Hub] Prisma meta:', JSON.stringify(error.meta, null, 2));
+    }
 
-  // Mock revenue data (would come from order tracking in production)
-  const revenueGenerated = 0;
-
-  return json({
-    shop,
-    emailSettings,
-    metrics: {
-      emailsSent: sentCount,
-      openRate: sentCount > 0 ? ((openedCount / sentCount) * 100).toFixed(1) : "0.0",
-      revenue: revenueGenerated,
-    },
-    automationStats: {
-      active: activeAutomations,
-      total: totalAutomations,
-    },
-    recentCampaigns: recentCampaigns.map(c => ({
-      id: c.id,
-      name: c.name,
-      status: c.status,
-      scheduledFor: c.scheduledFor,
-      sentAt: c.sentAt,
-      metrics: c.metrics,
-    })),
-    recommendations,
-    highPriorityRecommendations,
-  });
+    throw error;
+  }
 };
 
 export default function MarketingDashboard() {

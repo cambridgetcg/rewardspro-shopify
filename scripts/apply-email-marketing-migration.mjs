@@ -304,11 +304,11 @@ async function executeMigrationSteps(client, resourceArn, secretArn, database, t
     database,
     sql: `INSERT INTO "_prisma_migrations"
           (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
-          VALUES ($1, $2, NOW(), $3, NULL, NULL, NOW(), 11)`,
+          VALUES (:id, :checksum, NOW(), :migration_name, NULL, NULL, NOW(), 11)`,
     parameters: [
-      { name: "1", value: { stringValue: migrationId }},
-      { name: "2", value: { stringValue: "email_marketing_v1" }},
-      { name: "3", value: { stringValue: migrationName }},
+      { name: "id", value: { stringValue: migrationId }},
+      { name: "checksum", value: { stringValue: "email_marketing_v1" }},
+      { name: "migration_name", value: { stringValue: migrationName }},
     ],
     transactionId,
   }));

@@ -20,33 +20,39 @@ export class AnalyticsRecommendationsService {
    * Get all marketing recommendations for a shop
    */
   static async getRecommendations(shop: string): Promise<MarketingRecommendation[]> {
+    console.log('[Analytics Recommendations] Getting recommendations for shop:', shop);
     const recommendations: MarketingRecommendation[] = [];
 
-    // Run all recommendations in parallel
-    const [
-      inactiveCustomers,
-      tierUpgradeOpportunities,
-      expiringRewards,
-      vipRetention,
-      upcomingBirthdays,
-      lowBalanceCustomers
-    ] = await Promise.all([
-      this.getInactiveReengagementRecommendation(shop),
-      this.getTierUpgradeRecommendation(shop),
-      this.getRewardExpiryRecommendation(shop),
-      this.getVIPRetentionRecommendation(shop),
-      this.getBirthdayRecommendation(shop),
-      this.getLowBalanceRecommendation(shop)
-    ]);
+    try {
+      // Run all recommendations in parallel with individual error handling
+      const results = await Promise.allSettled([
+        this.getInactiveReengagementRecommendation(shop),
+        this.getTierUpgradeRecommendation(shop),
+        this.getRewardExpiryRecommendation(shop),
+        this.getVIPRetentionRecommendation(shop),
+        this.getBirthdayRecommendation(shop),
+        this.getLowBalanceRecommendation(shop)
+      ]);
 
-    if (inactiveCustomers) recommendations.push(inactiveCustomers);
-    if (tierUpgradeOpportunities) recommendations.push(tierUpgradeOpportunities);
-    if (expiringRewards) recommendations.push(expiringRewards);
-    if (vipRetention) recommendations.push(vipRetention);
-    if (upcomingBirthdays) recommendations.push(upcomingBirthdays);
-    if (lowBalanceCustomers) recommendations.push(lowBalanceCustomers);
+      const labels = ['Inactive', 'TierUpgrade', 'ExpiringRewards', 'VIPRetention', 'Birthday', 'LowBalance'];
 
-    return recommendations;
+      // Process results
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          recommendations.push(result.value);
+          console.log(`[Analytics Recommendations] ✓ ${labels[index]} recommendation added`);
+        } else if (result.status === 'rejected') {
+          console.error(`[Analytics Recommendations] ⚠️ ${labels[index]} failed:`, result.reason?.message);
+        }
+      });
+
+      console.log('[Analytics Recommendations] Total recommendations:', recommendations.length);
+      return recommendations;
+    } catch (error: any) {
+      console.error('[Analytics Recommendations] ❌ Fatal error getting recommendations:', error.message);
+      console.error('[Analytics Recommendations] Stack:', error.stack);
+      return [];
+    }
   }
 
   /**
