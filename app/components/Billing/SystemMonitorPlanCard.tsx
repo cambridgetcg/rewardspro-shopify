@@ -76,7 +76,7 @@ export function SystemMonitorPlanCard({
   const projectedUtilization = usageMetrics.projectedPercentage;
 
   return (
-    <BlockStack gap="400">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1rem' }}>
       {/* Over Limit Banner */}
       {showOverageBanner && onUpgrade && (
         <PlanOverLimitBanner
@@ -87,8 +87,9 @@ export function SystemMonitorPlanCard({
       )}
 
       {/* Main Card */}
-      <Card>
-        <BlockStack gap="400">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Card>
+          <BlockStack gap="400">
           {/* Status Header */}
           <Box
             padding="400"
@@ -286,7 +287,8 @@ export function SystemMonitorPlanCard({
             </Button>
           )}
         </BlockStack>
-      </Card>
-    </BlockStack>
+        </Card>
+      </div>
+    </div>
   );
 }

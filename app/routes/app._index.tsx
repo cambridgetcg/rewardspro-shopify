@@ -463,7 +463,7 @@ export default function Dashboard() {
       <Layout>
         {/* Two-Column Layout */}
         <Layout.Section variant="oneThird">
-          <BlockStack gap="400">
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Plan Details Card */}
             <SystemMonitorPlanCard
               activeSubscription={data.activeSubscription}
@@ -478,13 +478,15 @@ export default function Dashboard() {
               showOverageBanner={false}
               onUpgrade={() => navigate("/app/billing")}
             />
-          </BlockStack>
+          </div>
         </Layout.Section>
 
         {/* System Status - Mission Control Style */}
         <Layout.Section variant="twoThirds">
-          <Card>
-            <BlockStack gap="400">
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Card>
+                <BlockStack gap="400">
               {/* Header */}
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="200" blockAlign="center">
@@ -793,7 +795,9 @@ export default function Dashboard() {
                 </Card>
               </InlineGrid>
             </BlockStack>
-          </Card>
+              </Card>
+            </div>
+          </div>
         </Layout.Section>
 
         {/* OLD SYSTEM STATUS - COMMENTED OUT FOR REVIEW

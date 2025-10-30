@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -13,6 +14,8 @@ import {
   Badge,
   Divider,
   Button,
+  Toast,
+  Frame,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 
@@ -60,13 +63,210 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function DashboardMockups() {
   const data = useLoaderData<typeof loader>();
-  const features = data.features;
-  const activeCount = Object.values(features).filter(f => f.enabled).length;
-  const totalCount = Object.values(features).length;
+
+  // State for each option's features
+  const [featuresP, setFeaturesP] = useState(data.features);
+  const [featuresQ, setFeaturesQ] = useState(data.features);
+  const [featuresR, setFeaturesR] = useState(data.features);
+
+  // Toast state
+  const [toastActive, setToastActive] = useState(false);
+  const [toastContent, setToastContent] = useState('');
+
+  const activeCountP = Object.values(featuresP).filter(f => f.enabled).length;
+  const activeCountQ = Object.values(featuresQ).filter(f => f.enabled).length;
+  const activeCountR = Object.values(featuresR).filter(f => f.enabled).length;
+  const totalCount = Object.values(data.features).length;
+
+  // Handler for Option P toggles
+  useEffect(() => {
+    const analyticsP = document.getElementById('analytics-p');
+    const cashbackP = document.getElementById('cashback-p');
+    const marketingP = document.getElementById('marketing-p');
+    const tierproductsP = document.getElementById('tierproducts-p');
+
+    const handleAnalyticsP = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesP(prev => ({
+        ...prev,
+        advancedAnalytics: { ...prev.advancedAnalytics, enabled: checked }
+      }));
+      setToastContent(`Advanced Analytics ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleCashbackP = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesP(prev => ({
+        ...prev,
+        autoCashback: { ...prev.autoCashback, enabled: checked }
+      }));
+      setToastContent(`Automatic Cashback ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleMarketingP = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesP(prev => ({
+        ...prev,
+        emailMarketing: { ...prev.emailMarketing, enabled: checked }
+      }));
+      setToastContent(`Email Marketing ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleTierProductsP = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesP(prev => ({
+        ...prev,
+        tierProducts: { ...prev.tierProducts, enabled: checked }
+      }));
+      setToastContent(`Tier Products ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    analyticsP?.addEventListener('change', handleAnalyticsP);
+    cashbackP?.addEventListener('change', handleCashbackP);
+    marketingP?.addEventListener('change', handleMarketingP);
+    tierproductsP?.addEventListener('change', handleTierProductsP);
+
+    return () => {
+      analyticsP?.removeEventListener('change', handleAnalyticsP);
+      cashbackP?.removeEventListener('change', handleCashbackP);
+      marketingP?.removeEventListener('change', handleMarketingP);
+      tierproductsP?.removeEventListener('change', handleTierProductsP);
+    };
+  }, []);
+
+  // Handler for Option Q toggles
+  useEffect(() => {
+    const analyticsQ = document.getElementById('analytics-q');
+    const cashbackQ = document.getElementById('cashback-q');
+    const marketingQ = document.getElementById('marketing-q');
+    const tierproductsQ = document.getElementById('tierproducts-q');
+
+    const handleAnalyticsQ = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesQ(prev => ({
+        ...prev,
+        advancedAnalytics: { ...prev.advancedAnalytics, enabled: checked }
+      }));
+      setToastContent(`Advanced Analytics ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleCashbackQ = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesQ(prev => ({
+        ...prev,
+        autoCashback: { ...prev.autoCashback, enabled: checked }
+      }));
+      setToastContent(`Automatic Cashback ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleMarketingQ = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesQ(prev => ({
+        ...prev,
+        emailMarketing: { ...prev.emailMarketing, enabled: checked }
+      }));
+      setToastContent(`Email Marketing ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleTierProductsQ = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesQ(prev => ({
+        ...prev,
+        tierProducts: { ...prev.tierProducts, enabled: checked }
+      }));
+      setToastContent(`Tier Products ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    analyticsQ?.addEventListener('change', handleAnalyticsQ);
+    cashbackQ?.addEventListener('change', handleCashbackQ);
+    marketingQ?.addEventListener('change', handleMarketingQ);
+    tierproductsQ?.addEventListener('change', handleTierProductsQ);
+
+    return () => {
+      analyticsQ?.removeEventListener('change', handleAnalyticsQ);
+      cashbackQ?.removeEventListener('change', handleCashbackQ);
+      marketingQ?.removeEventListener('change', handleMarketingQ);
+      tierproductsQ?.removeEventListener('change', handleTierProductsQ);
+    };
+  }, []);
+
+  // Handler for Option R toggles
+  useEffect(() => {
+    const analyticsR = document.getElementById('analytics-r');
+    const cashbackR = document.getElementById('cashback-r');
+    const marketingR = document.getElementById('marketing-r');
+    const tierproductsR = document.getElementById('tierproducts-r');
+
+    const handleAnalyticsR = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesR(prev => ({
+        ...prev,
+        advancedAnalytics: { ...prev.advancedAnalytics, enabled: checked }
+      }));
+      setToastContent(`Advanced Analytics ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleCashbackR = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesR(prev => ({
+        ...prev,
+        autoCashback: { ...prev.autoCashback, enabled: checked }
+      }));
+      setToastContent(`Automatic Cashback ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleMarketingR = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesR(prev => ({
+        ...prev,
+        emailMarketing: { ...prev.emailMarketing, enabled: checked }
+      }));
+      setToastContent(`Email Marketing ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    const handleTierProductsR = (e: Event) => {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFeaturesR(prev => ({
+        ...prev,
+        tierProducts: { ...prev.tierProducts, enabled: checked }
+      }));
+      setToastContent(`Tier Products ${checked ? 'enabled' : 'disabled'}`);
+      setToastActive(true);
+    };
+
+    analyticsR?.addEventListener('change', handleAnalyticsR);
+    cashbackR?.addEventListener('change', handleCashbackR);
+    marketingR?.addEventListener('change', handleMarketingR);
+    tierproductsR?.addEventListener('change', handleTierProductsR);
+
+    return () => {
+      analyticsR?.removeEventListener('change', handleAnalyticsR);
+      cashbackR?.removeEventListener('change', handleCashbackR);
+      marketingR?.removeEventListener('change', handleMarketingR);
+      tierproductsR?.removeEventListener('change', handleTierProductsR);
+    };
+  }, []);
+
+  const toastMarkup = toastActive ? (
+    <Toast content={toastContent} onDismiss={() => setToastActive(false)} />
+  ) : null;
 
   return (
-    <Page title="Feature Manager Layout Options" subtitle="Shopify Design Philosophy Aligned">
-      <Layout>
+    <Frame>
+      {toastMarkup}
+      <Page title="Feature Manager Layout Options" subtitle="Shopify Design Philosophy Aligned">
+        <Layout>
         {/* Option P: Compact Professional List */}
         <Layout.Section variant="oneThird">
           <Card>
@@ -88,8 +288,8 @@ export default function DashboardMockups() {
                 <Text variant="headingMd" as="h3" fontWeight="semibold">
                   Feature Manager
                 </Text>
-                <Badge tone={activeCount === totalCount ? 'success' : 'info'}>
-                  {activeCount}/{totalCount} Active
+                <Badge tone={activeCountP === totalCount ? 'success' : 'info'}>
+                  {activeCountP}/{totalCount} Active
                 </Badge>
               </InlineStack>
 
@@ -97,28 +297,28 @@ export default function DashboardMockups() {
                 {/* Advanced Analytics */}
                 <Box
                   padding="300"
-                  background={features.advancedAnalytics.enabled ? "bg-surface-success-subdued" : "bg-surface"}
+                  background={featuresP.advancedAnalytics.enabled ? "bg-surface-success-subdued" : "bg-surface"}
                   borderRadius="200"
                 >
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="start">
                       <BlockStack gap="050">
                         <Text variant="bodyMd" fontWeight="semibold">
-                          {features.advancedAnalytics.name}
+                          {featuresP.advancedAnalytics.name}
                         </Text>
                         <Text variant="bodySm" tone="subdued">
-                          {features.advancedAnalytics.description}
+                          {featuresP.advancedAnalytics.description}
                         </Text>
                       </BlockStack>
                       <s-switch
                         id="analytics-p"
-                        checked={features.advancedAnalytics.enabled}
+                        checked={featuresP.advancedAnalytics.enabled}
                       />
                     </InlineStack>
                     <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="info" size="small">{features.advancedAnalytics.usageStats}</Badge>
+                      <Badge tone="info" size="small">{featuresP.advancedAnalytics.usageStats}</Badge>
                       <Text variant="bodySm" tone="subdued">•</Text>
-                      <Text variant="bodySm" tone="subdued">{features.advancedAnalytics.lastUsed}</Text>
+                      <Text variant="bodySm" tone="subdued">{featuresP.advancedAnalytics.lastUsed}</Text>
                     </InlineStack>
                   </BlockStack>
                 </Box>
@@ -126,28 +326,28 @@ export default function DashboardMockups() {
                 {/* Auto Cashback */}
                 <Box
                   padding="300"
-                  background={features.autoCashback.enabled ? "bg-surface-success-subdued" : "bg-surface"}
+                  background={featuresP.autoCashback.enabled ? "bg-surface-success-subdued" : "bg-surface"}
                   borderRadius="200"
                 >
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="start">
                       <BlockStack gap="050">
                         <Text variant="bodyMd" fontWeight="semibold">
-                          {features.autoCashback.name}
+                          {featuresP.autoCashback.name}
                         </Text>
                         <Text variant="bodySm" tone="subdued">
-                          {features.autoCashback.description}
+                          {featuresP.autoCashback.description}
                         </Text>
                       </BlockStack>
                       <s-switch
                         id="cashback-p"
-                        checked={features.autoCashback.enabled}
+                        checked={featuresP.autoCashback.enabled}
                       />
                     </InlineStack>
                     <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="info" size="small">{features.autoCashback.usageStats}</Badge>
+                      <Badge tone="info" size="small">{featuresP.autoCashback.usageStats}</Badge>
                       <Text variant="bodySm" tone="subdued">•</Text>
-                      <Text variant="bodySm" tone="subdued">{features.autoCashback.lastUsed}</Text>
+                      <Text variant="bodySm" tone="subdued">{featuresP.autoCashback.lastUsed}</Text>
                     </InlineStack>
                   </BlockStack>
                 </Box>
@@ -155,28 +355,28 @@ export default function DashboardMockups() {
                 {/* Email Marketing */}
                 <Box
                   padding="300"
-                  background={features.emailMarketing.enabled ? "bg-surface-success-subdued" : "bg-surface"}
+                  background={featuresP.emailMarketing.enabled ? "bg-surface-success-subdued" : "bg-surface"}
                   borderRadius="200"
                 >
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="start">
                       <BlockStack gap="050">
                         <Text variant="bodyMd" fontWeight="semibold">
-                          {features.emailMarketing.name}
+                          {featuresP.emailMarketing.name}
                         </Text>
                         <Text variant="bodySm" tone="subdued">
-                          {features.emailMarketing.description}
+                          {featuresP.emailMarketing.description}
                         </Text>
                       </BlockStack>
                       <s-switch
                         id="marketing-p"
-                        checked={features.emailMarketing.enabled}
+                        checked={featuresP.emailMarketing.enabled}
                       />
                     </InlineStack>
                     <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="subdued" size="small">{features.emailMarketing.usageStats}</Badge>
+                      <Badge tone="subdued" size="small">{featuresP.emailMarketing.usageStats}</Badge>
                       <Text variant="bodySm" tone="subdued">•</Text>
-                      <Text variant="bodySm" tone="subdued">{features.emailMarketing.lastUsed}</Text>
+                      <Text variant="bodySm" tone="subdued">{featuresP.emailMarketing.lastUsed}</Text>
                     </InlineStack>
                   </BlockStack>
                 </Box>
@@ -184,28 +384,28 @@ export default function DashboardMockups() {
                 {/* Tier Products */}
                 <Box
                   padding="300"
-                  background={features.tierProducts.enabled ? "bg-surface-success-subdued" : "bg-surface"}
+                  background={featuresP.tierProducts.enabled ? "bg-surface-success-subdued" : "bg-surface"}
                   borderRadius="200"
                 >
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="start">
                       <BlockStack gap="050">
                         <Text variant="bodyMd" fontWeight="semibold">
-                          {features.tierProducts.name}
+                          {featuresP.tierProducts.name}
                         </Text>
                         <Text variant="bodySm" tone="subdued">
-                          {features.tierProducts.description}
+                          {featuresP.tierProducts.description}
                         </Text>
                       </BlockStack>
                       <s-switch
                         id="tierproducts-p"
-                        checked={features.tierProducts.enabled}
+                        checked={featuresP.tierProducts.enabled}
                       />
                     </InlineStack>
                     <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="info" size="small">{features.tierProducts.usageStats}</Badge>
+                      <Badge tone="info" size="small">{featuresP.tierProducts.usageStats}</Badge>
                       <Text variant="bodySm" tone="subdued">•</Text>
-                      <Text variant="bodySm" tone="subdued">{features.tierProducts.lastUsed}</Text>
+                      <Text variant="bodySm" tone="subdued">{featuresP.tierProducts.lastUsed}</Text>
                     </InlineStack>
                   </BlockStack>
                 </Box>
@@ -256,14 +456,14 @@ export default function DashboardMockups() {
                       <BlockStack gap="200">
                         <InlineStack gap="200" blockAlign="center">
                           <Text variant="headingSm" as="h4" fontWeight="semibold">
-                            {features.autoCashback.name}
+                            {featuresQ.autoCashback.name}
                           </Text>
-                          <Badge tone={features.autoCashback.enabled ? 'success' : 'subdued'}>
-                            {features.autoCashback.enabled ? 'Active' : 'Inactive'}
+                          <Badge tone={featuresQ.autoCashback.enabled ? 'success' : 'subdued'}>
+                            {featuresQ.autoCashback.enabled ? 'Active' : 'Inactive'}
                           </Badge>
                         </InlineStack>
                         <Text variant="bodySm" tone="subdued">
-                          {features.autoCashback.description}
+                          {featuresQ.autoCashback.description}
                         </Text>
                       </BlockStack>
                     </InlineStack>
@@ -274,18 +474,18 @@ export default function DashboardMockups() {
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Usage</Text>
                         <Text variant="bodyMd" fontWeight="medium">
-                          {features.autoCashback.usageStats}
+                          {featuresQ.autoCashback.usageStats}
                         </Text>
                       </BlockStack>
                       <BlockStack gap="050" inlineAlign="end">
                         <Text variant="bodySm" tone="subdued">Last active</Text>
                         <Text variant="bodyMd" fontWeight="medium">
-                          {features.autoCashback.lastUsed}
+                          {featuresQ.autoCashback.lastUsed}
                         </Text>
                       </BlockStack>
                       <s-switch
                         id="cashback-q"
-                        checked={features.autoCashback.enabled}
+                        checked={featuresQ.autoCashback.enabled}
                       />
                     </InlineStack>
                   </BlockStack>
@@ -305,19 +505,19 @@ export default function DashboardMockups() {
                         <BlockStack gap="050">
                           <InlineStack gap="200" blockAlign="center">
                             <Text variant="bodyMd" fontWeight="semibold">
-                              {features.advancedAnalytics.name}
+                              {featuresQ.advancedAnalytics.name}
                             </Text>
-                            <Badge tone={features.advancedAnalytics.enabled ? 'success' : 'subdued'} size="small">
-                              {features.advancedAnalytics.enabled ? 'On' : 'Off'}
+                            <Badge tone={featuresQ.advancedAnalytics.enabled ? 'success' : 'subdued'} size="small">
+                              {featuresQ.advancedAnalytics.enabled ? 'On' : 'Off'}
                             </Badge>
                           </InlineStack>
                           <Text variant="bodySm" tone="subdued">
-                            {features.advancedAnalytics.usageStats} • {features.advancedAnalytics.lastUsed}
+                            {featuresQ.advancedAnalytics.usageStats} • {featuresQ.advancedAnalytics.lastUsed}
                           </Text>
                         </BlockStack>
                         <s-switch
                           id="analytics-q"
-                          checked={features.advancedAnalytics.enabled}
+                          checked={featuresQ.advancedAnalytics.enabled}
                         />
                       </InlineStack>
                     </BlockStack>
@@ -329,19 +529,19 @@ export default function DashboardMockups() {
                         <BlockStack gap="050">
                           <InlineStack gap="200" blockAlign="center">
                             <Text variant="bodyMd" fontWeight="semibold">
-                              {features.tierProducts.name}
+                              {featuresQ.tierProducts.name}
                             </Text>
-                            <Badge tone={features.tierProducts.enabled ? 'success' : 'subdued'} size="small">
-                              {features.tierProducts.enabled ? 'On' : 'Off'}
+                            <Badge tone={featuresQ.tierProducts.enabled ? 'success' : 'subdued'} size="small">
+                              {featuresQ.tierProducts.enabled ? 'On' : 'Off'}
                             </Badge>
                           </InlineStack>
                           <Text variant="bodySm" tone="subdued">
-                            {features.tierProducts.usageStats} • {features.tierProducts.lastUsed}
+                            {featuresQ.tierProducts.usageStats} • {featuresQ.tierProducts.lastUsed}
                           </Text>
                         </BlockStack>
                         <s-switch
                           id="tierproducts-q"
-                          checked={features.tierProducts.enabled}
+                          checked={featuresQ.tierProducts.enabled}
                         />
                       </InlineStack>
                     </BlockStack>
@@ -361,19 +561,19 @@ export default function DashboardMockups() {
                       <BlockStack gap="050">
                         <InlineStack gap="200" blockAlign="center">
                           <Text variant="bodyMd" fontWeight="semibold">
-                            {features.emailMarketing.name}
+                            {featuresQ.emailMarketing.name}
                           </Text>
-                          <Badge tone={features.emailMarketing.enabled ? 'success' : 'subdued'} size="small">
-                            {features.emailMarketing.enabled ? 'On' : 'Off'}
+                          <Badge tone={featuresQ.emailMarketing.enabled ? 'success' : 'subdued'} size="small">
+                            {featuresQ.emailMarketing.enabled ? 'On' : 'Off'}
                           </Badge>
                         </InlineStack>
                         <Text variant="bodySm" tone="subdued">
-                          {features.emailMarketing.usageStats}
+                          {featuresQ.emailMarketing.usageStats}
                         </Text>
                       </BlockStack>
                       <s-switch
                         id="marketing-q"
-                        checked={features.emailMarketing.enabled}
+                        checked={featuresQ.emailMarketing.enabled}
                       />
                     </InlineStack>
                   </BlockStack>
@@ -424,31 +624,31 @@ export default function DashboardMockups() {
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text variant="bodyMd" fontWeight="semibold">
-                        {features.advancedAnalytics.name}
+                        {featuresR.advancedAnalytics.name}
                       </Text>
                       <s-switch
                         id="analytics-r"
-                        checked={features.advancedAnalytics.enabled}
+                        checked={featuresR.advancedAnalytics.enabled}
                       />
                     </InlineStack>
 
                     <InlineGrid columns={3} gap="200">
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Status</Text>
-                        <Badge tone={features.advancedAnalytics.enabled ? 'success' : 'subdued'} size="small">
-                          {features.advancedAnalytics.enabled ? 'Active' : 'Inactive'}
+                        <Badge tone={featuresR.advancedAnalytics.enabled ? 'success' : 'subdued'} size="small">
+                          {featuresR.advancedAnalytics.enabled ? 'Active' : 'Inactive'}
                         </Badge>
                       </BlockStack>
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Usage</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {features.advancedAnalytics.usageStats}
+                          {featuresR.advancedAnalytics.usageStats}
                         </Text>
                       </BlockStack>
                       <BlockStack gap="050" inlineAlign="end">
                         <Text variant="bodySm" tone="subdued">Impact</Text>
                         <Badge tone="attention" size="small">
-                          {features.advancedAnalytics.impact.toUpperCase()}
+                          {featuresR.advancedAnalytics.impact.toUpperCase()}
                         </Badge>
                       </BlockStack>
                     </InlineGrid>
@@ -464,31 +664,31 @@ export default function DashboardMockups() {
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text variant="bodyMd" fontWeight="semibold">
-                        {features.autoCashback.name}
+                        {featuresR.autoCashback.name}
                       </Text>
                       <s-switch
                         id="cashback-r"
-                        checked={features.autoCashback.enabled}
+                        checked={featuresR.autoCashback.enabled}
                       />
                     </InlineStack>
 
                     <InlineGrid columns={3} gap="200">
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Status</Text>
-                        <Badge tone={features.autoCashback.enabled ? 'success' : 'subdued'} size="small">
-                          {features.autoCashback.enabled ? 'Active' : 'Inactive'}
+                        <Badge tone={featuresR.autoCashback.enabled ? 'success' : 'subdued'} size="small">
+                          {featuresR.autoCashback.enabled ? 'Active' : 'Inactive'}
                         </Badge>
                       </BlockStack>
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Usage</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {features.autoCashback.usageStats}
+                          {featuresR.autoCashback.usageStats}
                         </Text>
                       </BlockStack>
                       <BlockStack gap="050" inlineAlign="end">
                         <Text variant="bodySm" tone="subdued">Impact</Text>
                         <Badge tone="critical" size="small">
-                          {features.autoCashback.impact.toUpperCase()}
+                          {featuresR.autoCashback.impact.toUpperCase()}
                         </Badge>
                       </BlockStack>
                     </InlineGrid>
@@ -504,31 +704,31 @@ export default function DashboardMockups() {
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text variant="bodyMd" fontWeight="semibold">
-                        {features.emailMarketing.name}
+                        {featuresR.emailMarketing.name}
                       </Text>
                       <s-switch
                         id="marketing-r"
-                        checked={features.emailMarketing.enabled}
+                        checked={featuresR.emailMarketing.enabled}
                       />
                     </InlineStack>
 
                     <InlineGrid columns={3} gap="200">
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Status</Text>
-                        <Badge tone={features.emailMarketing.enabled ? 'success' : 'subdued'} size="small">
-                          {features.emailMarketing.enabled ? 'Active' : 'Inactive'}
+                        <Badge tone={featuresR.emailMarketing.enabled ? 'success' : 'subdued'} size="small">
+                          {featuresR.emailMarketing.enabled ? 'Active' : 'Inactive'}
                         </Badge>
                       </BlockStack>
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Usage</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {features.emailMarketing.usageStats}
+                          {featuresR.emailMarketing.usageStats}
                         </Text>
                       </BlockStack>
                       <BlockStack gap="050" inlineAlign="end">
                         <Text variant="bodySm" tone="subdued">Impact</Text>
                         <Badge tone="info" size="small">
-                          {features.emailMarketing.impact.toUpperCase()}
+                          {featuresR.emailMarketing.impact.toUpperCase()}
                         </Badge>
                       </BlockStack>
                     </InlineGrid>
@@ -544,31 +744,31 @@ export default function DashboardMockups() {
                   <BlockStack gap="200">
                     <InlineStack align="space-between" blockAlign="center">
                       <Text variant="bodyMd" fontWeight="semibold">
-                        {features.tierProducts.name}
+                        {featuresR.tierProducts.name}
                       </Text>
                       <s-switch
                         id="tierproducts-r"
-                        checked={features.tierProducts.enabled}
+                        checked={featuresR.tierProducts.enabled}
                       />
                     </InlineStack>
 
                     <InlineGrid columns={3} gap="200">
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Status</Text>
-                        <Badge tone={features.tierProducts.enabled ? 'success' : 'subdued'} size="small">
-                          {features.tierProducts.enabled ? 'Active' : 'Inactive'}
+                        <Badge tone={featuresR.tierProducts.enabled ? 'success' : 'subdued'} size="small">
+                          {featuresR.tierProducts.enabled ? 'Active' : 'Inactive'}
                         </Badge>
                       </BlockStack>
                       <BlockStack gap="050">
                         <Text variant="bodySm" tone="subdued">Usage</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {features.tierProducts.usageStats}
+                          {featuresR.tierProducts.usageStats}
                         </Text>
                       </BlockStack>
                       <BlockStack gap="050" inlineAlign="end">
                         <Text variant="bodySm" tone="subdued">Impact</Text>
                         <Badge tone="attention" size="small">
-                          {features.tierProducts.impact.toUpperCase()}
+                          {featuresR.tierProducts.impact.toUpperCase()}
                         </Badge>
                       </BlockStack>
                     </InlineGrid>
@@ -589,5 +789,6 @@ export default function DashboardMockups() {
         </Layout.Section>
       </Layout>
     </Page>
+    </Frame>
   );
 }
