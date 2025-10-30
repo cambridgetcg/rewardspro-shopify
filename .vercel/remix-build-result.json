@@ -54,6 +54,9 @@
       "routes/app.marketing.automation.workflows": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.recalculate-cashback": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing.analytics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.marketing.templates": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.marketing.templates.$id": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.marketing.templates.new": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing.settings": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.dashboard-mockups": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing._index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -484,6 +487,29 @@
         "config": {
           "runtime": "nodejs"
         }
+      },
+      "routes/app.marketing.templates": {
+        "id": "routes/app.marketing.templates",
+        "parentId": "routes/app",
+        "file": "app/routes/app.marketing.templates.tsx",
+        "path": "marketing/templates",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.marketing.templates.$id": {
+        "id": "routes/app.marketing.templates.$id",
+        "parentId": "routes/app.marketing.templates",
+        "file": "app/routes/app.marketing.templates.$id.tsx",
+        "path": ":id",
+        "config": {}
+      },
+      "routes/app.marketing.templates.new": {
+        "id": "routes/app.marketing.templates.new",
+        "parentId": "routes/app.marketing.templates",
+        "file": "app/routes/app.marketing.templates.new.tsx",
+        "path": "new",
+        "config": {}
       },
       "routes/app.marketing.settings": {
         "id": "routes/app.marketing.settings",
@@ -946,6 +972,24 @@
         "parentId": "routes/app",
         "file": "routes/app.marketing.analytics.tsx",
         "path": "marketing/analytics"
+      },
+      "routes/app.marketing.templates": {
+        "id": "routes/app.marketing.templates",
+        "parentId": "routes/app",
+        "file": "routes/app.marketing.templates.tsx",
+        "path": "marketing/templates"
+      },
+      "routes/app.marketing.templates.$id": {
+        "id": "routes/app.marketing.templates.$id",
+        "parentId": "routes/app.marketing.templates",
+        "file": "routes/app.marketing.templates.$id.tsx",
+        "path": ":id"
+      },
+      "routes/app.marketing.templates.new": {
+        "id": "routes/app.marketing.templates.new",
+        "parentId": "routes/app.marketing.templates",
+        "file": "routes/app.marketing.templates.new.tsx",
+        "path": "new"
       },
       "routes/app.marketing.settings": {
         "id": "routes/app.marketing.settings",
