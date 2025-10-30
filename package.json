@@ -2,6 +2,7 @@
   "name": "rewardspro-production",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "prisma generate && remix vite:build",
     "build:migrate": "prisma generate && prisma migrate deploy && remix vite:build",
     "dev": "shopify app dev",
