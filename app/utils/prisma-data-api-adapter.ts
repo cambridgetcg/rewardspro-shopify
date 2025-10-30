@@ -1156,6 +1156,14 @@ export function createDataAPIPrismaClient() {
           billingAuditLog: new DataAPIModelProxy("BillingAuditLog", txAuroraClient),
           billingSubscription: new DataAPIModelProxy("BillingSubscription", txAuroraClient),
 
+          // Marketing and Analytics models
+          emailTemplate: new DataAPIModelProxy("EmailTemplate", txAuroraClient),
+          emailCampaign: new DataAPIModelProxy("EmailCampaign", txAuroraClient),
+          emailAutomation: new DataAPIModelProxy("EmailAutomation", txAuroraClient),
+          emailSettings: new DataAPIModelProxy("EmailSettings", txAuroraClient),
+          emailEvent: new DataAPIModelProxy("EmailEvent", txAuroraClient),
+          analyticsRecommendation: new DataAPIModelProxy("AnalyticsRecommendation", txAuroraClient),
+
           // Raw query support for the transaction
           $executeRaw: async (sql: any, ...params: any[]) => {
             // Handle Prisma template literal syntax
@@ -1260,6 +1268,14 @@ export function createDataAPIPrismaClient() {
     syncStatus: new DataAPIModelProxy("SyncStatus", client),
     billingAuditLog: new DataAPIModelProxy("BillingAuditLog", client),
     billingSubscription: new DataAPIModelProxy("BillingSubscription", client),
+
+    // Marketing and Analytics models
+    emailTemplate: new DataAPIModelProxy("EmailTemplate", client),
+    emailCampaign: new DataAPIModelProxy("EmailCampaign", client),
+    emailAutomation: new DataAPIModelProxy("EmailAutomation", client),
+    emailSettings: new DataAPIModelProxy("EmailSettings", client),
+    emailEvent: new DataAPIModelProxy("EmailEvent", client),
+    analyticsRecommendation: new DataAPIModelProxy("AnalyticsRecommendation", client),
 
     // Disconnect (no-op for Data API)
     $disconnect: async () => {
