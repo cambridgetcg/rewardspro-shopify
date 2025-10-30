@@ -73,7 +73,7 @@
       "routes/app.customers": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings.store-metrics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/app.settings.features": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.settings.automation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.billing": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.billing.callback": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app._index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -650,11 +650,11 @@
         "path": "store-metrics",
         "config": {}
       },
-      "routes/app.settings.features": {
-        "id": "routes/app.settings.features",
+      "routes/app.settings.automation": {
+        "id": "routes/app.settings.automation",
         "parentId": "routes/app.settings",
-        "file": "app/routes/app.settings.features.tsx",
-        "path": "features",
+        "file": "app/routes/app.settings.automation.tsx",
+        "path": "automation",
         "config": {}
       },
       "routes/app.billing": {
@@ -1108,11 +1108,11 @@
         "file": "routes/app.settings.store-metrics.tsx",
         "path": "store-metrics"
       },
-      "routes/app.settings.features": {
-        "id": "routes/app.settings.features",
+      "routes/app.settings.automation": {
+        "id": "routes/app.settings.automation",
         "parentId": "routes/app.settings",
-        "file": "routes/app.settings.features.tsx",
-        "path": "features"
+        "file": "routes/app.settings.automation.tsx",
+        "path": "automation"
       },
       "routes/app.billing": {
         "id": "routes/app.billing",
