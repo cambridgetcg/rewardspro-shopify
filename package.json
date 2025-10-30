@@ -31,6 +31,7 @@
     "migrate:test-credit-sync": "node scripts/test-aurora-connection.mjs",
     "migrate:apply-schema-fixes": "node scripts/apply-schema-fixes.mjs",
     "migrate:usage-billing": "node scripts/apply-usage-billing-migration.mjs",
+    "migrate:analytics-recommendations": "node scripts/apply-analytics-recommendations-migration.mjs",
     "migrate:widget-setup-dismissed": "node scripts/apply-widget-setup-dismissed-migration.mjs",
     "migrate:customer-account-block-dismissed": "node scripts/apply-customer-account-block-dismissed-migration.mjs",
     "migrate:currency-selected": "node scripts/apply-currency-selected-migration.mjs",

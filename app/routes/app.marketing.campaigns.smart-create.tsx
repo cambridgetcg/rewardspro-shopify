@@ -35,19 +35,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let specificRecommendation = null;
   let prefillData = null;
 
-  if (recommendationId) {
-    specificRecommendation = await recommendationsService.getRecommendationById(recommendationId);
+  try {
+    if (recommendationId) {
+      specificRecommendation = await recommendationsService.getRecommendationById(recommendationId);
 
-    if (specificRecommendation) {
-      // Transform recommendation to campaign prefill data
-      prefillData = await recommendationsService.transformToCampaign(recommendationId);
+      if (specificRecommendation) {
+        // Transform recommendation to campaign prefill data
+        prefillData = await recommendationsService.transformToCampaign(recommendationId);
+      }
     }
+  } catch (error) {
+    console.error('[Smart Campaign Creator] Error fetching recommendation:', error);
+    // Continue without the specific recommendation
   }
 
   // Get all pending recommendations
-  const recommendations = await recommendationsService.getActionRecommendations({
-    status: 'pending'
-  });
+  let recommendations = [];
+  try {
+    recommendations = await recommendationsService.getActionRecommendations({
+      status: 'pending'
+    });
+  } catch (error) {
+    console.error('[Smart Campaign Creator] Error fetching recommendations:', error);
+    // Continue with empty recommendations array
+  }
 
   // Get email settings to check if configured
   let emailSettings = null;
@@ -121,8 +132,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
 
-    // Redirect to campaign list or editor
-    return redirect(`/app/marketing/campaigns`);
+    // Redirect to marketing hub (campaigns list doesn't exist yet)
+    return redirect(`/app/marketing`);
   }
 
   if (action === "dismiss_recommendation") {
