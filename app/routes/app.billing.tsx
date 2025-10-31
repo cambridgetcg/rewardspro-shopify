@@ -23,7 +23,7 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   getSubscriptionStatus,
   getAllPlans,
@@ -103,21 +103,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     if (result.success && result.confirmationUrl) {
-      console.log(`[Billing Action] Subscription created, redirecting to confirmation`);
-      // Redirect to Shopify confirmation page
-      return json<BillingResult>(
-        {
-          success: true,
-          confirmationUrl: result.confirmationUrl,
-          subscriptionId: result.subscriptionId,
-        },
-        {
-          status: 302,
-          headers: {
-            Location: result.confirmationUrl,
-          },
-        }
-      );
+      console.log(`[Billing Action] Subscription created, returning confirmation URL`);
+      // Return confirmation URL for client-side redirect (embedded app compatible)
+      return json<BillingResult>({
+        success: true,
+        confirmationUrl: result.confirmationUrl,
+        subscriptionId: result.subscriptionId,
+      });
     }
 
     if (!result.success) {
@@ -161,6 +153,15 @@ export default function BillingPage() {
   });
   const cancelled = searchParams.get('cancelled') === 'true';
   const urlError = searchParams.get('error');
+
+  // Handle redirect to Shopify confirmation page (embedded app compatible)
+  useEffect(() => {
+    if (actionData?.success && actionData.confirmationUrl) {
+      console.log('[Billing] Redirecting to confirmation URL:', actionData.confirmationUrl);
+      // For embedded apps, we need to use window.open with _top to break out of iframe
+      window.open(actionData.confirmationUrl, '_top');
+    }
+  }, [actionData]);
 
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
