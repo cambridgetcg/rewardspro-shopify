@@ -22,6 +22,7 @@ import {
   ButtonGroup,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { useState, useEffect } from "react";
 import {
@@ -141,6 +142,7 @@ export default function BillingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const app = useAppBridge();
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
@@ -154,14 +156,16 @@ export default function BillingPage() {
   const cancelled = searchParams.get('cancelled') === 'true';
   const urlError = searchParams.get('error');
 
-  // Handle redirect to Shopify confirmation page (embedded app compatible)
+  // Handle redirect to Shopify confirmation page using App Bridge
   useEffect(() => {
     if (actionData?.success && actionData.confirmationUrl) {
       console.log('[Billing] Redirecting to confirmation URL:', actionData.confirmationUrl);
-      // For embedded apps, we need to use window.open with _top to break out of iframe
-      window.open(actionData.confirmationUrl, '_top');
+      // Use App Bridge redirect for embedded apps
+      if (app && app.redirect) {
+        app.redirect.toRemote(actionData.confirmationUrl);
+      }
     }
-  }, [actionData]);
+  }, [actionData, app]);
 
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
