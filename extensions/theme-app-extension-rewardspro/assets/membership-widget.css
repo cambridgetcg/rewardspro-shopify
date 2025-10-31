@@ -557,6 +557,48 @@
   color: #1a1a1a;
 }
 
+/* Debug section (temporary) */
+.rp-widget__debug {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0f8ff;
+  border: 1px dashed #4a90e2;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.rp-widget__debug-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #2c5aa0;
+  font-size: 12px;
+}
+
+.rp-widget__debug-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.rp-widget__debug-item:last-child {
+  margin-bottom: 0;
+}
+
+.rp-widget__debug-label {
+  color: #666666;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.rp-widget__debug-value {
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+}
+
 /* Status indicators */
 .rp-widget__indicator {
   margin-top: 12px;
@@ -664,6 +706,24 @@
 
   .rp-widget__balance {
     border-bottom-color: #333333;
+  }
+
+  /* Debug section in dark mode */
+  .rp-widget__debug {
+    background: #1e3a5f;
+    border-color: #4a90e2;
+  }
+
+  .rp-widget__debug-title {
+    color: #6eb4ff;
+  }
+
+  .rp-widget__debug-label {
+    color: #aaaaaa;
+  }
+
+  .rp-widget__debug-value {
+    color: #ffffff;
   }
 
   /* Keep error state visible in dark mode */

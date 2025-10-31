@@ -367,6 +367,21 @@
                   <span class="rp-widget__stat-value">${this.formatCurrency(balance.totalEarned)}</span>
                 </div>
               </div>
+              <div class="rp-widget__debug">
+                <div class="rp-widget__debug-title">🔧 Debug Info</div>
+                <div class="rp-widget__debug-item">
+                  <span class="rp-widget__debug-label">Email:</span>
+                  <span class="rp-widget__debug-value">${this.escapeHtml(this.config.customer.email)}</span>
+                </div>
+                <div class="rp-widget__debug-item">
+                  <span class="rp-widget__debug-label">Store:</span>
+                  <span class="rp-widget__debug-value">${this.escapeHtml(this.config.shop.domain)}</span>
+                </div>
+                <div class="rp-widget__debug-item">
+                  <span class="rp-widget__debug-label">Customer ID:</span>
+                  <span class="rp-widget__debug-value">${this.escapeHtml(this.config.customer.id)}</span>
+                </div>
+              </div>
               ${isStale ? '<div class="rp-widget__indicator rp-widget__indicator--stale">Data may be outdated</div>' : ''}
               ${isOffline ? '<div class="rp-widget__indicator rp-widget__indicator--offline">Offline mode</div>' : ''}
             </div>
