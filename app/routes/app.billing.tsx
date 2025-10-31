@@ -103,8 +103,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       isUpgrade,
     });
 
+    console.log(`[Billing Action] Subscription creation result:`, {
+      success: result.success,
+      hasConfirmationUrl: !!result.confirmationUrl,
+      confirmationUrl: result.confirmationUrl,
+      subscriptionId: result.subscriptionId,
+      error: result.error
+    });
+
     if (result.success && result.confirmationUrl) {
-      console.log(`[Billing Action] Subscription created, returning confirmation URL`);
+      console.log(`[Billing Action] Subscription created, returning confirmation URL:`, result.confirmationUrl);
       // Return confirmation URL for client-side redirect (embedded app compatible)
       return json<BillingResult>({
         success: true,
@@ -158,11 +166,23 @@ export default function BillingPage() {
 
   // Handle redirect to Shopify confirmation page using App Bridge
   useEffect(() => {
+    console.log('[Billing] useEffect triggered:', {
+      hasActionData: !!actionData,
+      success: actionData?.success,
+      hasConfirmationUrl: !!actionData?.confirmationUrl,
+      confirmationUrl: actionData?.confirmationUrl,
+      hasApp: !!app,
+      hasAppRedirect: !!(app && app.redirect)
+    });
+
     if (actionData?.success && actionData.confirmationUrl) {
-      console.log('[Billing] Redirecting to confirmation URL:', actionData.confirmationUrl);
+      console.log('[Billing] Attempting redirect to:', actionData.confirmationUrl);
       // Use App Bridge redirect for embedded apps
       if (app && app.redirect) {
+        console.log('[Billing] Calling app.redirect.toRemote()');
         app.redirect.toRemote(actionData.confirmationUrl);
+      } else {
+        console.error('[Billing] App Bridge redirect not available:', { app });
       }
     }
   }, [actionData, app]);

@@ -277,7 +277,11 @@ export class GraphQLBillingService {
 
       const result = await response.json();
 
+      // LOG THE FULL RESPONSE FOR DEBUGGING
+      console.log('[GraphQLBilling] Full GraphQL Response:', JSON.stringify(result, null, 2));
+
       if (result.data?.appSubscriptionCreate?.userErrors?.length > 0) {
+        console.error('[GraphQLBilling] User errors:', result.data.appSubscriptionCreate.userErrors);
         return {
           success: false,
           error: result.data.appSubscriptionCreate.userErrors[0].message,
@@ -288,10 +292,21 @@ export class GraphQLBillingService {
       const subscription = result.data?.appSubscriptionCreate?.appSubscription;
       const confirmationUrl = result.data?.appSubscriptionCreate?.confirmationUrl;
 
+      console.log('[GraphQLBilling] Extracted values:', {
+        hasSubscription: !!subscription,
+        subscriptionId: subscription?.id,
+        hasConfirmationUrl: !!confirmationUrl,
+        confirmationUrl: confirmationUrl
+      });
+
       if (!confirmationUrl || !subscription) {
+        console.error('[GraphQLBilling] Missing confirmationUrl or subscription:', {
+          confirmationUrl,
+          subscription: subscription?.id
+        });
         return {
           success: false,
-          error: "Failed to create subscription"
+          error: "Failed to create subscription - missing confirmationUrl or subscription"
         };
       }
 
