@@ -1,21 +1,22 @@
 /**
  * Billing Callback Route
  * Handles the redirect back from Shopify after subscription confirmation
+ * Now uses GraphQL Billing Service
  */
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import { getSubscriptionStatus, logBillingAttempt } from "~/services/billing/plan-subscription.server";
+import { logBillingAttempt } from "~/services/billing/plan-subscription.server";
 import { updatePlanLimit, unlockShop } from "~/utils/plan-access-control.server";
-import { PLAN_CONFIGS } from "~/services/billing/plan-subscription.server";
+import { getPlanConfig } from "~/utils/billing-config";
 
 /**
  * This route is called after the merchant confirms the subscription in Shopify
- * URL format: /app/billing/callback?plan=pro&charge_id=12345
+ * URL format: /app/billing/callback?shop=example.myshopify.com&plan=pro
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
 
   if (!session?.shop) {
     throw new Response("Unauthorized", { status: 401 });
@@ -23,57 +24,65 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const url = new URL(request.url);
   const planId = url.searchParams.get("plan");
-  const chargeId = url.searchParams.get("charge_id");
+  const shopParam = url.searchParams.get("shop");
 
-  console.log(`[Billing Callback] Shop: ${session.shop}, Plan: ${planId}, Charge: ${chargeId}`);
+  console.log(`[Billing Callback] Shop: ${session.shop}, Plan: ${planId}`);
 
   // Handle cancellation - when merchant clicks "Cancel" on Shopify payment page
-  if (!chargeId && planId) {
+  if (!planId) {
     console.log(`[Billing Callback] Merchant cancelled subscription for ${session.shop}`);
-    await logBillingAttempt(session.shop, planId, false, "Merchant cancelled subscription");
+    await logBillingAttempt(session.shop, "unknown", false, "Merchant cancelled subscription");
     return redirect("/app/billing?cancelled=true");
   }
 
-  if (!planId) {
-    console.error("[Billing Callback] No plan ID provided");
-    return redirect("/app/billing?error=missing_plan");
-  }
-
-  const planConfig = PLAN_CONFIGS[planId];
+  const planConfig = getPlanConfig(planId);
   if (!planConfig) {
     console.error(`[Billing Callback] Invalid plan ID: ${planId}`);
     return redirect("/app/billing?error=invalid_plan");
   }
 
   try {
-    // Verify the subscription was actually created
-    const subscriptionStatus = await getSubscriptionStatus(session.shop, billing);
+    // Use GraphQL Billing Service to verify subscription
+    const { GraphQLBillingService } = await import("~/services/billing/graphql-billing.service");
+    const billingService = new GraphQLBillingService(admin);
 
-    if (subscriptionStatus.hasActiveSubscription && subscriptionStatus.currentPlan === planConfig.planName) {
-      console.log(`[Billing Callback] Subscription confirmed for ${session.shop}: ${planConfig.planName}`);
+    // Check for pending charge in database
+    const db = await import("~/db.server");
+    const billingSubscription = await db.default.billingSubscription.findUnique({
+      where: { shop: session.shop }
+    });
+
+    if (!billingSubscription?.pendingChargeId) {
+      console.warn(`[Billing Callback] No pending charge found for ${session.shop}`);
+      return redirect("/app/billing?error=no_pending_charge");
+    }
+
+    // Extract subscription ID from pending charge
+    const subscriptionId = billingSubscription.pendingChargeId.split('/').pop();
+
+    // Verify subscription is now active
+    const verifyResult = await billingService.verifySubscription(session.shop, subscriptionId!);
+
+    if (verifyResult.success) {
+      console.log(`[Billing Callback] Subscription confirmed for ${session.shop}: ${planConfig.name}`);
 
       // Log successful subscription
       await logBillingAttempt(session.shop, planId, true, null, {
-        chargeId,
-        subscriptionId: subscriptionStatus.subscriptionId,
+        subscriptionId: verifyResult.subscriptionId,
         callbackUrl: request.url
       });
 
       // Update plan limits and unlock shop
-      await updatePlanLimit(session.shop, planConfig.planName, planConfig.orderLimit);
+      await updatePlanLimit(session.shop, planConfig.name, planConfig.orderLimit);
       await unlockShop(session.shop);
 
       // Redirect to billing page with success message
       return redirect(`/app/billing?success=true&plan=${planId}`);
     } else {
-      console.warn(`[Billing Callback] Subscription not found or plan mismatch for ${session.shop}`);
+      console.warn(`[Billing Callback] Subscription verification failed for ${session.shop}:`, verifyResult.error);
 
       // Log failed attempt
-      await logBillingAttempt(session.shop, planId, false, "Subscription not confirmed", {
-        chargeId,
-        expectedPlan: planConfig.planName,
-        actualPlan: subscriptionStatus.currentPlan
-      });
+      await logBillingAttempt(session.shop, planId, false, verifyResult.error || "Subscription not confirmed");
 
       return redirect("/app/billing?error=subscription_not_found");
     }
@@ -84,8 +93,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       session.shop,
       planId,
       false,
-      error instanceof Error ? error.message : String(error),
-      { chargeId }
+      error instanceof Error ? error.message : String(error)
     );
 
     return redirect(`/app/billing?error=callback_failed`);

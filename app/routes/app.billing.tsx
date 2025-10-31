@@ -25,7 +25,6 @@ import { CheckCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { useState } from "react";
 import {
-  createSubscription,
   getSubscriptionStatus,
   getAllPlans,
   type BillingResult,
@@ -66,7 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 // ============================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
 
   if (!session?.shop) {
     throw new Response("Unauthorized", { status: 401 });
@@ -87,42 +86,51 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   console.log(`[Billing Action] Shop ${session.shop} requesting ${planId} plan`);
 
-  // Collect metadata for audit logging
-  const metadata = {
-    ipAddress: request.headers.get("x-forwarded-for") ||
-               request.headers.get("x-real-ip") ||
-               "unknown",
-    userAgent: request.headers.get("user-agent") || "unknown",
-  };
-
   try {
-    // Create subscription
-    const result = await createSubscription(
-      session.shop,
-      planId,
-      billing,
-      metadata
-    );
+    // Use GraphQL Billing Service (with auto-detection of dev stores)
+    const { GraphQLBillingService } = await import("~/services/billing/graphql-billing.service");
+    const billingService = new GraphQLBillingService(admin);
+
+    // Determine if this is an upgrade
+    const currentStatus = await getSubscriptionStatus(session.shop, admin.billing);
+    const isUpgrade = currentStatus.hasActiveSubscription;
+
+    // Create subscription via GraphQL
+    const result = await billingService.createSubscription({
+      shop: session.shop,
+      planType: planId as any,
+      isUpgrade,
+    });
 
     if (result.success && result.confirmationUrl) {
+      console.log(`[Billing Action] Subscription created, redirecting to confirmation`);
       // Redirect to Shopify confirmation page
-      return json<BillingResult>(result, {
-        status: 302,
-        headers: {
-          Location: result.confirmationUrl,
+      return json<BillingResult>(
+        {
+          success: true,
+          confirmationUrl: result.confirmationUrl,
+          subscriptionId: result.subscriptionId,
         },
+        {
+          status: 302,
+          headers: {
+            Location: result.confirmationUrl,
+          },
+        }
+      );
+    }
+
+    if (!result.success) {
+      console.error(`[Billing Action] Failed to create subscription:`, result.error);
+      return json<BillingResult>({
+        success: false,
+        error: result.error || "Failed to create subscription",
       });
     }
 
     return json<BillingResult>(result);
   } catch (error) {
-    // billing.request() throws a Response when it needs merchant approval
-    if (error instanceof Response) {
-      console.log(`[Billing Action] Redirecting to Shopify confirmation page`);
-      return error; // Return the redirect response
-    }
-
-    // Handle other errors
+    // Handle errors
     console.error(`[Billing Action] Unexpected error:`, error);
     return json<BillingResult>({
       success: false,
