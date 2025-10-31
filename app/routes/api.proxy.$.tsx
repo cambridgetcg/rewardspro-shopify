@@ -97,6 +97,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           membershipHistory: {
             where: { isActive: true },
             include: { tier: true },
+            orderBy: { createdAt: 'desc' },
             take: 1
           }
         }
@@ -110,6 +111,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           email: customer.email,
           storeCredit: customer.storeCredit,
           totalEarned: customer.totalEarned,
+          totalCashbackEarned: customer.totalCashbackEarned,
           membershipHistoryCount: customer.membershipHistory?.length || 0
         });
       }
@@ -181,15 +183,108 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         });
         console.log('[Proxy API] ✅ Customer created successfully:', customer.id);
       }
-      
-      // Get current tier
-      const currentMembership = customer.membershipHistory[0];
-      const currentTier = currentMembership?.tier;
 
-      console.log('[Proxy API] 🎖️ Current membership:', {
+      // Get current tier from membership history
+      let currentMembership = customer.membershipHistory[0];
+      let currentTier = currentMembership?.tier;
+
+      console.log('[Proxy API] 🎖️ Current membership from history:', {
         hasMembership: !!currentMembership,
         tierName: currentTier?.name,
         tierCashback: currentTier?.cashbackPercent
+      });
+
+      // FALLBACK: If no tier found in membership history, try to find/assign one
+      if (!currentTier) {
+        console.log('[Proxy API] ⚠️ No tier in membership history, looking up tier...');
+
+        // Try to find the appropriate tier based on customer spending
+        const customerSpending = Number(customer.totalSpent || 0);
+
+        let assignedTier = await prisma.tier.findFirst({
+          where: {
+            shopDomain: shop,
+            isActive: true,
+            minSpend: { lte: customerSpending }
+          },
+          orderBy: {
+            minSpend: 'desc'
+          }
+        });
+
+        console.log('[Proxy API] 🔍 Tier lookup result:', {
+          customerSpending,
+          foundTier: assignedTier?.name || 'NONE'
+        });
+
+        // If still no tier, get the default (lowest minSpend) tier
+        if (!assignedTier) {
+          console.log('[Proxy API] 🔍 No tier found by spending, getting default tier...');
+          assignedTier = await prisma.tier.findFirst({
+            where: {
+              shopDomain: shop,
+              isActive: true
+            },
+            orderBy: {
+              minSpend: 'asc'
+            }
+          });
+        }
+
+        // If still no tier, create Bronze tier
+        if (!assignedTier) {
+          console.log('[Proxy API] ➕ No tier exists, creating Bronze tier...');
+          assignedTier = await prisma.tier.create({
+            data: {
+              shopDomain: shop,
+              name: "Bronze",
+              minSpend: 0,
+              cashbackPercent: 1,
+              isActive: true,
+              evaluationPeriod: "ANNUAL"
+            }
+          });
+          console.log('[Proxy API] ✅ Bronze tier created:', assignedTier.id);
+        }
+
+        // Create membership history for this customer
+        if (assignedTier) {
+          console.log('[Proxy API] ➕ Creating membership history for customer:', {
+            customerId: customer.id,
+            tierId: assignedTier.id,
+            tierName: assignedTier.name
+          });
+
+          currentMembership = await prisma.membershipHistory.create({
+            data: {
+              customerId: customer.id,
+              tierId: assignedTier.id,
+              isActive: true,
+              assignmentType: "AUTOMATIC"
+            },
+            include: {
+              tier: true
+            }
+          });
+
+          currentTier = currentMembership.tier;
+          console.log('[Proxy API] ✅ Membership history created');
+        }
+      }
+
+      // Final data validation before response
+      console.log('[Proxy API] 📊 Final data check before response:', {
+        hasCustomer: !!customer,
+        customerId: customer?.id,
+        storeCredit: customer?.storeCredit,
+        totalEarned: customer?.totalEarned,
+        totalCashbackEarned: customer?.totalCashbackEarned,
+        totalSpent: customer?.totalSpent,
+        membershipHistoryLength: customer?.membershipHistory?.length,
+        hasMembership: !!currentMembership,
+        currentTierName: currentTier?.name || 'NO_TIER',
+        currentTierCashback: currentTier?.cashbackPercent || 'NO_CASHBACK',
+        currentTierId: currentTier?.id || 'NO_ID'
       });
 
       const responseData = {
@@ -201,15 +296,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           memberSince: customer.createdAt.toISOString()
         },
         balance: {
-          storeCredit: customer.storeCredit,
-          totalEarned: customer.totalEarned,
+          storeCredit: Number(customer.storeCredit || 0),
+          totalEarned: Number(customer.totalCashbackEarned || customer.totalEarned || 0),
           lastSynced: customer.lastSyncedAt?.toISOString() || null
         },
         membership: {
           tier: currentTier ? {
             id: currentTier.id,
             name: currentTier.name,
-            cashbackPercent: currentTier.cashbackPercent
+            cashbackPercent: Number(currentTier.cashbackPercent)
           } : {
             id: "default",
             name: "Bronze",
