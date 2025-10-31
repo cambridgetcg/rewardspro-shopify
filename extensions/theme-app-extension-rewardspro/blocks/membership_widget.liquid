@@ -1,33 +1,57 @@
 <!-- Membership Widget Block -->
 {% comment %}
-  Automatic State Detection:
-  - If customer is NOT logged in -> Show CTA (prompt to sign in)
-  - If customer IS logged in -> Show member info
-  - Settings can override this behavior
+  Enhanced Dynamic Widget:
+  - Detects customer login status automatically
+  - Fetches real-time data from proxy API
+  - Falls back to cached data if API unavailable
+  - Shows loading/error states appropriately
 {% endcomment %}
 
+{% assign proxy_base = shop.permanent_domain | prepend: 'https://' | append: '/apps/rewardspro' %}
+
 {% if customer %}
-  {% comment %} Customer is logged in - show member state {% endcomment %}
+  {% comment %} AUTHENTICATED STATE - Customer is logged in {% endcomment %}
   <div id="membership-widget-root"
-       data-logged-in="true"
+       class="rp-widget-root"
+       data-state="authenticated"
        data-customer-id="{{ customer.id }}"
        data-customer-email="{{ customer.email }}"
+       data-customer-name="{{ customer.first_name | default: 'Member' }}"
+       data-customer-tags="{{ customer.tags | join: ',' }}"
        data-shop-domain="{{ shop.permanent_domain }}"
        data-shop-currency="{{ shop.currency }}"
-       data-tier-name="{{ block.settings.tier_name | default: 'Rewards' }}"
-       data-balance="{{ block.settings.balance | default: '$0.00' }}">
+       data-api-endpoint="{{ proxy_base }}/membership"
+       data-enable-api="{{ block.settings.enable_api_calls | default: true }}"
+       data-cache-duration="{{ block.settings.cache_duration | default: 300 }}">
+    {% comment %} Loading placeholder - replaced by JavaScript {% endcomment %}
+    <div class="rp-widget-loading">Loading rewards...</div>
   </div>
 {% else %}
-  {% comment %} Customer is NOT logged in - show CTA state {% endcomment %}
+  {% comment %} GUEST STATE - Customer is NOT logged in {% endcomment %}
   <div id="membership-widget-root"
-       data-logged-in="false"
+       class="rp-widget-root"
+       data-state="guest"
        data-shop-domain="{{ shop.permanent_domain }}"
        data-shop-currency="{{ shop.currency }}"
-       data-message="{{ block.settings.guest_message | default: 'Sign in to view your rewards and store credit' }}"
+       data-message="{{ block.settings.guest_message | default: 'Join our rewards program!' }}"
        data-cta-text="{{ block.settings.guest_cta_text | default: 'Sign In' }}"
        data-cta-url="{{ block.settings.guest_cta_url | default: '/account/login' }}">
+    {% comment %} Guest placeholder - replaced by JavaScript {% endcomment %}
+    <div class="rp-widget-guest">Sign in to view rewards</div>
   </div>
 {% endif %}
+
+{% comment %} Fallback for browsers without JavaScript {% endcomment %}
+<noscript>
+  <div class="rp-widget-noscript">
+    {% if customer %}
+      Welcome back, {{ customer.first_name }}!
+      <a href="/account">Visit your account</a> to view rewards.
+    {% else %}
+      <a href="/account/login">Sign in</a> to view your rewards.
+    {% endif %}
+  </div>
+</noscript>
 
 {% schema %}
 {
@@ -38,25 +62,25 @@
   "settings": [
     {
       "type": "header",
-      "content": "Logged-In Member Settings"
+      "content": "API & Performance Settings"
     },
     {
-      "type": "paragraph",
-      "content": "These settings apply when a customer is signed in"
+      "type": "checkbox",
+      "id": "enable_api_calls",
+      "label": "Enable real-time data",
+      "default": true,
+      "info": "Fetch live balance and tier data from server. Disable for testing or to use static data only."
     },
     {
-      "type": "text",
-      "id": "tier_name",
-      "label": "Tier Name",
-      "default": "Rewards",
-      "info": "The name displayed in the header (e.g., 'Rewards', 'Gold Member')"
-    },
-    {
-      "type": "text",
-      "id": "balance",
-      "label": "Balance Amount",
-      "default": "$0.00",
-      "info": "The store credit balance to display (e.g., '$25.00')"
+      "type": "range",
+      "id": "cache_duration",
+      "label": "Cache duration (seconds)",
+      "min": 60,
+      "max": 3600,
+      "step": 60,
+      "default": 300,
+      "unit": "sec",
+      "info": "How long to cache customer data before fetching fresh data (5 minutes recommended)"
     },
     {
       "type": "header",
@@ -64,13 +88,13 @@
     },
     {
       "type": "paragraph",
-      "content": "These settings apply when a customer is NOT signed in (automatically detected)"
+      "content": "These settings apply when a customer is NOT signed in"
     },
     {
       "type": "text",
       "id": "guest_message",
       "label": "Guest Message",
-      "default": "Sign in to view your rewards and store credit",
+      "default": "Join our rewards program!",
       "info": "Message shown to non-logged-in visitors"
     },
     {
@@ -85,7 +109,7 @@
       "id": "guest_cta_url",
       "label": "Guest Button URL",
       "default": "/account/login",
-      "info": "URL the sign-in button links to"
+      "info": "URL the sign-in button links to (e.g., /account/login or /pages/join-rewards)"
     }
   ]
 }
