@@ -32,13 +32,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!planId) {
     console.log(`[Billing Callback] Merchant cancelled subscription for ${session.shop}`);
     await logBillingAttempt(session.shop, "unknown", false, "Merchant cancelled subscription");
-    return redirect("/app/billing?cancelled=true");
+
+    // Redirect to embedded app
+    const shopDomain = session.shop;
+    const appHandle = "RewardsproMembership";
+    const embeddedAppUrl = `https://${shopDomain}/admin/apps/${appHandle}/app/billing?cancelled=true`;
+
+    return redirect(embeddedAppUrl);
   }
 
   const planConfig = getPlanConfig(planId);
   if (!planConfig) {
     console.error(`[Billing Callback] Invalid plan ID: ${planId}`);
-    return redirect("/app/billing?error=invalid_plan");
+
+    // Redirect to embedded app
+    const shopDomain = session.shop;
+    const appHandle = "RewardsproMembership";
+    const embeddedAppUrl = `https://${shopDomain}/admin/apps/${appHandle}/app/billing?error=invalid_plan`;
+
+    return redirect(embeddedAppUrl);
   }
 
   try {
@@ -54,7 +66,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     if (!billingSubscription?.pendingChargeId) {
       console.warn(`[Billing Callback] No pending charge found for ${session.shop}`);
-      return redirect("/app/billing?error=no_pending_charge");
+
+      // Redirect to embedded app
+      const shopDomain = session.shop;
+      const appHandle = "RewardsproMembership";
+      const embeddedAppUrl = `https://${shopDomain}/admin/apps/${appHandle}/app/billing?error=no_pending_charge`;
+
+      return redirect(embeddedAppUrl);
     }
 
     // Extract subscription ID from pending charge
@@ -76,15 +94,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       await updatePlanLimit(session.shop, planConfig.name, planConfig.orderLimit);
       await unlockShop(session.shop);
 
-      // Redirect to billing page with success message
-      return redirect(`/app/billing?success=true&plan=${planId}`);
+      // Redirect to embedded app (not just /app/billing which triggers login)
+      // Format: https://{shop}/admin/apps/{app-handle}/app/billing?success=true
+      const shopDomain = session.shop;
+      const appHandle = "RewardsproMembership";
+      const embeddedAppUrl = `https://${shopDomain}/admin/apps/${appHandle}/app/billing?success=true&plan=${planId}`;
+
+      console.log(`[Billing Callback] Redirecting to embedded app:`, embeddedAppUrl);
+      return redirect(embeddedAppUrl);
     } else {
       console.warn(`[Billing Callback] Subscription verification failed for ${session.shop}:`, verifyResult.error);
 
       // Log failed attempt
       await logBillingAttempt(session.shop, planId, false, verifyResult.error || "Subscription not confirmed");
 
-      return redirect("/app/billing?error=subscription_not_found");
+      // Redirect to embedded app error page
+      const shopDomain = session.shop;
+      const appHandle = "RewardsproMembership";
+      const embeddedAppUrl = `https://${shopDomain}/admin/apps/${appHandle}/app/billing?error=subscription_not_found`;
+
+      return redirect(embeddedAppUrl);
     }
   } catch (error) {
     console.error("[Billing Callback] Error processing callback:", error);
@@ -96,6 +125,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       error instanceof Error ? error.message : String(error)
     );
 
-    return redirect(`/app/billing?error=callback_failed`);
+    // Redirect to embedded app error page
+    const shopDomain = session.shop;
+    const appHandle = "RewardsproMembership";
+    const embeddedAppUrl = `https://${shopDomain}/admin/apps/${appHandle}/app/billing?error=callback_failed`;
+
+    return redirect(embeddedAppUrl);
   }
 };
