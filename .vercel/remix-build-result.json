@@ -63,6 +63,7 @@
       "routes/app.dashboard-mockups": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing._index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.tier-products": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.graphql-test": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.orders-sync": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.additional": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.monitoring": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -568,6 +569,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/app.graphql-test": {
+        "id": "routes/app.graphql-test",
+        "parentId": "routes/app",
+        "file": "app/routes/app.graphql-test.tsx",
+        "path": "graphql-test",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/app.orders-sync": {
         "id": "routes/app.orders-sync",
         "parentId": "routes/app",
@@ -1047,6 +1057,12 @@
         "parentId": "routes/app",
         "file": "routes/app.tier-products.tsx",
         "path": "tier-products"
+      },
+      "routes/app.graphql-test": {
+        "id": "routes/app.graphql-test",
+        "parentId": "routes/app",
+        "file": "routes/app.graphql-test.tsx",
+        "path": "graphql-test"
       },
       "routes/app.orders-sync": {
         "id": "routes/app.orders-sync",
