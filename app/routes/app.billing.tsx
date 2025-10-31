@@ -65,7 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 // ============================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session, admin, billing } = await authenticate.admin(request);
 
   if (!session?.shop) {
     throw new Response("Unauthorized", { status: 401 });
@@ -92,7 +92,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const billingService = new GraphQLBillingService(admin);
 
     // Determine if this is an upgrade
-    const currentStatus = await getSubscriptionStatus(session.shop, admin.billing);
+    const currentStatus = await getSubscriptionStatus(session.shop, billing);
     const isUpgrade = currentStatus.hasActiveSubscription;
 
     // Create subscription via GraphQL

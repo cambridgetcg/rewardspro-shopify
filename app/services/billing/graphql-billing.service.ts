@@ -13,6 +13,7 @@ import {
   isDevelopmentStore
 } from "../../utils/billing-config";
 import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 // GraphQL Mutations
 const CREATE_SUBSCRIPTION_MUTATION = `#graphql
@@ -597,6 +598,7 @@ export class GraphQLBillingService {
     await db.billingSubscription.upsert({
       where: { shop },
       create: {
+        id: uuidv4(),
         shop,
         pendingChargeId: chargeId,
         pendingChargeCreatedAt: new Date(),
