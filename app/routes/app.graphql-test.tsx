@@ -48,6 +48,310 @@ export async function loader({ request }: LoaderFunctionArgs) {
     currencyCode
   }
 }`,
+    "Create Pro Subscription": `mutation CreateProSubscription {
+  appSubscriptionCreate(
+    name: "RewardsPro Pro"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=pro"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 39.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+      {
+        plan: {
+          appUsagePricingDetails: {
+            terms: "$10 per 100 additional orders over 500 orders/month (max $200/month)"
+            cappedAmount: {
+              amount: 200.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 7
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      status
+      currentPeriodEnd
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              price {
+                amount
+                currencyCode
+              }
+              interval
+            }
+            ... on AppUsagePricing {
+              cappedAmount {
+                amount
+                currencyCode
+              }
+              terms
+            }
+          }
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`,
+    "Create Pro Annual Subscription": `mutation CreateProAnnualSubscription {
+  appSubscriptionCreate(
+    name: "RewardsPro Pro Annual"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=proAnnual"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: ANNUAL
+            price: {
+              amount: 336.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+      {
+        plan: {
+          appUsagePricingDetails: {
+            terms: "$10 per 100 additional orders over 500 orders/month (max $200/month)"
+            cappedAmount: {
+              amount: 200.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 7
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      status
+      currentPeriodEnd
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`,
+    "Create Max Subscription": `mutation CreateMaxSubscription {
+  appSubscriptionCreate(
+    name: "RewardsPro Max"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=max"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 149.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+      {
+        plan: {
+          appUsagePricingDetails: {
+            terms: "$5 per 100 additional orders over 2,000 orders/month (max $500/month)"
+            cappedAmount: {
+              amount: 500.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 7
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`,
+    "Create Max Annual Subscription": `mutation CreateMaxAnnualSubscription {
+  appSubscriptionCreate(
+    name: "RewardsPro Max Annual"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=maxAnnual"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: ANNUAL
+            price: {
+              amount: 1296.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+      {
+        plan: {
+          appUsagePricingDetails: {
+            terms: "$5 per 100 additional orders over 2,000 orders/month (max $500/month)"
+            cappedAmount: {
+              amount: 500.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 7
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`,
+    "Create Ultra Subscription": `mutation CreateUltraSubscription {
+  appSubscriptionCreate(
+    name: "RewardsPro Ultra"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=ultra"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 499.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 14
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`,
+    "Create Ultra Annual Subscription": `mutation CreateUltraAnnualSubscription {
+  appSubscriptionCreate(
+    name: "RewardsPro Ultra Annual"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=ultraAnnual"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: ANNUAL
+            price: {
+              amount: 4296.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 14
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}`,
+    "Get Active Subscriptions": `{
+  currentAppInstallation {
+    activeSubscriptions {
+      id
+      name
+      status
+      currentPeriodEnd
+      test
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              price {
+                amount
+                currencyCode
+              }
+              interval
+            }
+            ... on AppUsagePricing {
+              cappedAmount {
+                amount
+                currencyCode
+              }
+              terms
+            }
+          }
+        }
+      }
+    }
+  }
+}`,
+    "Cancel Subscription": `mutation CancelSubscription($id: ID!) {
+  appSubscriptionCancel(id: $id, prorate: false) {
+    appSubscription {
+      id
+      name
+      status
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Replace YOUR_SUBSCRIPTION_ID with the actual subscription ID
+# Example: gid://shopify/AppSubscription/106181230976
+# Note: prorate is always false (no refunds for unused time)`,
     "Customer List": `{
   customers(first: 5) {
     edges {

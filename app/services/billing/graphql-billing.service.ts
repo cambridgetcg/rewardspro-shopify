@@ -103,8 +103,8 @@ const GET_SUBSCRIPTION_QUERY = `#graphql
 `;
 
 const CANCEL_SUBSCRIPTION_MUTATION = `#graphql
-  mutation CancelSubscription($id: ID!) {
-    appSubscriptionCancel(id: $id) {
+  mutation CancelSubscription($id: ID!, $prorate: Boolean) {
+    appSubscriptionCancel(id: $id, prorate: $prorate) {
       appSubscription {
         id
         status
@@ -165,7 +165,7 @@ const GET_ACTIVE_SUBSCRIPTIONS_QUERY = `#graphql
 
 export interface CreateSubscriptionOptions {
   shop: string;
-  planType: 'starter' | 'growth' | 'enterprise';
+  planType: 'free' | 'pro' | 'proAnnual' | 'max' | 'maxAnnual' | 'ultra' | 'ultraAnnual' | 'starter' | 'growth' | 'enterprise';
   isUpgrade: boolean;
   returnUrl?: string;
 }
@@ -217,12 +217,16 @@ export class GraphQLBillingService {
       const returnUrl = options.returnUrl ||
         `${process.env.SHOPIFY_APP_URL}/app/billing/callback?shop=${shop}&plan=${planType}`;
 
+      // Determine billing interval - annual plans use ANNUAL, others use EVERY_30_DAYS
+      const isAnnualPlan = planType.toLowerCase().includes('annual');
+      const billingInterval = isAnnualPlan ? "ANNUAL" : "EVERY_30_DAYS";
+
       // Build line items array
       const lineItems: any[] = [
         {
           plan: {
             appRecurringPricingDetails: {
-              interval: "EVERY_30_DAYS",
+              interval: billingInterval,
               price: {
                 amount: formatMoneyInput(planConfig.price),
                 currencyCode: getCurrencyCode(shop)
@@ -483,6 +487,7 @@ export class GraphQLBillingService {
 
   /**
    * Cancel subscription
+   * Note: Always uses prorate: false (no refunds for unused time)
    */
   async cancelSubscription(shop: string): Promise<SubscriptionResult> {
     try {
@@ -498,7 +503,10 @@ export class GraphQLBillingService {
       }
 
       const response = await this.admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
-        variables: { id: billingSubscription.subscriptionId }
+        variables: {
+          id: billingSubscription.subscriptionId,
+          prorate: false  // Never prorate - no refunds for unused time
+        }
       });
 
       const result = await response.json();
