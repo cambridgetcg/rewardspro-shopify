@@ -102,9 +102,11 @@
 
       // Fetch fresh data if API is enabled
       if (this.config.api.enabled) {
+        console.log('[RewardsWidget] 🚀 API is enabled, fetching customer data...');
         await this.fetchCustomerData();
       } else {
-        console.log('[RewardsWidget] API disabled, using fallback data');
+        console.log('[RewardsWidget] ⚠️ API disabled, using fallback data');
+        console.log('[RewardsWidget] Config:', this.config);
         this.useFallbackData();
       }
     }
@@ -113,8 +115,19 @@
      * Fetch real customer data from proxy API
      */
     async fetchCustomerData() {
+      console.log('[RewardsWidget] 📞 fetchCustomerData called');
+      console.log('[RewardsWidget] API Config:', {
+        endpoint: this.config.api.endpoint,
+        enabled: this.config.api.enabled,
+        customerId: this.config.customer?.id,
+        shopDomain: this.config.shop.domain
+      });
+
       if (!this.config.api.endpoint || !this.config.customer?.id) {
-        console.error('[RewardsWidget] Missing API endpoint or customer ID');
+        console.error('[RewardsWidget] ❌ Missing API endpoint or customer ID:', {
+          endpoint: this.config.api.endpoint,
+          customerId: this.config.customer?.id
+        });
         this.handleError('Configuration error');
         return;
       }
@@ -127,7 +140,12 @@
         url.searchParams.append('logged_in_customer_id', this.config.customer.id);
         url.searchParams.append('shop', this.config.shop.domain);
 
-        console.log('[RewardsWidget] Fetching from:', url.toString());
+        console.log('[RewardsWidget] 🌐 MAKING API CALL TO:', url.toString());
+        console.log('[RewardsWidget] 📍 Full URL breakdown:', {
+          origin: window.location.origin,
+          endpoint: this.config.api.endpoint,
+          fullUrl: url.toString()
+        });
 
         // Fetch with timeout
         const controller = new AbortController();
@@ -152,7 +170,14 @@
 
         const data = await response.json();
 
-        console.log('[RewardsWidget] Response received:', data);
+        console.log('[RewardsWidget] ✅ Response received:', data);
+        console.log('[RewardsWidget] Response details:', {
+          success: data.success,
+          hasBalance: !!data.balance,
+          hasMembership: !!data.membership,
+          tierName: data.membership?.tier?.name,
+          storeCredit: data.balance?.storeCredit
+        });
 
         if (!data.success) {
           throw new Error(data.message || 'API request failed');
