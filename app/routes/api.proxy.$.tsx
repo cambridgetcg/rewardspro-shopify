@@ -114,6 +114,29 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           totalCashbackEarned: customer.totalCashbackEarned,
           membershipHistoryCount: customer.membershipHistory?.length || 0
         });
+
+        // DEBUG: Log raw customer object
+        console.log('[Proxy API] 🔬 RAW Customer Object:', JSON.stringify(customer, null, 2));
+
+        // DEBUG: Log membership history details
+        if (customer.membershipHistory && customer.membershipHistory.length > 0) {
+          console.log('[Proxy API] 📋 Membership History Details:', {
+            count: customer.membershipHistory.length,
+            firstEntry: {
+              id: customer.membershipHistory[0].id,
+              tierId: customer.membershipHistory[0].tierId,
+              isActive: customer.membershipHistory[0].isActive,
+              hasTier: !!customer.membershipHistory[0].tier,
+              tierData: customer.membershipHistory[0].tier ? {
+                id: customer.membershipHistory[0].tier.id,
+                name: customer.membershipHistory[0].tier.name,
+                cashbackPercent: customer.membershipHistory[0].tier.cashbackPercent
+              } : null
+            }
+          });
+        } else {
+          console.log('[Proxy API] ⚠️ NO MEMBERSHIP HISTORY FOUND FOR EXISTING CUSTOMER');
+        }
       }
       
       // Create new customer if doesn't exist
@@ -196,10 +219,23 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
       // FALLBACK: If no tier found in membership history, try to find/assign one
       if (!currentTier) {
-        console.log('[Proxy API] ⚠️ No tier in membership history, looking up tier...');
+        console.log('[Proxy API] ⚠️ No tier in membership history, starting fallback logic...');
+        console.log('[Proxy API] 🔍 Customer data for tier lookup:', {
+          customerId: customer.id,
+          totalSpent: customer.totalSpent,
+          storeCredit: customer.storeCredit,
+          totalCashbackEarned: customer.totalCashbackEarned
+        });
 
         // Try to find the appropriate tier based on customer spending
         const customerSpending = Number(customer.totalSpent || 0);
+        console.log('[Proxy API] 💰 Customer spending for tier evaluation:', customerSpending);
+
+        console.log('[Proxy API] 🔎 Searching for tier with criteria:', {
+          shopDomain: shop,
+          isActive: true,
+          minSpend_lte: customerSpending
+        });
 
         let assignedTier = await prisma.tier.findFirst({
           where: {
@@ -214,12 +250,36 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
         console.log('[Proxy API] 🔍 Tier lookup result:', {
           customerSpending,
-          foundTier: assignedTier?.name || 'NONE'
+          foundTier: assignedTier?.name || 'NONE',
+          tierDetails: assignedTier ? {
+            id: assignedTier.id,
+            name: assignedTier.name,
+            minSpend: assignedTier.minSpend,
+            cashbackPercent: assignedTier.cashbackPercent
+          } : null
         });
 
         // If still no tier, get the default (lowest minSpend) tier
         if (!assignedTier) {
           console.log('[Proxy API] 🔍 No tier found by spending, getting default tier...');
+
+          // First, let's check ALL tiers for this shop for debugging
+          const allTiers = await prisma.tier.findMany({
+            where: { shopDomain: shop }
+          });
+
+          console.log('[Proxy API] 📦 ALL TIERS IN DATABASE for shop:', {
+            shop,
+            count: allTiers.length,
+            tiers: allTiers.map(t => ({
+              id: t.id,
+              name: t.name,
+              minSpend: t.minSpend,
+              cashbackPercent: t.cashbackPercent,
+              isActive: t.isActive
+            }))
+          });
+
           assignedTier = await prisma.tier.findFirst({
             where: {
               shopDomain: shop,
@@ -229,6 +289,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
               minSpend: 'asc'
             }
           });
+
+          if (assignedTier) {
+            console.log('[Proxy API] ✅ Default tier found:', {
+              id: assignedTier.id,
+              name: assignedTier.name,
+              minSpend: assignedTier.minSpend,
+              cashbackPercent: assignedTier.cashbackPercent
+            });
+          }
         }
 
         // If still no tier, create Bronze tier
@@ -255,20 +324,38 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             tierName: assignedTier.name
           });
 
-          currentMembership = await prisma.membershipHistory.create({
-            data: {
-              customerId: customer.id,
-              tierId: assignedTier.id,
-              isActive: true,
-              assignmentType: "AUTOMATIC"
-            },
-            include: {
-              tier: true
-            }
-          });
+          try {
+            currentMembership = await prisma.membershipHistory.create({
+              data: {
+                customerId: customer.id,
+                tierId: assignedTier.id,
+                isActive: true,
+                assignmentType: "AUTOMATIC"
+              },
+              include: {
+                tier: true
+              }
+            });
 
-          currentTier = currentMembership.tier;
-          console.log('[Proxy API] ✅ Membership history created');
+            console.log('[Proxy API] ✅ Membership history created successfully:', {
+              membershipId: currentMembership.id,
+              tierId: currentMembership.tierId,
+              isActive: currentMembership.isActive,
+              tierName: currentMembership.tier?.name,
+              tierCashback: currentMembership.tier?.cashbackPercent
+            });
+
+            currentTier = currentMembership.tier;
+          } catch (error) {
+            console.error('[Proxy API] ❌ Failed to create membership history:', error);
+            console.error('[Proxy API] ❌ Error details:', {
+              message: error.message,
+              code: error.code,
+              meta: error.meta
+            });
+          }
+        } else {
+          console.log('[Proxy API] ⚠️ No tier available to assign - this should not happen!');
         }
       }
 
@@ -277,14 +364,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         hasCustomer: !!customer,
         customerId: customer?.id,
         storeCredit: customer?.storeCredit,
+        storeCreditType: typeof customer?.storeCredit,
         totalEarned: customer?.totalEarned,
+        totalEarnedType: typeof customer?.totalEarned,
         totalCashbackEarned: customer?.totalCashbackEarned,
+        totalCashbackEarnedType: typeof customer?.totalCashbackEarned,
         totalSpent: customer?.totalSpent,
         membershipHistoryLength: customer?.membershipHistory?.length,
         hasMembership: !!currentMembership,
         currentTierName: currentTier?.name || 'NO_TIER',
         currentTierCashback: currentTier?.cashbackPercent || 'NO_CASHBACK',
-        currentTierId: currentTier?.id || 'NO_ID'
+        currentTierCashbackType: typeof currentTier?.cashbackPercent,
+        currentTierId: currentTier?.id || 'NO_ID',
+        tierObjectExists: !!currentTier,
+        membershipObjectExists: !!currentMembership
       });
 
       const responseData = {
@@ -314,6 +407,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       };
 
       console.log('[Proxy API] ✅ Returning response:', JSON.stringify(responseData, null, 2));
+
+      // DEBUG: Extra validation before returning
+      console.log('[Proxy API] 🎯 FINAL RESPONSE VALUES:', {
+        'tier.name': responseData.membership.tier.name,
+        'tier.cashbackPercent': responseData.membership.tier.cashbackPercent,
+        'balance.storeCredit': responseData.balance.storeCredit,
+        'balance.totalEarned': responseData.balance.totalEarned,
+        'customerEmail': responseData.customer.email
+      });
 
       return json(responseData, { headers });
       
