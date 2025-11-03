@@ -715,6 +715,14 @@
   border: 1px solid #f5c6cb;
 }
 
+.rp-widget__indicator--sync {
+  background: #e7f3ff;
+  color: #004085;
+  border: 1px solid #b8daff;
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
 /* Collapsed state - hide body */
 .rp-widget--collapsed .rp-widget__body {
   display: none;

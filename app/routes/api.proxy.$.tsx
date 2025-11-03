@@ -1,6 +1,7 @@
 // app/routes/api.proxy.$.tsx
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
+import { authenticate } from "../shopify.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const proxyPath = params["*"] || "";
@@ -103,7 +104,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         }
       });
 
-      console.log('[Proxy API] 📥 Customer found:', customer ? 'YES' : 'NO');
+      console.log('[Proxy API] 📥 Customer found in database:', customer ? 'YES' : 'NO');
+
       if (customer) {
         console.log('[Proxy API] 👤 Customer details:', {
           id: customer.id,
@@ -139,12 +141,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         }
       }
       
-      // Create new customer if doesn't exist
+      // Return default data if customer doesn't exist (don't auto-create)
       if (!customer) {
-        console.log('[Proxy API] ➕ Customer not found, creating new customer...');
+        console.log('[Proxy API] ⚠️ Customer not found in database');
+        console.log('[Proxy API] ℹ️ Returning default Bronze tier data without creating database record');
+        console.log('[Proxy API] 💡 Customer will be created when:');
+        console.log('[Proxy API]    1. Shopify fires customer/create webhook, or');
+        console.log('[Proxy API]    2. Merchant runs customer sync from admin');
 
-        // Get or create default tier
-        let defaultTier = await prisma.tier.findFirst({
+        // Get default tier (lowest tier) to return in response
+        const defaultTier = await prisma.tier.findFirst({
           where: {
             shopDomain: shop,
             isActive: true
@@ -154,57 +160,63 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           }
         });
 
-        console.log('[Proxy API] 🎖️ Default tier found:', defaultTier ? 'YES' : 'NO');
-        if (defaultTier) {
-          console.log('[Proxy API] 🎖️ Tier details:', {
-            id: defaultTier.id,
-            name: defaultTier.name,
-            minSpend: defaultTier.minSpend,
-            cashbackPercent: defaultTier.cashbackPercent
-          });
-        }
-        
+        // If no tiers exist at all, return a hardcoded Bronze response
         if (!defaultTier) {
-          console.log('[Proxy API] ➕ No tier found, creating Bronze tier...');
-          defaultTier = await prisma.tier.create({
-            data: {
-              shopDomain: shop,
-              name: "Bronze",
-              minSpend: 0,
-              cashbackPercent: 1,
-              isActive: true,
-              evaluationPeriod: "ANNUAL"
-            }
+          console.log('[Proxy API] ⚠️ No tiers configured for shop, returning hardcoded Bronze data');
+          return json({
+            success: true,
+            customer: {
+              id: customerId,
+              shopifyCustomerId: customerId,
+              email: `customer${customerId}@${shop}`, // Temporary display only
+              firstName: null,
+              lastName: null,
+            },
+            balance: {
+              storeCredit: 0,
+              totalEarned: 0,
+              totalCashbackEarned: 0
+            },
+            membership: {
+              tier: {
+                id: 'default-bronze',
+                name: 'Bronze',
+                cashbackPercent: 1,
+                minSpend: 0
+              }
+            },
+            needsSync: true, // Flag indicating customer needs to be synced
+            message: 'Customer not found in database. Please run customer sync from admin.'
           });
-          console.log('[Proxy API] ✅ Bronze tier created:', defaultTier.id);
         }
-        
-        // Create customer with membership
-        console.log('[Proxy API] ➕ Creating customer with tier:', defaultTier.id);
-        customer = await prisma.customer.create({
-          data: {
-            shopDomain: shop,
+
+        // Return default tier data without creating customer
+        console.log('[Proxy API] ✅ Returning default tier:', defaultTier.name);
+        return json({
+          success: true,
+          customer: {
+            id: customerId,
             shopifyCustomerId: customerId,
-            email: `customer${customerId}@${shop}`,
+            email: `customer${customerId}@${shop}`, // Temporary display only
+            firstName: null,
+            lastName: null,
+          },
+          balance: {
             storeCredit: 0,
             totalEarned: 0,
-            membershipHistory: {
-              create: {
-                tierId: defaultTier.id,
-                isActive: true,
-                assignmentType: "AUTOMATIC"
-              }
+            totalCashbackEarned: 0
+          },
+          membership: {
+            tier: {
+              id: defaultTier.id,
+              name: defaultTier.name,
+              cashbackPercent: Number(defaultTier.cashbackPercent),
+              minSpend: Number(defaultTier.minSpend)
             }
           },
-          include: {
-            membershipHistory: {
-              where: { isActive: true },
-              include: { tier: true },
-              take: 1
-            }
-          }
+          needsSync: true, // Flag indicating customer needs to be synced
+          message: 'Customer not found in database. Please run customer sync from admin.'
         });
-        console.log('[Proxy API] ✅ Customer created successfully:', customer.id);
       }
 
       // Get current tier from membership history
@@ -227,9 +239,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           totalCashbackEarned: customer.totalCashbackEarned
         });
 
-        // Try to find the appropriate tier based on customer spending
+        // Try to find the appropriate tier based on customer spending from database
         const customerSpending = Number(customer.totalSpent || 0);
-        console.log('[Proxy API] 💰 Customer spending for tier evaluation:', customerSpending);
+
+        console.log('[Proxy API] 💰 Customer spending for tier evaluation:', {
+          fromDatabase: customer.totalSpent,
+          usingValue: customerSpending
+        });
 
         console.log('[Proxy API] 🔎 Searching for tier with criteria:', {
           shopDomain: shop,
