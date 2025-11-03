@@ -278,17 +278,6 @@ export function SystemMonitorPlanCard({
               )}
             </BlockStack>
           </Box>
-
-          {/* Upgrade Button */}
-          {showUpgradeButton && onUpgrade && (
-            <Button
-              fullWidth
-              onClick={onUpgrade}
-              variant={usageMetrics.isOverLimit ? "primary" : "plain"}
-            >
-              {usageMetrics.isOverLimit ? "Upgrade now" : "View plans"}
-            </Button>
-          )}
         </BlockStack>
           </Card>
         </div>
