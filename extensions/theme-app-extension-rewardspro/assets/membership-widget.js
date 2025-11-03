@@ -16,7 +16,8 @@
         isLoading: false,
         data: null,
         error: null,
-        lastFetch: null
+        lastFetch: null,
+        dataSource: null // 'fresh', 'cache', 'fallback'
       };
 
       // Prevent double initialization
@@ -92,6 +93,7 @@
       if (cachedData) {
         console.log('[RewardsWidget] Using cached data');
         this.state.data = cachedData;
+        this.state.dataSource = 'cache';
         this.renderAuthenticated();
       } else {
         // Show loading state
@@ -160,6 +162,7 @@
         this.state.data = data;
         this.state.error = null;
         this.state.lastFetch = Date.now();
+        this.state.dataSource = 'fresh';
 
         // Cache the data
         this.cacheData(data);
@@ -181,6 +184,7 @@
         if (cachedData) {
           console.log('[RewardsWidget] Using cached data after error');
           this.state.data = cachedData;
+          this.state.dataSource = 'cache-stale';
           this.renderAuthenticated(true); // Show stale indicator
         } else {
           // Use fallback data as last resort
@@ -268,6 +272,7 @@
           }
         }
       };
+      this.state.dataSource = 'fallback';
 
       this.renderAuthenticated(false, true); // Show offline indicator
     }
@@ -382,6 +387,33 @@
                   <span class="rp-widget__debug-value">${this.escapeHtml(this.config.customer.id)}</span>
                 </div>
               </div>
+              <div class="rp-widget__debug-log">
+                <div class="rp-widget__debug-log-title">📊 Data Fetch Log</div>
+                <div class="rp-widget__debug-log-item">
+                  <span class="rp-widget__debug-log-label">Method:</span>
+                  <span class="rp-widget__debug-log-value rp-widget__debug-log-badge rp-widget__debug-log-badge--${this.getDataSourceBadgeClass()}">${this.getDataSourceLabel()}</span>
+                </div>
+                <div class="rp-widget__debug-log-item">
+                  <span class="rp-widget__debug-log-label">Tier Fetched:</span>
+                  <span class="rp-widget__debug-log-value">${this.escapeHtml(membership.tier.name)} (${membership.tier.cashbackPercent}%)</span>
+                </div>
+                <div class="rp-widget__debug-log-item">
+                  <span class="rp-widget__debug-log-label">Store Credit:</span>
+                  <span class="rp-widget__debug-log-value">${this.formatCurrency(balance.storeCredit)}</span>
+                </div>
+                <div class="rp-widget__debug-log-item">
+                  <span class="rp-widget__debug-log-label">Total Earned:</span>
+                  <span class="rp-widget__debug-log-value">${this.formatCurrency(balance.totalEarned)}</span>
+                </div>
+                <div class="rp-widget__debug-log-item">
+                  <span class="rp-widget__debug-log-label">Last Sync:</span>
+                  <span class="rp-widget__debug-log-value">${balance.lastSynced ? new Date(balance.lastSynced).toLocaleString() : 'Never'}</span>
+                </div>
+                <div class="rp-widget__debug-log-item">
+                  <span class="rp-widget__debug-log-label">Fetch Time:</span>
+                  <span class="rp-widget__debug-log-value">${this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleTimeString() : 'N/A'}</span>
+                </div>
+              </div>
               ${isStale ? '<div class="rp-widget__indicator rp-widget__indicator--stale">Data may be outdated</div>' : ''}
               ${isOffline ? '<div class="rp-widget__indicator rp-widget__indicator--offline">Offline mode</div>' : ''}
             </div>
@@ -414,6 +446,42 @@
       const div = document.createElement('div');
       div.textContent = text || '';
       return div.innerHTML;
+    }
+
+    /**
+     * Get data source label for debug display
+     */
+    getDataSourceLabel() {
+      switch(this.state.dataSource) {
+        case 'fresh':
+          return '🟢 Fresh API';
+        case 'cache':
+          return '🟡 Cached';
+        case 'cache-stale':
+          return '🟠 Stale Cache';
+        case 'fallback':
+          return '🔴 Fallback';
+        default:
+          return '⚪ Unknown';
+      }
+    }
+
+    /**
+     * Get CSS class for data source badge
+     */
+    getDataSourceBadgeClass() {
+      switch(this.state.dataSource) {
+        case 'fresh':
+          return 'fresh';
+        case 'cache':
+          return 'cache';
+        case 'cache-stale':
+          return 'stale';
+        case 'fallback':
+          return 'fallback';
+        default:
+          return 'unknown';
+      }
     }
 
     /**

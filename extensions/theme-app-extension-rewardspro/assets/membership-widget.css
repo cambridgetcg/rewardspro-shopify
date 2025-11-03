@@ -599,6 +599,98 @@
   font-family: 'Courier New', monospace;
 }
 
+/* Debug log section (temporary) */
+.rp-widget__debug-log {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff9e6;
+  border: 2px solid #ffa500;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.rp-widget__debug-log-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #cc8400;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rp-widget__debug-log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dotted #ffd699;
+}
+
+.rp-widget__debug-log-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.rp-widget__debug-log-label {
+  color: #996300;
+  font-weight: 600;
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rp-widget__debug-log-value {
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+}
+
+/* Debug log badges */
+.rp-widget__debug-log-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rp-widget__debug-log-badge--fresh {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #28a745;
+}
+
+.rp-widget__debug-log-badge--cache {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+
+.rp-widget__debug-log-badge--stale {
+  background: #ffe5cc;
+  color: #cc5500;
+  border: 1px solid #ff8800;
+}
+
+.rp-widget__debug-log-badge--fallback {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #dc3545;
+}
+
+.rp-widget__debug-log-badge--unknown {
+  background: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #6c757d;
+}
+
 /* Status indicators */
 .rp-widget__indicator {
   margin-top: 12px;
@@ -724,6 +816,54 @@
 
   .rp-widget__debug-value {
     color: #ffffff;
+  }
+
+  /* Debug log section in dark mode */
+  .rp-widget__debug-log {
+    background: #3d2f00;
+    border-color: #ffa500;
+  }
+
+  .rp-widget__debug-log-title {
+    color: #ffb84d;
+  }
+
+  .rp-widget__debug-log-label {
+    color: #cccccc;
+  }
+
+  .rp-widget__debug-log-value {
+    color: #ffffff;
+  }
+
+  .rp-widget__debug-log-item {
+    border-bottom-color: #665200;
+  }
+
+  /* Debug log badges in dark mode - keep same colors for visibility */
+  .rp-widget__debug-log-badge--fresh {
+    background: #155724;
+    color: #d4edda;
+  }
+
+  .rp-widget__debug-log-badge--cache {
+    background: #856404;
+    color: #fff3cd;
+  }
+
+  .rp-widget__debug-log-badge--stale {
+    background: #cc5500;
+    color: #ffe5cc;
+  }
+
+  .rp-widget__debug-log-badge--fallback {
+    background: #721c24;
+    color: #f8d7da;
+  }
+
+  .rp-widget__debug-log-badge--unknown {
+    background: #383d41;
+    color: #e2e3e5;
   }
 
   /* Keep error state visible in dark mode */

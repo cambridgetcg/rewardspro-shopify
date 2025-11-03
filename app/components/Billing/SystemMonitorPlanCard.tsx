@@ -67,6 +67,33 @@ export function SystemMonitorPlanCard({
 
   const peakDailyOrders = Math.ceil(averageDailyOrders * 1.8); // Estimate peak as 180% of average
 
+  // Calculate days to limit
+  const remainingOrders = (monthlyOrderUsage?.planLimit || 0) - (monthlyOrderUsage?.orderCount || 0);
+  const daysToLimit = averageDailyOrders > 0
+    ? Math.floor(remainingOrders / averageDailyOrders)
+    : Infinity;
+
+  // Determine status and display text
+  let daysToLimitDisplay = '';
+  let daysToLimitTone: 'success' | 'warning' | 'critical' = 'success';
+
+  if (remainingOrders <= 0) {
+    daysToLimitDisplay = 'Exceeded';
+    daysToLimitTone = 'critical';
+  } else if (daysToLimit === Infinity || averageDailyOrders === 0) {
+    daysToLimitDisplay = 'N/A';
+    daysToLimitTone = 'success';
+  } else if (daysToLimit <= 5) {
+    daysToLimitDisplay = `${daysToLimit} days`;
+    daysToLimitTone = 'critical';
+  } else if (daysToLimit <= 10) {
+    daysToLimitDisplay = `${daysToLimit} days`;
+    daysToLimitTone = 'warning';
+  } else {
+    daysToLimitDisplay = `${daysToLimit} days`;
+    daysToLimitTone = 'success';
+  }
+
   // Format renewal date
   const renewalDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
     .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -182,6 +209,27 @@ export function SystemMonitorPlanCard({
                   <Text variant="bodyMd" fontWeight="medium">
                     {daysRemaining}d / {daysInCycle}d
                   </Text>
+                </InlineStack>
+
+                <Divider />
+
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodySm" tone="subdued">
+                    Days to Limit
+                  </Text>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text variant="bodyMd" fontWeight="medium" tone={
+                      daysToLimitTone === 'critical' ? 'critical' :
+                      daysToLimitTone === 'warning' ? 'caution' : undefined
+                    }>
+                      {daysToLimitDisplay}
+                    </Text>
+                    {remainingOrders > 0 && daysToLimit !== Infinity && (
+                      <Text variant="bodySm" tone="subdued">
+                        ({remainingOrders} buffer)
+                      </Text>
+                    )}
+                  </InlineStack>
                 </InlineStack>
 
                 <Divider />
