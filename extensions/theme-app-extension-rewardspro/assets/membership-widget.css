@@ -723,6 +723,121 @@
   line-height: 1.4;
 }
 
+/* Not Found State */
+.rp-widget--not-found {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.rp-widget__not-found {
+  padding: 24px;
+  text-align: center;
+}
+
+.rp-widget__not-found-icon {
+  color: #dc3545;
+  margin-bottom: 16px;
+}
+
+.rp-widget__not-found-icon svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.rp-widget__not-found-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.rp-widget__not-found-message {
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.rp-widget__not-found-action {
+  margin-top: 20px;
+  padding: 16px;
+  background: #fff9e6;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+}
+
+.rp-widget__not-found-help {
+  font-size: 12px;
+  color: #856404;
+  margin: 0;
+  text-align: left;
+  line-height: 1.5;
+}
+
+/* Query Information Section */
+.rp-widget__query-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.rp-widget__query-info-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #495057;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rp-widget__query-info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rp-widget__query-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.rp-widget__query-item:last-child {
+  border-bottom: none;
+}
+
+.rp-widget__query-label {
+  font-weight: 600;
+  color: #495057;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+.rp-widget__query-value {
+  color: #212529;
+  font-family: 'Courier New', monospace;
+  text-align: right;
+  word-break: break-all;
+  font-size: 10px;
+}
+
+.rp-widget__query-status--success {
+  color: #28a745;
+  font-weight: 700;
+}
+
+.rp-widget__query-status--not-found {
+  color: #dc3545;
+  font-weight: 700;
+}
+
 /* Collapsed state - hide body */
 .rp-widget--collapsed .rp-widget__body {
   display: none;

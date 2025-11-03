@@ -141,81 +141,30 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         }
       }
       
-      // Return default data if customer doesn't exist (don't auto-create)
+      // Return "not found" response if customer doesn't exist (don't show fake data)
       if (!customer) {
         console.log('[Proxy API] ⚠️ Customer not found in database');
-        console.log('[Proxy API] ℹ️ Returning default Bronze tier data without creating database record');
+        console.log('[Proxy API] ℹ️ Returning customer_not_found status');
         console.log('[Proxy API] 💡 Customer will be created when:');
         console.log('[Proxy API]    1. Shopify fires customer/create webhook, or');
         console.log('[Proxy API]    2. Merchant runs customer sync from admin');
-
-        // Get default tier (lowest tier) to return in response
-        const defaultTier = await prisma.tier.findFirst({
-          where: {
-            shopDomain: shop,
-            isActive: true
-          },
-          orderBy: {
-            minSpend: 'asc'
-          }
+        console.log('[Proxy API] 📋 Query used:', {
+          shopDomain: shop,
+          shopifyCustomerId: customerId
         });
 
-        // If no tiers exist at all, return a hardcoded Bronze response
-        if (!defaultTier) {
-          console.log('[Proxy API] ⚠️ No tiers configured for shop, returning hardcoded Bronze data');
-          return json({
-            success: true,
-            customer: {
-              id: customerId,
-              shopifyCustomerId: customerId,
-              email: `customer${customerId}@${shop}`, // Temporary display only
-              firstName: null,
-              lastName: null,
-            },
-            balance: {
-              storeCredit: 0,
-              totalEarned: 0,
-              totalCashbackEarned: 0
-            },
-            membership: {
-              tier: {
-                id: 'default-bronze',
-                name: 'Bronze',
-                cashbackPercent: 1,
-                minSpend: 0
-              }
-            },
-            needsSync: true, // Flag indicating customer needs to be synced
-            message: 'Customer not found in database. Please run customer sync from admin.'
-          });
-        }
-
-        // Return default tier data without creating customer
-        console.log('[Proxy API] ✅ Returning default tier:', defaultTier.name);
         return json({
-          success: true,
-          customer: {
-            id: customerId,
+          success: false,
+          status: 'customer_not_found',
+          message: 'Customer not found in database. Data will be available after merchant runs customer sync.',
+          query: {
+            shopDomain: shop,
             shopifyCustomerId: customerId,
-            email: `customer${customerId}@${shop}`, // Temporary display only
-            firstName: null,
-            lastName: null,
+            endpoint: '/apps/rewardspro/api/customer'
           },
-          balance: {
-            storeCredit: 0,
-            totalEarned: 0,
-            totalCashbackEarned: 0
-          },
-          membership: {
-            tier: {
-              id: defaultTier.id,
-              name: defaultTier.name,
-              cashbackPercent: Number(defaultTier.cashbackPercent),
-              minSpend: Number(defaultTier.minSpend)
-            }
-          },
-          needsSync: true, // Flag indicating customer needs to be synced
-          message: 'Customer not found in database. Please run customer sync from admin.'
+          customer: null,
+          balance: null,
+          membership: null
         });
       }
 
@@ -419,6 +368,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             name: "Bronze",
             cashbackPercent: 1
           }
+        },
+        query: {
+          shopDomain: shop,
+          shopifyCustomerId: customerId,
+          endpoint: '/apps/rewardspro/api/customer',
+          foundInDatabase: true
         }
       };
 

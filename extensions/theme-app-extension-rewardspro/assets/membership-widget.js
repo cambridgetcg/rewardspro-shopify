@@ -174,12 +174,30 @@
         console.log('[RewardsWidget] ✅ Response received:', data);
         console.log('[RewardsWidget] Response details:', {
           success: data.success,
+          status: data.status,
           hasBalance: !!data.balance,
           hasMembership: !!data.membership,
           tierName: data.membership?.tier?.name,
           storeCredit: data.balance?.storeCredit,
-          needsSync: data.needsSync || false
+          needsSync: data.needsSync || false,
+          query: data.query
         });
+
+        // Handle customer not found specifically
+        if (!data.success && data.status === 'customer_not_found') {
+          console.log('[RewardsWidget] 📭 Customer not found in database');
+
+          // Update state with not found info
+          this.state.data = data;
+          this.state.error = null;
+          this.state.lastFetch = Date.now();
+          this.state.dataSource = 'not_found';
+          this.state.needsSync = true;
+
+          // Render "no data" state
+          this.renderNotFound();
+          return;
+        }
 
         if (!data.success) {
           throw new Error(data.message || 'API request failed');
@@ -442,6 +460,27 @@
                   <span class="rp-widget__debug-log-value">${this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleTimeString() : 'N/A'}</span>
                 </div>
               </div>
+              <div class="rp-widget__query-info">
+                <div class="rp-widget__query-info-title">🔍 API Query Details</div>
+                <div class="rp-widget__query-info-content">
+                  <div class="rp-widget__query-item">
+                    <span class="rp-widget__query-label">Shop Domain:</span>
+                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.shopDomain || this.config.shop.domain)}</span>
+                  </div>
+                  <div class="rp-widget__query-item">
+                    <span class="rp-widget__query-label">Customer ID:</span>
+                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.shopifyCustomerId || this.config.customer.id)}</span>
+                  </div>
+                  <div class="rp-widget__query-item">
+                    <span class="rp-widget__query-label">Endpoint:</span>
+                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.endpoint || '/apps/rewardspro/api/customer')}</span>
+                  </div>
+                  <div class="rp-widget__query-item">
+                    <span class="rp-widget__query-label">Found in DB:</span>
+                    <span class="rp-widget__query-value ${this.state.data?.query?.foundInDatabase ? 'rp-widget__query-status--success' : 'rp-widget__query-status--not-found'}">${this.state.data?.query?.foundInDatabase ? '✅ Yes' : '❌ No'}</span>
+                  </div>
+                </div>
+              </div>
               ${isStale ? '<div class="rp-widget__indicator rp-widget__indicator--stale">Data may be outdated</div>' : ''}
               ${isOffline ? '<div class="rp-widget__indicator rp-widget__indicator--offline">Offline mode</div>' : ''}
               ${this.state.needsSync ? '<div class="rp-widget__indicator rp-widget__indicator--sync"><strong>⚠️ Data Not Synced:</strong> Your account is showing default data. The merchant needs to run customer sync from the admin panel to display your real tier and rewards.</div>' : ''}
@@ -451,6 +490,74 @@
       `;
 
       this.attachEventListeners();
+    }
+
+    /**
+     * Render "not found" state when customer doesn't exist in database
+     */
+    renderNotFound() {
+      console.log('[RewardsWidget] Rendering not found state');
+
+      const query = this.state.data?.query || {};
+
+      this.root.innerHTML = `
+        <div class="rp-widget rp-widget--not-found rp-widget--expanded">
+          <div class="rp-widget__not-found">
+            <div class="rp-widget__not-found-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <h3 class="rp-widget__not-found-title">No Rewards Data Available</h3>
+            <p class="rp-widget__not-found-message">
+              Your rewards account hasn't been synced to the database yet.
+              Please contact the store or wait for the merchant to complete customer synchronization.
+            </p>
+
+            <div class="rp-widget__query-info">
+              <div class="rp-widget__query-info-title">📋 Query Information</div>
+              <div class="rp-widget__query-info-content">
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Shop:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(query.shopDomain || this.config.shop.domain)}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Customer ID:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(query.shopifyCustomerId || this.config.customer.id)}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Email:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(this.config.customer.email)}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Endpoint:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(query.endpoint || 'N/A')}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Status:</span>
+                  <span class="rp-widget__query-value rp-widget__query-status--not-found">Customer Not Found in Database</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Message:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.message || 'No data')}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Query Time:</span>
+                  <span class="rp-widget__query-value">${this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleString() : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rp-widget__not-found-action">
+              <p class="rp-widget__not-found-help">
+                <strong>For Store Owners:</strong> Run customer sync from Admin → Customers → Sync Customers
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     /**
@@ -490,6 +597,8 @@
           return '🟠 Stale Cache';
         case 'fallback':
           return '🔴 Fallback';
+        case 'not_found':
+          return '🔴 Not Found';
         default:
           return '⚪ Unknown';
       }
@@ -508,6 +617,8 @@
           return 'stale';
         case 'fallback':
           return 'fallback';
+        case 'not_found':
+          return 'fallback'; // Use same styling as fallback (red)
         default:
           return 'unknown';
       }
