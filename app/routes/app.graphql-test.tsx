@@ -425,6 +425,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 }`,
+    "Test Proxy Database Call": `# This simulates what the proxy API does
+# Replace CUSTOMER_ID with your test customer ID (e.g., 23890748408192)
+
+query TestProxyQuery($customerId: ID!) {
+  customer(id: $customerId) {
+    id
+    email
+    firstName
+    lastName
+    displayName
+    createdAt
+    updatedAt
+    amountSpent {
+      amount
+      currencyCode
+    }
+    numberOfOrders
+    tags
+  }
+}
+
+# Variables (add this in a separate variables field if your GraphQL client supports it):
+# {
+#   "customerId": "gid://shopify/Customer/23890748408192"
+# }
+
+# What the proxy does:
+# 1. Gets customer ID from URL parameter
+# 2. Queries database with: prisma.customer.findUnique({
+#      where: {
+#        shopDomain_shopifyCustomerId: {
+#          shopDomain: "themetester222.myshopify.com",
+#          shopifyCustomerId: "23890748408192"
+#        }
+#      }
+#    })
+# 3. Returns customer data or "not found"`,
   };
 
   return json({
@@ -441,6 +478,152 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const formData = await request.formData();
+  const actionType = formData.get("actionType") as string;
+
+  // Test proxy database call
+  if (actionType === "test_proxy") {
+    const customerId = formData.get("customerId") as string;
+
+    if (!customerId) {
+      return json({
+        error: "Please enter a customer ID",
+        executionTime: 0,
+      });
+    }
+
+    try {
+      const startTime = Date.now();
+
+      // Import Data API client directly
+      const { getAuroraClient } = await import("../utils/aurora-data-api");
+      const dataApi = getAuroraClient();
+
+      console.log('[GraphQL Test] Testing proxy database query via Data API...');
+      console.log('[GraphQL Test] Query parameters:', {
+        shopDomain: session.shop,
+        shopifyCustomerId: customerId
+      });
+
+      // Build the exact SQL query that Prisma would generate
+      const sql = `
+        SELECT
+          c.id,
+          c."shopDomain",
+          c."shopifyCustomerId",
+          c.email,
+          c."firstName",
+          c."lastName",
+          c."storeCredit",
+          c."totalEarned",
+          c."totalCashbackEarned",
+          c."totalSpent",
+          c."ordersCount",
+          c."createdAt",
+          c."updatedAt",
+
+          mh.id as "mh_id",
+          mh."tierId" as "mh_tierId",
+          mh."isActive" as "mh_isActive",
+          mh."createdAt" as "mh_createdAt",
+
+          t.id as "tier_id",
+          t.name as "tier_name",
+          t."cashbackPercent" as "tier_cashbackPercent",
+          t."minSpend" as "tier_minSpend"
+
+        FROM "Customer" c
+
+        LEFT JOIN "MembershipHistory" mh
+          ON mh."customerId" = c.id
+          AND mh."isActive" = true
+
+        LEFT JOIN "Tier" t
+          ON t.id = mh."tierId"
+
+        WHERE
+          c."shopDomain" = :shopDomain
+          AND c."shopifyCustomerId" = :shopifyCustomerId
+
+        ORDER BY mh."createdAt" DESC
+
+        LIMIT 1
+      `;
+
+      // Execute via Data API
+      const result = await dataApi.executeStatement(sql, [
+        { name: 'shopDomain', value: { stringValue: session.shop } },
+        { name: 'shopifyCustomerId', value: { stringValue: customerId } }
+      ]);
+
+      const executionTime = Date.now() - startTime;
+
+      const found = result && result.length > 0;
+
+      console.log('[GraphQL Test] Query result:', found ? 'FOUND' : 'NOT FOUND');
+      console.log('[GraphQL Test] Raw result:', result);
+
+      let customer = null;
+      if (found && result[0]) {
+        const row = result[0];
+        customer = {
+          id: row.id,
+          shopDomain: row.shopDomain,
+          shopifyCustomerId: row.shopifyCustomerId,
+          email: row.email,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          storeCredit: row.storeCredit,
+          totalEarned: row.totalEarned,
+          totalCashbackEarned: row.totalCashbackEarned,
+          totalSpent: row.totalSpent,
+          ordersCount: row.ordersCount,
+          membershipHistory: row.mh_id ? [{
+            id: row.mh_id,
+            tierId: row.mh_tierId,
+            isActive: row.mh_isActive,
+            tier: row.tier_id ? {
+              id: row.tier_id,
+              name: row.tier_name,
+              cashbackPercent: row.tier_cashbackPercent,
+              minSpend: row.tier_minSpend
+            } : null
+          }] : []
+        };
+      }
+
+      return json({
+        proxyTest: true,
+        found: found,
+        customer: customer,
+        rawSql: sql,
+        sqlParameters: {
+          shopDomain: session.shop,
+          shopifyCustomerId: customerId
+        },
+        query: {
+          type: 'Data API SQL Query',
+          method: 'executeStatement',
+          database: 'Aurora PostgreSQL',
+          where: {
+            shopDomain: session.shop,
+            shopifyCustomerId: customerId
+          },
+        },
+        executionTime,
+        shop: session.shop,
+        resultCount: result?.length || 0,
+      });
+    } catch (error: any) {
+      console.error('[GraphQL Test] Proxy test error:', error);
+      return json({
+        error: error.message || "Failed to test proxy query",
+        stack: error.stack,
+        executionTime: 0,
+      });
+    }
+  }
+
+  // Regular GraphQL query
   const query = formData.get("query") as string;
 
   if (!query || query.trim() === "") {
@@ -478,6 +661,7 @@ export default function GraphQLTestPage() {
   const { shop, exampleQueries } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [query, setQuery] = useState("");
+  const [customerId, setCustomerId] = useState("23890748408192");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadExampleQuery = (exampleQuery: string) => {
@@ -490,6 +674,180 @@ export default function GraphQLTestPage() {
       subtitle={`Testing GraphQL queries for ${shop}`}
     >
       <BlockStack gap="400">
+        {/* Proxy Database Test Card */}
+        <Card>
+          <Box padding="400">
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">🔍 Test Proxy Database Query</Text>
+              <Text as="p" tone="subdued">
+                Test the EXACT database query that the proxy API uses to fetch customer data.
+                This shows you what happens when the widget calls the proxy endpoint.
+              </Text>
+              <Divider />
+
+              <Form method="post">
+                <input type="hidden" name="actionType" value="test_proxy" />
+                <BlockStack gap="400">
+                  <TextField
+                    label="Customer ID"
+                    value={customerId}
+                    onChange={setCustomerId}
+                    autoComplete="off"
+                    placeholder="Enter Shopify Customer ID (e.g., 23890748408192)"
+                    name="customerId"
+                    helpText="This is the shopifyCustomerId from the URL parameter logged_in_customer_id"
+                  />
+
+                  <InlineStack align="end">
+                    <Button
+                      submit
+                      variant="primary"
+                      loading={isSubmitting}
+                      disabled={!customerId.trim()}
+                    >
+                      Test Database Query
+                    </Button>
+                  </InlineStack>
+
+                  <Box padding="300" background="bg-fill-info-secondary" borderRadius="200">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">What this tests:</Text>
+                      <Text as="p" variant="bodySm">
+                        This executes the exact SQL query via Aurora Data API that the proxy generates:
+                      </Text>
+                      <pre style={{ fontSize: '10px', overflow: 'auto' }}>
+{`SELECT c.*, mh.*, t.*
+FROM "Customer" c
+LEFT JOIN "MembershipHistory" mh ON mh."customerId" = c.id AND mh."isActive" = true
+LEFT JOIN "Tier" t ON t.id = mh."tierId"
+WHERE c."shopDomain" = '${shop}'
+  AND c."shopifyCustomerId" = '${customerId}'
+LIMIT 1`}
+                      </pre>
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        The proxy uses Prisma, which generates this exact SQL and executes it via AWS Aurora Data API.
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                </BlockStack>
+              </Form>
+            </BlockStack>
+          </Box>
+        </Card>
+
+        {/* Proxy Test Results */}
+        {actionData?.proxyTest && (
+          <Card>
+            <Box padding="400">
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">Proxy Database Query Result</Text>
+                  <InlineStack gap="200">
+                    <Badge tone="info">{actionData.executionTime}ms</Badge>
+                    {actionData.found ? (
+                      <Badge tone="success">Customer Found</Badge>
+                    ) : (
+                      <Badge tone="critical">Customer Not Found</Badge>
+                    )}
+                  </InlineStack>
+                </InlineStack>
+
+                <Divider />
+
+                {/* Raw SQL Query */}
+                <Box padding="400" background="bg-fill-info-secondary">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">🗄️ Raw SQL Query Executed:</Text>
+                    <pre style={{
+                      overflow: 'auto',
+                      fontSize: '11px',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontFamily: 'Monaco, Menlo, monospace',
+                      background: '#1e1e1e',
+                      color: '#d4d4d4',
+                      padding: '12px',
+                      borderRadius: '4px'
+                    }}>
+                      {actionData.rawSql}
+                    </pre>
+                  </BlockStack>
+                </Box>
+
+                {/* SQL Parameters */}
+                <Box padding="400" background="bg-fill-info-secondary">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">📋 SQL Parameters:</Text>
+                    <pre style={{
+                      overflow: 'auto',
+                      fontSize: '12px',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}>
+                      {JSON.stringify(actionData.sqlParameters, null, 2)}
+                    </pre>
+                  </BlockStack>
+                </Box>
+
+                {/* Query Metadata */}
+                <Box padding="400" background="bg-fill-info-secondary">
+                  <BlockStack gap="200">
+                    <Text as="p" fontWeight="semibold">ℹ️ Query Metadata:</Text>
+                    <Text as="p" variant="bodySm">Type: {actionData.query.type}</Text>
+                    <Text as="p" variant="bodySm">Method: {actionData.query.method}</Text>
+                    <Text as="p" variant="bodySm">Database: {actionData.query.database}</Text>
+                    <Text as="p" variant="bodySm">Results: {actionData.resultCount} row(s)</Text>
+                  </BlockStack>
+                </Box>
+
+                {/* Result */}
+                {actionData.found ? (
+                  <Box padding="400" background="bg-fill-success-secondary">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">✅ Customer Data:</Text>
+                      <pre style={{
+                        overflow: 'auto',
+                        fontSize: '12px',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        maxHeight: '500px'
+                      }}>
+                        {JSON.stringify(actionData.customer, null, 2)}
+                      </pre>
+                    </BlockStack>
+                  </Box>
+                ) : (
+                  <Box padding="400" background="bg-fill-critical-secondary">
+                    <BlockStack gap="200">
+                      <Text as="p" fontWeight="semibold">❌ Customer Not Found</Text>
+                      <Text as="p">
+                        No customer exists in the database with:
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        • Shop Domain: {actionData.shop}
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        • Customer ID: {actionData.query.where.shopDomain_shopifyCustomerId.shopifyCustomerId}
+                      </Text>
+                      <Divider />
+                      <Text as="p" fontWeight="semibold">This means:</Text>
+                      <Text as="p" variant="bodySm">
+                        • The proxy API would return: status: "customer_not_found"
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        • The widget would show: "No Rewards Data Available"
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        • Solution: Run customer sync from /app/customers/sync
+                      </Text>
+                    </BlockStack>
+                  </Box>
+                )}
+              </BlockStack>
+            </Box>
+          </Card>
+        )}
+
         {/* Example Queries Card */}
         <Card>
           <Box padding="400">
@@ -549,7 +907,7 @@ export default function GraphQLTestPage() {
         </Card>
 
         {/* Results Card */}
-        {actionData && (
+        {actionData && !actionData.proxyTest && (
           <Card>
             <Box padding="400">
               <BlockStack gap="400">
@@ -580,6 +938,20 @@ export default function GraphQLTestPage() {
                     <BlockStack gap="200">
                       <Text as="p" fontWeight="semibold">Error:</Text>
                       <Text as="p" tone="critical">{actionData.error}</Text>
+                      {actionData.stack && (
+                        <>
+                          <Divider />
+                          <Text as="p" fontWeight="semibold">Stack Trace:</Text>
+                          <pre style={{
+                            overflow: 'auto',
+                            fontSize: '10px',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word'
+                          }}>
+                            {actionData.stack}
+                          </pre>
+                        </>
+                      )}
                     </BlockStack>
                   </Box>
                 )}
