@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proxy Data API Test Page</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .input-hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+
+    .spinner {
+      border: 3px solid #f1f5f9;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .response-section {
+      margin-top: 10px;
+    }
+
+    .json-display {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .json-display pre {
+      margin: 0;
+    }
+
+    .key-value-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    .key {
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .value {
+      color: #1e293b;
+      word-break: break-all;
+    }
+
+    .error-message {
+      background: #fee2e2;
+      border-left: 4px solid #dc2626;
+      padding: 15px;
+      border-radius: 8px;
+      color: #991b1b;
+      margin-top: 15px;
+    }
+
+    .success-message {
+      background: #dcfce7;
+      border-left: 4px solid #16a34a;
+      padding: 15px;
+      border-radius: 8px;
+      color: #166534;
+      margin-top: 15px;
+    }
+
+    .timeline {
+      margin-top: 15px;
+      padding-left: 20px;
+      border-left: 3px solid #e2e8f0;
+    }
+
+    .timeline-item {
+      margin-bottom: 12px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -23px;
+      top: 5px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #667eea;
+    }
+
+    .timeline-item strong {
+      color: #1e293b;
+    }
+
+    .timeline-item .time {
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔬 Proxy Data API Test</h1>
+      <p>Test the app proxy endpoint and inspect request/response data</p>
+    </div>
+
+    <!-- Test Form -->
+    <div class="card">
+      <div class="section-title">
+        🎯 Test Configuration
+      </div>
+
+      <div class="form-group">
+        <label for="shopDomain">Shop Domain</label>
+        <input
+          type="text"
+          id="shopDomain"
+          placeholder="themetester222.myshopify.com"
+          value="themetester222.myshopify.com"
+        />
+        <div class="input-hint">The Shopify store domain (e.g., mystore.myshopify.com)</div>
+      </div>
+
+      <div class="form-group">
+        <label for="customerId">Customer ID</label>
+        <input
+          type="text"
+          id="customerId"
+          placeholder="23890748408192"
+          value="23890748408192"
+        />
+        <div class="input-hint">The Shopify customer ID (logged_in_customer_id)</div>
+      </div>
+
+      <div class="form-group">
+        <label for="endpoint">Endpoint</label>
+        <select id="endpoint">
+          <option value="/apps/rewardspro/api/membership">Membership Widget (/apps/rewardspro/api/membership)</option>
+          <option value="/apps/rewardspro/api/test">Test Endpoint (/apps/rewardspro/api/test)</option>
+        </select>
+        <div class="input-hint">Select which proxy endpoint to test</div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-primary" onclick="runTest()">
+          🚀 Run Test
+        </button>
+        <button class="btn-secondary" onclick="clearResults()">
+          🗑️ Clear Results
+        </button>
+      </div>
+    </div>
+
+    <!-- Request Details -->
+    <div id="requestSection" class="card hidden">
+      <div class="section-title">
+        📤 Request Details
+        <span class="badge badge-info">Sent</span>
+      </div>
+
+      <div class="key-value-grid">
+        <div class="key">URL:</div>
+        <div class="value" id="requestUrl"></div>
+
+        <div class="key">Method:</div>
+        <div class="value">GET</div>
+
+        <div class="key">Shop Domain:</div>
+        <div class="value" id="requestShop"></div>
+
+        <div class="key">Customer ID:</div>
+        <div class="value" id="requestCustomerId"></div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <strong>Browser Request</strong>
+          <div class="time" id="requestTime"></div>
+        </div>
+        <div class="timeline-item">
+          <strong>Shopify Proxy Intercept</strong>
+          <div class="time">Adds HMAC signature and authentication</div>
+        </div>
+        <div class="timeline-item">
+          <strong>Backend Processing</strong>
+          <div class="time">Validates HMAC, queries database</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingSection" class="card hidden">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div>Fetching data from proxy endpoint...</div>
+      </div>
+    </div>
+
+    <!-- Response Details -->
+    <div id="responseSection" class="card hidden">
+      <div class="section-title">
+        📥 Response Details
+        <span class="badge" id="responseBadge"></span>
+      </div>
+
+      <div class="key-value-grid">
+        <div class="key">Status Code:</div>
+        <div class="value" id="statusCode"></div>
+
+        <div class="key">Response Time:</div>
+        <div class="value" id="responseTime"></div>
+
+        <div class="key">Content Type:</div>
+        <div class="value" id="contentType"></div>
+      </div>
+
+      <div id="successMessage" class="hidden"></div>
+      <div id="errorMessage" class="hidden"></div>
+    </div>
+
+    <!-- Response Stats -->
+    <div id="statsSection" class="card hidden">
+      <div class="section-title">
+        📊 Response Statistics
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Query Method</div>
+          <div class="stat-value" id="statQueryMethod">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Execution Time</div>
+          <div class="stat-value" id="statExecTime">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Found in DB</div>
+          <div class="stat-value" id="statFoundInDb">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tier Name</div>
+          <div class="stat-value" id="statTierName">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Data -->
+    <div id="customerSection" class="card hidden">
+      <div class="section-title">
+        👤 Customer Data
+      </div>
+
+      <div class="key-value-grid">
+        <div class="key">Customer ID:</div>
+        <div class="value" id="customerIdValue"></div>
+
+        <div class="key">Email:</div>
+        <div class="value" id="customerEmail"></div>
+
+        <div class="key">Member Since:</div>
+        <div class="value" id="memberSince"></div>
+
+        <div class="key">Store Credit:</div>
+        <div class="value" id="storeCredit"></div>
+
+        <div class="key">Total Earned:</div>
+        <div class="value" id="totalEarned"></div>
+
+        <div class="key">Last Synced:</div>
+        <div class="value" id="lastSynced"></div>
+
+        <div class="key">Tier:</div>
+        <div class="value" id="tierInfo"></div>
+      </div>
+    </div>
+
+    <!-- Raw JSON -->
+    <div id="jsonSection" class="card hidden">
+      <div class="section-title">
+        📄 Raw JSON Response
+      </div>
+
+      <div class="json-display">
+        <pre id="jsonOutput"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let startTime;
+    let responseData;
+
+    async function runTest() {
+      const shopDomain = document.getElementById('shopDomain').value.trim();
+      const customerId = document.getElementById('customerId').value.trim();
+      const endpoint = document.getElementById('endpoint').value;
+
+      if (!shopDomain || !customerId) {
+        alert('Please fill in both shop domain and customer ID');
+        return;
+      }
+
+      // Clear previous results
+      clearResults();
+
+      // Show request section
+      const requestSection = document.getElementById('requestSection');
+      requestSection.classList.remove('hidden');
+
+      // Build URL
+      const url = new URL(endpoint, window.location.origin);
+      url.searchParams.append('logged_in_customer_id', customerId);
+      url.searchParams.append('shop', shopDomain);
+
+      // Update request details
+      document.getElementById('requestUrl').textContent = url.toString();
+      document.getElementById('requestShop').textContent = shopDomain;
+      document.getElementById('requestCustomerId').textContent = customerId;
+      document.getElementById('requestTime').textContent = new Date().toLocaleString();
+
+      // Show loading
+      document.getElementById('loadingSection').classList.remove('hidden');
+
+      // Record start time
+      startTime = Date.now();
+
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        });
+
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+
+        // Hide loading
+        document.getElementById('loadingSection').classList.add('hidden');
+
+        // Parse response
+        const data = await response.json();
+        responseData = data;
+
+        // Show response section
+        const responseSection = document.getElementById('responseSection');
+        responseSection.classList.remove('hidden');
+
+        // Update response details
+        document.getElementById('statusCode').textContent = response.status;
+        document.getElementById('responseTime').textContent = `${responseTime}ms`;
+        document.getElementById('contentType').textContent = response.headers.get('content-type');
+
+        const badge = document.getElementById('responseBadge');
+        if (response.ok && data.success) {
+          badge.textContent = 'Success';
+          badge.className = 'badge badge-success';
+
+          const msg = document.getElementById('successMessage');
+          msg.className = 'success-message';
+          msg.textContent = '✅ Request completed successfully!';
+        } else {
+          badge.textContent = 'Error';
+          badge.className = 'badge badge-error';
+
+          const msg = document.getElementById('errorMessage');
+          msg.className = 'error-message';
+          msg.textContent = `❌ ${data.message || 'Request failed'}`;
+        }
+
+        // Show stats if available
+        if (data.query) {
+          document.getElementById('statsSection').classList.remove('hidden');
+          document.getElementById('statQueryMethod').textContent = data.query.method || 'N/A';
+          document.getElementById('statExecTime').textContent = data.query.executionTime || 'N/A';
+          document.getElementById('statFoundInDb').textContent = data.query.foundInDatabase ? '✅ Yes' : '❌ No';
+          document.getElementById('statTierName').textContent = data.membership?.tier?.name || 'N/A';
+        }
+
+        // Show customer data if available
+        if (data.customer) {
+          document.getElementById('customerSection').classList.remove('hidden');
+          document.getElementById('customerIdValue').textContent = data.customer.shopifyId || data.customer.id;
+          document.getElementById('customerEmail').textContent = data.customer.email || 'N/A';
+          document.getElementById('memberSince').textContent = data.customer.memberSince ? new Date(data.customer.memberSince).toLocaleString() : 'N/A';
+          document.getElementById('storeCredit').textContent = data.balance ? `$${data.balance.storeCredit.toFixed(2)}` : 'N/A';
+          document.getElementById('totalEarned').textContent = data.balance ? `$${data.balance.totalEarned.toFixed(2)}` : 'N/A';
+          document.getElementById('lastSynced').textContent = data.balance?.lastSynced ? new Date(data.balance.lastSynced).toLocaleString() : 'Never';
+          document.getElementById('tierInfo').textContent = data.membership ? `${data.membership.tier.name} (${data.membership.tier.cashbackPercent}% back)` : 'N/A';
+        }
+
+        // Show raw JSON
+        document.getElementById('jsonSection').classList.remove('hidden');
+        document.getElementById('jsonOutput').textContent = JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        // Hide loading
+        document.getElementById('loadingSection').classList.add('hidden');
+
+        // Show error
+        const responseSection = document.getElementById('responseSection');
+        responseSection.classList.remove('hidden');
+
+        const badge = document.getElementById('responseBadge');
+        badge.textContent = 'Network Error';
+        badge.className = 'badge badge-error';
+
+        const msg = document.getElementById('errorMessage');
+        msg.className = 'error-message';
+        msg.textContent = `❌ Network error: ${error.message}`;
+
+        // Show error in JSON section
+        document.getElementById('jsonSection').classList.remove('hidden');
+        document.getElementById('jsonOutput').textContent = JSON.stringify({
+          error: error.message,
+          stack: error.stack
+        }, null, 2);
+      }
+    }
+
+    function clearResults() {
+      document.getElementById('requestSection').classList.add('hidden');
+      document.getElementById('loadingSection').classList.add('hidden');
+      document.getElementById('responseSection').classList.add('hidden');
+      document.getElementById('statsSection').classList.add('hidden');
+      document.getElementById('customerSection').classList.add('hidden');
+      document.getElementById('jsonSection').classList.add('hidden');
+      document.getElementById('successMessage').className = 'hidden';
+      document.getElementById('errorMessage').className = 'hidden';
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputs = document.querySelectorAll('input');
+      inputs.forEach(input => {
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            runTest();
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
