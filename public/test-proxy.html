@@ -331,12 +331,35 @@
       </div>
 
       <div class="form-group">
-        <label for="endpoint">Endpoint</label>
-        <select id="endpoint">
-          <option value="/apps/rewardspro/api/membership">Membership Widget (/apps/rewardspro/api/membership)</option>
-          <option value="/apps/rewardspro/api/test">Test Endpoint (/apps/rewardspro/api/test)</option>
+        <label for="testMode">Test Mode</label>
+        <select id="testMode" onchange="updateTestMode()">
+          <option value="direct">Direct API Test (Admin - No Proxy)</option>
+          <option value="proxy">Storefront Proxy Test (Copy URL)</option>
         </select>
-        <div class="input-hint">Select which proxy endpoint to test</div>
+        <div class="input-hint">Choose how to test the endpoint</div>
+      </div>
+
+      <div id="directModeOptions">
+        <div class="form-group">
+          <label for="endpoint">Endpoint</label>
+          <select id="endpoint">
+            <option value="/api/proxy/api/membership">Direct API: /api/proxy/api/membership</option>
+            <option value="/api/proxy/api/test">Direct API: /api/proxy/api/test</option>
+          </select>
+          <div class="input-hint">Direct endpoint (bypasses Shopify proxy - will show auth requirement)</div>
+        </div>
+      </div>
+
+      <div id="proxyModeInfo" class="hidden" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong>📋 Storefront Proxy Testing Instructions:</strong>
+        <ol style="margin: 10px 0 0 20px; padding: 0;">
+          <li>Copy the URL shown below</li>
+          <li>Open your <strong>storefront</strong> (not admin) in a new tab</li>
+          <li>Make sure you're logged in as a customer</li>
+          <li>Paste the URL in the browser address bar</li>
+          <li>Press Enter to see the JSON response</li>
+        </ol>
+        <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 4px; font-family: monospace; word-break: break-all;" id="proxyUrl"></div>
       </div>
 
       <div class="button-group">
@@ -488,7 +511,55 @@
     let startTime;
     let responseData;
 
+    function updateTestMode() {
+      const testMode = document.getElementById('testMode').value;
+      const directModeOptions = document.getElementById('directModeOptions');
+      const proxyModeInfo = document.getElementById('proxyModeInfo');
+      const runButton = document.querySelector('.btn-primary');
+
+      if (testMode === 'proxy') {
+        directModeOptions.classList.add('hidden');
+        proxyModeInfo.classList.remove('hidden');
+        runButton.textContent = '📋 Copy Proxy URL';
+        updateProxyUrl();
+      } else {
+        directModeOptions.classList.remove('hidden');
+        proxyModeInfo.classList.add('hidden');
+        runButton.textContent = '🚀 Run Test';
+      }
+    }
+
+    function updateProxyUrl() {
+      const shopDomain = document.getElementById('shopDomain').value.trim();
+      const customerId = document.getElementById('customerId').value.trim();
+
+      if (shopDomain && customerId) {
+        const proxyUrl = `https://${shopDomain}/apps/rewardspro/api/membership?logged_in_customer_id=${customerId}`;
+        document.getElementById('proxyUrl').textContent = proxyUrl;
+      }
+    }
+
     async function runTest() {
+      const testMode = document.getElementById('testMode').value;
+
+      if (testMode === 'proxy') {
+        // Copy URL to clipboard
+        const proxyUrl = document.getElementById('proxyUrl').textContent;
+        if (!proxyUrl) {
+          alert('Please fill in shop domain and customer ID first');
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(proxyUrl);
+          alert('✅ URL copied to clipboard!\n\nNow:\n1. Open your storefront in a new tab\n2. Log in as a customer\n3. Paste this URL in the address bar');
+        } catch (err) {
+          prompt('Copy this URL manually:', proxyUrl);
+        }
+        return;
+      }
+
+      // Direct mode testing
       const shopDomain = document.getElementById('shopDomain').value.trim();
       const customerId = document.getElementById('customerId').value.trim();
       const endpoint = document.getElementById('endpoint').value;
@@ -505,7 +576,7 @@
       const requestSection = document.getElementById('requestSection');
       requestSection.classList.remove('hidden');
 
-      // Build URL
+      // Build URL for direct API access
       const url = new URL(endpoint, window.location.origin);
       url.searchParams.append('logged_in_customer_id', customerId);
       url.searchParams.append('shop', shopDomain);
@@ -566,7 +637,13 @@
 
           const msg = document.getElementById('errorMessage');
           msg.className = 'error-message';
-          msg.textContent = `❌ ${data.message || 'Request failed'}`;
+
+          // Check if it's an authentication error
+          if (response.status === 401 || data.error === 'Authentication required') {
+            msg.textContent = `🔒 Authentication Required - This is expected!\n\nThe endpoint requires HMAC validation from Shopify's app proxy.\n\nTo test with real authentication:\n1. Switch to "Storefront Proxy Test" mode\n2. Copy the URL\n3. Open it on your storefront while logged in as a customer`;
+          } else {
+            msg.textContent = `❌ ${data.message || data.error || 'Request failed'}`;
+          }
         }
 
         // Show stats if available
@@ -630,13 +707,21 @@
       document.getElementById('errorMessage').className = 'hidden';
     }
 
-    // Allow Enter key to submit
+    // Allow Enter key to submit and update proxy URL on input change
     document.addEventListener('DOMContentLoaded', () => {
       const inputs = document.querySelectorAll('input');
       inputs.forEach(input => {
         input.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
             runTest();
+          }
+        });
+
+        // Update proxy URL when shop or customer ID changes
+        input.addEventListener('input', () => {
+          const testMode = document.getElementById('testMode').value;
+          if (testMode === 'proxy') {
+            updateProxyUrl();
           }
         });
       });

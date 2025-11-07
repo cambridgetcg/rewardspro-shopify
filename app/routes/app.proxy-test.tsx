@@ -39,24 +39,42 @@ export default function ProxyTestPage() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                How to Use This Tool
+                Two Testing Modes
               </Text>
 
               <BlockStack gap="200">
                 <Text as="p" variant="bodyMd">
-                  <strong>1. Configure Test Parameters:</strong> Enter the shop domain and customer ID you want to test. Defaults are provided.
+                  <strong>Direct API Test (Admin):</strong> Tests the endpoint directly without Shopify proxy authentication.
+                  This will show a 401 error as expected, demonstrating that the endpoint is properly secured.
+                  Use this to verify the authentication is working.
                 </Text>
 
                 <Text as="p" variant="bodyMd">
-                  <strong>2. Select Endpoint:</strong> Choose which proxy endpoint to test (membership widget or test endpoint).
+                  <strong>Storefront Proxy Test:</strong> Generates a URL to test through Shopify's app proxy on your storefront.
+                  Copy the URL, open your storefront, log in as a customer, and paste the URL to see the authenticated response.
+                  This is how the widget actually fetches data.
+                </Text>
+              </BlockStack>
+
+              <Text as="h2" variant="headingMd">
+                How to Use
+              </Text>
+
+              <BlockStack gap="200">
+                <Text as="p" variant="bodyMd">
+                  <strong>1. Configure Parameters:</strong> Enter shop domain and customer ID (defaults provided)
                 </Text>
 
                 <Text as="p" variant="bodyMd">
-                  <strong>3. Run Test:</strong> Click the "Run Test" button to send a request to the proxy endpoint.
+                  <strong>2. Choose Test Mode:</strong> Select "Direct API Test" or "Storefront Proxy Test"
                 </Text>
 
                 <Text as="p" variant="bodyMd">
-                  <strong>4. Inspect Results:</strong> View request details, response statistics, customer data, and raw JSON response.
+                  <strong>3. Run Test:</strong> Click the button to test or copy the proxy URL
+                </Text>
+
+                <Text as="p" variant="bodyMd">
+                  <strong>4. View Results:</strong> Inspect request/response details, customer data, and raw JSON
                 </Text>
               </BlockStack>
 
@@ -83,13 +101,25 @@ export default function ProxyTestPage() {
               </BlockStack>
 
               <Text as="h2" variant="headingMd">
-                Authentication Note
+                Why Two Modes?
               </Text>
 
-              <Text as="p" variant="bodyMd" tone="caution">
-                When testing from this page, the request must go through Shopify's app proxy to include proper HMAC authentication.
-                Direct API access without going through the proxy will be rejected with a 401 error.
-              </Text>
+              <BlockStack gap="200">
+                <Text as="p" variant="bodyMd" tone="caution">
+                  <strong>Direct API Test shows 401 errors by design.</strong> The proxy endpoint requires HMAC validation
+                  from Shopify's app proxy infrastructure. Direct requests are rejected to prevent unauthorized data access.
+                </Text>
+
+                <Text as="p" variant="bodyMd">
+                  <strong>Storefront Proxy Test shows real data.</strong> When you access the URL from your storefront,
+                  Shopify adds HMAC authentication, and the endpoint returns actual customer data. This is how the
+                  membership widget works in production.
+                </Text>
+
+                <Text as="p" variant="bodyMd" tone="success">
+                  <strong>Expected behavior:</strong> Direct test = 401 error (good!), Storefront test = customer data (authenticated).
+                </Text>
+              </BlockStack>
             </BlockStack>
           </Card>
         </Layout.Section>
