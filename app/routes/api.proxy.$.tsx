@@ -2,6 +2,8 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
+import { getAuroraClient } from "../utils/aurora-data-api";
+import type { SqlParameter } from "@aws-sdk/client-rds-data";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const proxyPath = params["*"] || "";
@@ -49,6 +51,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         success: false,
         requiresLogin: true,
         message: "Please log in to view your rewards",
+        query: {
+          shopDomain: shop || 'unknown',
+          shopifyCustomerId: 'guest',
+          endpoint: '/apps/rewardspro/api/customer',
+          foundInDatabase: false,
+          method: 'No Query - Guest User',
+          executionTime: 'N/A'
+        },
         customer: null,
         balance: {
           storeCredit: 0,
@@ -62,9 +72,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             cashbackPercent: 1
           }
         }
-      }, { 
+      }, {
         status: 200,
-        headers 
+        headers
       });
     }
     
@@ -75,7 +85,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         success: false,
         error: "Missing shop parameter",
         message: "Invalid request - shop parameter required",
-        requiresLogin: false
+        requiresLogin: false,
+        query: {
+          shopDomain: 'missing',
+          shopifyCustomerId: customerId || 'unknown',
+          endpoint: '/apps/rewardspro/api/customer',
+          foundInDatabase: false,
+          method: 'No Query - Missing Shop Parameter',
+          executionTime: 'N/A'
+        }
       }, { status: 400, headers });
     }
     
@@ -86,60 +104,139 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         shopifyCustomerId: customerId
       });
 
-      // Find or create customer
-      let customer = await prisma.customer.findUnique({
-        where: {
-          shopDomain_shopifyCustomerId: {
-            shopDomain: shop,
-            shopifyCustomerId: customerId
-          }
-        },
-        include: {
-          membershipHistory: {
-            where: { isActive: true },
-            include: { tier: true },
-            orderBy: { createdAt: 'desc' },
-            take: 1
-          }
-        }
+      // Use direct Data API for customer lookup (replaces Prisma for better visibility)
+      const dataApi = getAuroraClient();
+
+      console.log('[Proxy API] 🔍 Using DIRECT Data API query');
+      console.log('[Proxy API] 📋 Query parameters:', {
+        shopDomain: shop,
+        shopifyCustomerId: customerId
       });
 
-      console.log('[Proxy API] 📥 Customer found in database:', customer ? 'YES' : 'NO');
+      // Build the exact SQL query with proper joins
+      const sql = `
+        SELECT
+          c.id,
+          c."shopDomain",
+          c."shopifyCustomerId",
+          c.email,
+          c."firstName",
+          c."lastName",
+          c."storeCredit",
+          c."totalEarned",
+          c."totalCashbackEarned",
+          c."totalSpent",
+          c."ordersCount",
+          c."createdAt",
+          c."updatedAt",
+          c."lastSyncedAt",
 
-      if (customer) {
-        console.log('[Proxy API] 👤 Customer details:', {
+          mh.id as "membershipHistory_id",
+          mh."customerId" as "membershipHistory_customerId",
+          mh."tierId" as "membershipHistory_tierId",
+          mh."isActive" as "membershipHistory_isActive",
+          mh."assignmentType" as "membershipHistory_assignmentType",
+          mh."createdAt" as "membershipHistory_createdAt",
+
+          t.id as "tier_id",
+          t."shopDomain" as "tier_shopDomain",
+          t.name as "tier_name",
+          t."minSpend" as "tier_minSpend",
+          t."cashbackPercent" as "tier_cashbackPercent",
+          t."isActive" as "tier_isActive"
+
+        FROM "Customer" c
+
+        LEFT JOIN "MembershipHistory" mh
+          ON mh."customerId" = c.id
+          AND mh."isActive" = true
+
+        LEFT JOIN "Tier" t
+          ON t.id = mh."tierId"
+
+        WHERE
+          c."shopDomain" = :shopDomain
+          AND c."shopifyCustomerId" = :shopifyCustomerId
+
+        ORDER BY mh."createdAt" DESC
+
+        LIMIT 1
+      `;
+
+      const parameters: SqlParameter[] = [
+        { name: 'shopDomain', value: { stringValue: shop } },
+        { name: 'shopifyCustomerId', value: { stringValue: customerId } }
+      ];
+
+      console.log('[Proxy API] 📋 SQL (formatted):', sql.replace(/\s+/g, ' ').trim());
+      console.log('[Proxy API] 📋 Parameters:', JSON.stringify(parameters));
+
+      const startTime = Date.now();
+      const result = await dataApi.executeStatement(sql, parameters);
+      const executionTime = Date.now() - startTime;
+
+      console.log('[Proxy API] ⏱️ Query execution time:', executionTime + 'ms');
+      console.log('[Proxy API] 📊 Data API Result:', {
+        recordCount: result.records?.length || 0,
+        hasData: !!(result.records && result.records.length > 0)
+      });
+
+      // Transform Data API result to match Prisma format
+      let customer = null;
+      if (result.records && result.records.length > 0) {
+        const row = result.records[0];
+
+        customer = {
+          id: row.id,
+          shopDomain: row.shopDomain,
+          shopifyCustomerId: row.shopifyCustomerId,
+          email: row.email,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          storeCredit: row.storeCredit,
+          totalEarned: row.totalEarned,
+          totalCashbackEarned: row.totalCashbackEarned,
+          totalSpent: row.totalSpent,
+          ordersCount: row.ordersCount,
+          createdAt: new Date(row.createdAt),
+          updatedAt: new Date(row.updatedAt),
+          lastSyncedAt: row.lastSyncedAt ? new Date(row.lastSyncedAt) : null,
+
+          // Transform membership history (array format for compatibility)
+          membershipHistory: row.membershipHistory_id ? [{
+            id: row.membershipHistory_id,
+            customerId: row.membershipHistory_customerId,
+            tierId: row.membershipHistory_tierId,
+            isActive: row.membershipHistory_isActive,
+            assignmentType: row.membershipHistory_assignmentType,
+            createdAt: new Date(row.membershipHistory_createdAt),
+
+            // Transform nested tier
+            tier: row.tier_id ? {
+              id: row.tier_id,
+              shopDomain: row.tier_shopDomain,
+              name: row.tier_name,
+              minSpend: row.tier_minSpend,
+              cashbackPercent: row.tier_cashbackPercent,
+              isActive: row.tier_isActive
+            } : null
+          }] : []
+        };
+
+        console.log('[Proxy API] ✅ Customer transformed:', {
           id: customer.id,
-          shopifyCustomerId: customer.shopifyCustomerId,
           email: customer.email,
+          shopifyCustomerId: customer.shopifyCustomerId,
           storeCredit: customer.storeCredit,
           totalEarned: customer.totalEarned,
           totalCashbackEarned: customer.totalCashbackEarned,
-          membershipHistoryCount: customer.membershipHistory?.length || 0
+          membershipHistoryCount: customer.membershipHistory.length,
+          hasTier: customer.membershipHistory.length > 0 && !!customer.membershipHistory[0].tier,
+          tierName: customer.membershipHistory[0]?.tier?.name || 'NO_TIER'
         });
-
-        // DEBUG: Log raw customer object
-        console.log('[Proxy API] 🔬 RAW Customer Object:', JSON.stringify(customer, null, 2));
-
-        // DEBUG: Log membership history details
-        if (customer.membershipHistory && customer.membershipHistory.length > 0) {
-          console.log('[Proxy API] 📋 Membership History Details:', {
-            count: customer.membershipHistory.length,
-            firstEntry: {
-              id: customer.membershipHistory[0].id,
-              tierId: customer.membershipHistory[0].tierId,
-              isActive: customer.membershipHistory[0].isActive,
-              hasTier: !!customer.membershipHistory[0].tier,
-              tierData: customer.membershipHistory[0].tier ? {
-                id: customer.membershipHistory[0].tier.id,
-                name: customer.membershipHistory[0].tier.name,
-                cashbackPercent: customer.membershipHistory[0].tier.cashbackPercent
-              } : null
-            }
-          });
-        } else {
-          console.log('[Proxy API] ⚠️ NO MEMBERSHIP HISTORY FOUND FOR EXISTING CUSTOMER');
-        }
       }
+
+      console.log('[Proxy API] 📥 Customer found in database:', customer ? 'YES' : 'NO');
       
       // Return "not found" response if customer doesn't exist (don't show fake data)
       if (!customer) {
@@ -160,7 +257,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           query: {
             shopDomain: shop,
             shopifyCustomerId: customerId,
-            endpoint: '/apps/rewardspro/api/customer'
+            endpoint: '/apps/rewardspro/api/customer',
+            foundInDatabase: false,
+            method: 'AWS Aurora Data API (Direct SQL)',
+            executionTime: executionTime + 'ms'
           },
           customer: null,
           balance: null,
@@ -373,7 +473,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           shopDomain: shop,
           shopifyCustomerId: customerId,
           endpoint: '/apps/rewardspro/api/customer',
-          foundInDatabase: true
+          foundInDatabase: true,
+          method: 'AWS Aurora Data API (Direct SQL)',
+          executionTime: executionTime + 'ms'
         }
       };
 
@@ -393,28 +495,36 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     } catch (error) {
       console.error('[Proxy API] ❌ Database error:', error);
       console.error('[Proxy API] ❌ Error stack:', error.stack);
-      
+
       // Return error with fallback data
       return json({
         success: false,
         error: "Database error",
         message: "Unable to load rewards data. Please try again later.",
         requiresLogin: false,
+        query: {
+          shopDomain: shop,
+          shopifyCustomerId: customerId,
+          endpoint: '/apps/rewardspro/api/customer',
+          foundInDatabase: false,
+          method: 'Error - Query Failed',
+          executionTime: 'N/A'
+        },
         customer: {
           id: "error",
           shopifyId: customerId,
           email: ""
         },
-        balance: { 
-          storeCredit: 0, 
+        balance: {
+          storeCredit: 0,
           totalEarned: 0,
           lastSynced: null
         },
-        membership: { 
-          tier: { 
+        membership: {
+          tier: {
             id: "error",
-            name: "Bronze", 
-            cashbackPercent: 1 
+            name: "Bronze",
+            cashbackPercent: 1
           }
         }
       }, { status: 500, headers });

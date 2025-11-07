@@ -479,6 +479,14 @@
                     <span class="rp-widget__query-label">Found in DB:</span>
                     <span class="rp-widget__query-value ${this.state.data?.query?.foundInDatabase ? 'rp-widget__query-status--success' : 'rp-widget__query-status--not-found'}">${this.state.data?.query?.foundInDatabase ? '✅ Yes' : '❌ No'}</span>
                   </div>
+                  <div class="rp-widget__query-item">
+                    <span class="rp-widget__query-label">Query Method:</span>
+                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.method || 'N/A')}</span>
+                  </div>
+                  <div class="rp-widget__query-item">
+                    <span class="rp-widget__query-label">Execution Time:</span>
+                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.executionTime || 'N/A')}</span>
+                  </div>
                 </div>
               </div>
               ${isStale ? '<div class="rp-widget__indicator rp-widget__indicator--stale">Data may be outdated</div>' : ''}
@@ -546,6 +554,14 @@
                 <div class="rp-widget__query-item">
                   <span class="rp-widget__query-label">Query Time:</span>
                   <span class="rp-widget__query-value">${this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleString() : 'N/A'}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Query Method:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(query.method || 'N/A')}</span>
+                </div>
+                <div class="rp-widget__query-item">
+                  <span class="rp-widget__query-label">Execution Time:</span>
+                  <span class="rp-widget__query-value">${this.escapeHtml(query.executionTime || 'N/A')}</span>
                 </div>
               </div>
             </div>
