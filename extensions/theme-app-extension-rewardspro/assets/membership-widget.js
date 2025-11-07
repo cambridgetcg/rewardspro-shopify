@@ -568,7 +568,19 @@
      */
     renderApiJourneySteps() {
       const query = this.state.data?.query || {};
-      const hasQueryData = this.state.data?.success && query;
+      const hasQueryData = this.state.data?.success && query && query.method;
+      const hasValidQuery = query.method && query.executionTime;
+
+      // Debug logging
+      if (this.state.data && !hasValidQuery) {
+        console.log('[RewardsWidget] ⚠️ Query metadata missing from response:', {
+          hasData: !!this.state.data,
+          hasQueryObject: !!this.state.data.query,
+          queryKeys: this.state.data.query ? Object.keys(this.state.data.query) : [],
+          dataSource: this.state.dataSource,
+          fullResponse: this.state.data
+        });
+      }
 
       const steps = [
         {
@@ -610,14 +622,19 @@
         {
           number: 4,
           title: 'Database Query Execution',
-          description: query.method || 'Executing SQL query against database',
-          details: [
-            `Query Type: ${query.method || 'Unknown'}`,
-            `Execution Time: ${query.executionTime || 'N/A'}`,
+          description: hasValidQuery ? query.method : (this.state.data?.success ? 'Query metadata not available (using Prisma ORM fallback)' : 'Executing SQL query against database'),
+          details: hasValidQuery ? [
+            `Query Type: ${query.method}`,
+            `Execution Time: ${query.executionTime}`,
             `Records Found: ${query.foundInDatabase ? '1 customer record' : 'No records'}`,
             `Tables Joined: Customer ⋈ Tier`
+          ] : [
+            `Query Type: ${this.state.data?.success ? 'Prisma ORM (no direct SQL metadata)' : 'Unknown'}`,
+            `Execution Time: ${this.state.data?.success ? 'Not measured' : 'N/A'}`,
+            `Records Found: ${this.state.data?.customer ? '1 customer record' : 'No records'}`,
+            `Method: ${this.state.data?.success ? 'Prisma fallback query' : 'Pending'}`
           ],
-          status: hasQueryData ? (query.foundInDatabase ? 'success' : 'warning') : 'pending',
+          status: this.state.data?.success ? (this.state.data?.customer ? 'success' : 'warning') : 'pending',
           timestamp: null
         },
         {
@@ -838,6 +855,57 @@
           this.toggleExpanded();
         });
       }
+
+      // Add scroll detection for fade indicators
+      this.attachScrollListeners();
+    }
+
+    /**
+     * Attach scroll listeners for scroll indicators
+     */
+    attachScrollListeners() {
+      const body = this.root.querySelector('.rp-widget__body');
+
+      if (!body) return;
+
+      const updateScrollIndicators = () => {
+        const scrollTop = body.scrollTop;
+        const scrollHeight = body.scrollHeight;
+        const clientHeight = body.clientHeight;
+        const scrollBottom = scrollHeight - scrollTop - clientHeight;
+
+        // Add 'is-scrolled' class if scrolled from top
+        if (scrollTop > 10) {
+          body.classList.add('is-scrolled');
+        } else {
+          body.classList.remove('is-scrolled');
+        }
+
+        // Add 'has-more-content' class if there's more content below
+        if (scrollBottom > 10) {
+          body.classList.add('has-more-content');
+        } else {
+          body.classList.remove('has-more-content');
+        }
+      };
+
+      // Initial check
+      updateScrollIndicators();
+
+      // Update on scroll
+      body.addEventListener('scroll', updateScrollIndicators);
+
+      // Update on resize (in case content changes)
+      const resizeObserver = new ResizeObserver(() => {
+        updateScrollIndicators();
+      });
+      resizeObserver.observe(body);
+
+      // Store cleanup function
+      this._scrollCleanup = () => {
+        body.removeEventListener('scroll', updateScrollIndicators);
+        resizeObserver.disconnect();
+      };
     }
 
     /**

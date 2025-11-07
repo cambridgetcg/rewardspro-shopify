@@ -495,6 +495,78 @@
   padding: 16px;
   background: #ffffff;
   animation: rp-slideDown 0.3s ease;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling for webkit browsers (Chrome, Safari, Edge) */
+.rp-widget__body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rp-widget__body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.rp-widget__body::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.rp-widget__body::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Firefox scrollbar */
+.rp-widget__body {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+
+/* Scroll fade indicator (top shadow when scrolled) */
+.rp-widget__body::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 1;
+  margin: -16px -16px 0 -16px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.rp-widget__body.is-scrolled::before {
+  opacity: 1;
+}
+
+/* Scroll fade indicator (bottom shadow when more content below) */
+.rp-widget__body::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to top, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 1;
+  margin: 0 -16px -16px -16px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.rp-widget__body.has-more-content::after {
+  opacity: 1;
 }
 
 @keyframes rp-slideDown {
@@ -1165,6 +1237,29 @@
 
   .rp-widget__body {
     background: #1a1a1a;
+    scrollbar-color: #4a4a4a #2a2a2a;
+  }
+
+  /* Dark mode scrollbar for webkit */
+  .rp-widget__body::-webkit-scrollbar-track {
+    background: #2a2a2a;
+  }
+
+  .rp-widget__body::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+  }
+
+  .rp-widget__body::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+  }
+
+  /* Dark mode scroll fade indicators */
+  .rp-widget__body::before {
+    background: linear-gradient(to bottom, rgba(26, 26, 26, 1) 0%, rgba(26, 26, 26, 0) 100%);
+  }
+
+  .rp-widget__body::after {
+    background: linear-gradient(to top, rgba(26, 26, 26, 1) 0%, rgba(26, 26, 26, 0) 100%);
   }
 
   .rp-widget__balance-amount,
