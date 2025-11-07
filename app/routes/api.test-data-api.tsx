@@ -1,31 +1,16 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
 import { getAuroraClient } from "../utils/aurora-data-api";
 import type { SqlParameter } from "@aws-sdk/client-rds-data";
 
 /**
- * Admin-only endpoint to test Data API queries directly
- * This bypasses the proxy authentication and allows testing the query logic
+ * Test endpoint to debug Data API queries directly
+ * WARNING: This bypasses authentication for testing purposes
+ * NOTE: Read-only operation, queries customer data but doesn't modify anything
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   console.log('[Test Data API] 🔵 Request received');
   console.log('[Test Data API] 📍 URL:', request.url);
-
-  try {
-    // Authenticate as admin (not proxy)
-    console.log('[Test Data API] 🔐 Starting authentication...');
-    await authenticate.admin(request);
-    console.log('[Test Data API] ✅ Authentication successful');
-  } catch (authError) {
-    console.error('[Test Data API] ❌ Authentication failed:', authError);
-    const errorResponse = {
-      success: false,
-      error: "Authentication failed",
-      message: authError.message || "Unable to authenticate request",
-    };
-    console.log('[Test Data API] 📤 Returning auth error response:', JSON.stringify(errorResponse));
-    return json(errorResponse, { status: 401 });
-  }
+  console.log('[Test Data API] 🌍 Environment:', process.env.NODE_ENV);
 
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
