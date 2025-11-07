@@ -141,7 +141,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       const sql = `
         SELECT
           c.id,
-          c."shopDomain",
+          c.shop,
           c."shopifyCustomerId",
           c.email,
           c."firstName",
@@ -157,11 +157,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           c."currentTierId",
 
           t.id as "tier_id",
-          t."shopDomain" as "tier_shopDomain",
+          t.shop as "tier_shop",
           t.name as "tier_name",
           t."minSpend" as "tier_minSpend",
-          t."cashbackPercent" as "tier_cashbackPercent",
-          t."isActive" as "tier_isActive"
+          t."cashbackPercent" as "tier_cashbackPercent"
 
         FROM "Customer" c
 
@@ -169,7 +168,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           ON t.id = c."currentTierId"
 
         WHERE
-          c."shopDomain" = :shopDomain
+          c.shop = :shopDomain
           AND c."shopifyCustomerId" = :shopifyCustomerId
 
         LIMIT 1
@@ -200,7 +199,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
         customer = {
           id: row.id,
-          shopDomain: row.shopDomain,
+          shopDomain: row.shop,
           shopifyCustomerId: row.shopifyCustomerId,
           email: row.email,
           firstName: row.firstName,
@@ -218,11 +217,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           // Transform currentTier relationship
           currentTier: row.tier_id ? {
             id: row.tier_id,
-            shopDomain: row.tier_shopDomain,
+            shopDomain: row.tier_shop,
             name: row.tier_name,
             minSpend: row.tier_minSpend,
-            cashbackPercent: row.tier_cashbackPercent,
-            isActive: row.tier_isActive
+            cashbackPercent: row.tier_cashbackPercent
           } : null
         };
 
@@ -299,15 +297,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         });
 
         console.log('[Proxy API] 🔎 Searching for tier with criteria:', {
-          shopDomain: shop,
-          isActive: true,
+          shop: shop,
           minSpend_lte: customerSpending
         });
 
         let assignedTier = await prisma.tier.findFirst({
           where: {
-            shopDomain: shop,
-            isActive: true,
+            shop: shop,
             minSpend: { lte: customerSpending }
           },
           orderBy: {
@@ -332,7 +328,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
           // First, let's check ALL tiers for this shop for debugging
           const allTiers = await prisma.tier.findMany({
-            where: { shopDomain: shop }
+            where: { shop: shop }
           });
 
           console.log('[Proxy API] 📦 ALL TIERS IN DATABASE for shop:', {
@@ -342,15 +338,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
               id: t.id,
               name: t.name,
               minSpend: t.minSpend,
-              cashbackPercent: t.cashbackPercent,
-              isActive: t.isActive
+              cashbackPercent: t.cashbackPercent
             }))
           });
 
           assignedTier = await prisma.tier.findFirst({
             where: {
-              shopDomain: shop,
-              isActive: true
+              shop: shop
             },
             orderBy: {
               minSpend: 'asc'
@@ -372,11 +366,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           console.log('[Proxy API] ➕ No tier exists, creating Bronze tier...');
           assignedTier = await prisma.tier.create({
             data: {
-              shopDomain: shop,
+              id: `${shop}-bronze-${Date.now()}`,
+              shop: shop,
               name: "Bronze",
               minSpend: 0,
               cashbackPercent: 1,
-              isActive: true,
               evaluationPeriod: "ANNUAL"
             }
           });

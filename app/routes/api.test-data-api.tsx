@@ -38,7 +38,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const sql = `
       SELECT
         c.id,
-        c."shopDomain",
+        c.shop,
         c."shopifyCustomerId",
         c.email,
         c."firstName",
@@ -54,11 +54,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
         c."currentTierId",
 
         t.id as "tier_id",
-        t."shopDomain" as "tier_shopDomain",
+        t.shop as "tier_shop",
         t.name as "tier_name",
         t."minSpend" as "tier_minSpend",
-        t."cashbackPercent" as "tier_cashbackPercent",
-        t."isActive" as "tier_isActive"
+        t."cashbackPercent" as "tier_cashbackPercent"
 
       FROM "Customer" c
 
@@ -66,7 +65,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         ON t.id = c."currentTierId"
 
       WHERE
-        c."shopDomain" = :shopDomain
+        c.shop = :shopDomain
         AND c."shopifyCustomerId" = :shopifyCustomerId
 
       LIMIT 1
@@ -104,7 +103,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const row = result.records[0];
       customer = {
         id: row.id,
-        shopDomain: row.shopDomain,
+        shopDomain: row.shop,
         shopifyCustomerId: row.shopifyCustomerId,
         email: row.email,
         firstName: row.firstName,
@@ -120,11 +119,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
         currentTierId: row.currentTierId,
         currentTier: row.tier_id ? {
           id: row.tier_id,
-          shopDomain: row.tier_shopDomain,
+          shopDomain: row.tier_shop,
           name: row.tier_name,
           minSpend: row.tier_minSpend,
-          cashbackPercent: row.tier_cashbackPercent,
-          isActive: row.tier_isActive
+          cashbackPercent: row.tier_cashbackPercent
         } : null
       };
     }
