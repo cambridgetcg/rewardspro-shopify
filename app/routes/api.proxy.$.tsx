@@ -43,14 +43,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
                       url.searchParams.get("customerId") ||
                       url.searchParams.get("cid");
 
-    // SECURITY: Use authenticated shop from session, not from query params
-    // The shop parameter in URL is ignored - we only trust the authenticated session
-    const shopFromQuery = url.searchParams.get("shop");
-    const shop = session?.shop || shopFromQuery;
+    // SECURITY: Use authenticated shop from session ONLY
+    // We completely ignore the shop parameter in URL to prevent spoofing
+    const shop = session?.shop;
 
-    // If no session and no shop parameter, we can't proceed securely
-    if (!shop) {
-      console.error('[Proxy API] ❌ No authenticated session or shop parameter');
+    // If no authenticated session, reject the request
+    if (!shop || !session) {
+      console.error('[Proxy API] ❌ No authenticated session - rejecting request');
+      const shopFromQuery = url.searchParams.get("shop");
+      if (shopFromQuery) {
+        console.error('[Proxy API] ⚠️ Attempted direct access with shop parameter:', shopFromQuery);
+      }
       return json({
         success: false,
         error: "Authentication required",
