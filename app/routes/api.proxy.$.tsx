@@ -147,7 +147,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           c."firstName",
           c."lastName",
           c."storeCredit",
-          c."totalEarned",
           c."totalCashbackEarned",
           c."totalSpent",
           c."orderCount",
@@ -205,7 +204,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           firstName: row.firstName,
           lastName: row.lastName,
           storeCredit: row.storeCredit,
-          totalEarned: row.totalEarned,
           totalCashbackEarned: row.totalCashbackEarned,
           totalSpent: row.totalSpent,
           orderCount: row.orderCount,
@@ -451,7 +449,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         },
         balance: {
           storeCredit: Number(customer.storeCredit || 0),
-          totalEarned: Number(customer.totalCashbackEarned || customer.totalEarned || 0),
+          totalEarned: Number(customer.totalCashbackEarned || 0),
           lastSynced: customer.lastSyncedAt?.toISOString() || null
         },
         membership: {
