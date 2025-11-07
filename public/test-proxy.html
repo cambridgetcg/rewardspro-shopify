@@ -372,6 +372,132 @@
       </div>
     </div>
 
+    <!-- Data API Query Test Section -->
+    <div class="card">
+      <div class="section-title">
+        🗄️ Data API Query Test
+        <span class="badge badge-info">Admin Only</span>
+      </div>
+
+      <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <strong>ℹ️ What This Tests:</strong>
+        <p style="margin: 8px 0 0 0;">This section tests <strong>only the database query logic</strong> used by the proxy endpoint. It bypasses proxy authentication and lets you inspect the SQL query, parameters, execution time, and results directly. Perfect for debugging the Data API integration.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="dataApiShop">Shop Domain</label>
+        <input
+          type="text"
+          id="dataApiShop"
+          placeholder="themetester222.myshopify.com"
+          value="themetester222.myshopify.com"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="dataApiCustomerId">Customer ID</label>
+        <input
+          type="text"
+          id="dataApiCustomerId"
+          placeholder="23890748408192"
+          value="23890748408192"
+        />
+      </div>
+
+      <div class="button-group">
+        <button class="btn-primary" onclick="runDataApiTest()">
+          🚀 Test Data API Query
+        </button>
+        <button class="btn-secondary" onclick="clearDataApiResults()">
+          🗑️ Clear Results
+        </button>
+      </div>
+    </div>
+
+    <!-- Data API Loading -->
+    <div id="dataApiLoadingSection" class="card hidden">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div>Executing Data API query...</div>
+      </div>
+    </div>
+
+    <!-- Data API SQL Query -->
+    <div id="dataApiSqlSection" class="card hidden">
+      <div class="section-title">
+        📝 SQL Query
+      </div>
+
+      <div class="json-display">
+        <pre id="dataApiSql"></pre>
+      </div>
+
+      <div class="key-value-grid" style="margin-top: 15px;">
+        <div class="key">Parameters:</div>
+        <div class="value" id="dataApiParams"></div>
+
+        <div class="key">Execution Time:</div>
+        <div class="value" id="dataApiExecTime"></div>
+
+        <div class="key">Records Found:</div>
+        <div class="value" id="dataApiRecordCount"></div>
+      </div>
+    </div>
+
+    <!-- Data API Customer Result -->
+    <div id="dataApiCustomerSection" class="card hidden">
+      <div class="section-title">
+        👤 Query Result - Customer Data
+      </div>
+
+      <div class="key-value-grid">
+        <div class="key">Customer ID:</div>
+        <div class="value" id="dataApiCustId"></div>
+
+        <div class="key">Email:</div>
+        <div class="value" id="dataApiEmail"></div>
+
+        <div class="key">Store Credit:</div>
+        <div class="value" id="dataApiCredit"></div>
+
+        <div class="key">Total Earned:</div>
+        <div class="value" id="dataApiEarned"></div>
+
+        <div class="key">Tier:</div>
+        <div class="value" id="dataApiTier"></div>
+
+        <div class="key">Cashback %:</div>
+        <div class="value" id="dataApiCashback"></div>
+      </div>
+    </div>
+
+    <!-- Data API Raw Result -->
+    <div id="dataApiRawSection" class="card hidden">
+      <div class="section-title">
+        📄 Raw Database Row
+      </div>
+
+      <div class="json-display">
+        <pre id="dataApiRawResult"></pre>
+      </div>
+    </div>
+
+    <!-- Data API Full Response -->
+    <div id="dataApiResponseSection" class="card hidden">
+      <div class="section-title">
+        📦 Complete API Response
+      </div>
+
+      <div class="json-display">
+        <pre id="dataApiResponse"></pre>
+      </div>
+    </div>
+
+    <!-- Data API Error -->
+    <div id="dataApiErrorSection" class="card hidden">
+      <div class="error-message" id="dataApiError"></div>
+    </div>
+
     <!-- Request Details -->
     <div id="requestSection" class="card hidden">
       <div class="section-title">
@@ -705,6 +831,103 @@
       document.getElementById('jsonSection').classList.add('hidden');
       document.getElementById('successMessage').className = 'hidden';
       document.getElementById('errorMessage').className = 'hidden';
+    }
+
+    // Data API Testing Functions
+    async function runDataApiTest() {
+      const shop = document.getElementById('dataApiShop').value.trim();
+      const customerId = document.getElementById('dataApiCustomerId').value.trim();
+
+      if (!shop || !customerId) {
+        alert('Please fill in both shop domain and customer ID');
+        return;
+      }
+
+      // Clear previous results
+      clearDataApiResults();
+
+      // Show loading
+      document.getElementById('dataApiLoadingSection').classList.remove('hidden');
+
+      try {
+        const url = new URL('/api/test-data-api', window.location.origin);
+        url.searchParams.append('shop', shop);
+        url.searchParams.append('customerId', customerId);
+
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'same-origin'
+        });
+
+        // Hide loading
+        document.getElementById('dataApiLoadingSection').classList.add('hidden');
+
+        const data = await response.json();
+
+        if (!data.success) {
+          // Show error
+          document.getElementById('dataApiErrorSection').classList.remove('hidden');
+          document.getElementById('dataApiError').textContent = `❌ Error: ${data.error || 'Query failed'}`;
+
+          // Show full response for debugging
+          document.getElementById('dataApiResponseSection').classList.remove('hidden');
+          document.getElementById('dataApiResponse').textContent = JSON.stringify(data, null, 2);
+          return;
+        }
+
+        // Show SQL Query section
+        if (data.query) {
+          document.getElementById('dataApiSqlSection').classList.remove('hidden');
+          document.getElementById('dataApiSql').textContent = data.query.sql;
+          document.getElementById('dataApiParams').textContent = JSON.stringify(data.query.parameters, null, 2);
+          document.getElementById('dataApiExecTime').textContent = data.query.executionTime;
+          document.getElementById('dataApiRecordCount').textContent = data.query.recordCount;
+        }
+
+        // Show Customer Data section
+        if (data.customer) {
+          document.getElementById('dataApiCustomerSection').classList.remove('hidden');
+          document.getElementById('dataApiCustId').textContent = data.customer.shopifyId;
+          document.getElementById('dataApiEmail').textContent = data.customer.email || 'N/A';
+          document.getElementById('dataApiCredit').textContent = `$${data.customer.storeCredit.toFixed(2)}`;
+          document.getElementById('dataApiEarned').textContent = `$${data.customer.totalEarned.toFixed(2)}`;
+          document.getElementById('dataApiTier').textContent = data.customer.membership?.tier?.name || 'No tier';
+          document.getElementById('dataApiCashback').textContent = data.customer.membership?.tier?.cashbackPercent
+            ? `${data.customer.membership.tier.cashbackPercent}%`
+            : 'N/A';
+        }
+
+        // Show raw database row
+        if (data.rawResult) {
+          document.getElementById('dataApiRawSection').classList.remove('hidden');
+          document.getElementById('dataApiRawResult').textContent = JSON.stringify(data.rawResult, null, 2);
+        }
+
+        // Show full response
+        document.getElementById('dataApiResponseSection').classList.remove('hidden');
+        document.getElementById('dataApiResponse').textContent = JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        // Hide loading
+        document.getElementById('dataApiLoadingSection').classList.add('hidden');
+
+        // Show error
+        document.getElementById('dataApiErrorSection').classList.remove('hidden');
+        document.getElementById('dataApiError').textContent = `❌ Network error: ${error.message}`;
+      }
+    }
+
+    function clearDataApiResults() {
+      document.getElementById('dataApiLoadingSection').classList.add('hidden');
+      document.getElementById('dataApiSqlSection').classList.add('hidden');
+      document.getElementById('dataApiCustomerSection').classList.add('hidden');
+      document.getElementById('dataApiRawSection').classList.add('hidden');
+      document.getElementById('dataApiResponseSection').classList.add('hidden');
+      document.getElementById('dataApiErrorSection').classList.add('hidden');
     }
 
     // Allow Enter key to submit and update proxy URL on input change
