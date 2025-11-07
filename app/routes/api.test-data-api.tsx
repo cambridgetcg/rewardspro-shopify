@@ -140,22 +140,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
         id: customer.id,
         shopifyId: customer.shopifyCustomerId,
         email: customer.email,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
+        memberSince: customer.createdAt
+      } : null,
+      balance: customerFound ? {
         storeCredit: Number(customer.storeCredit || 0),
         totalEarned: Number(customer.totalCashbackEarned || 0),
-        totalSpent: Number(customer.totalSpent || 0),
-        orderCount: customer.orderCount || 0,
-        memberSince: customer.createdAt,
-        lastSynced: customer.updatedAt,
-        membership: customer.currentTier ? {
-          tier: {
-            id: customer.currentTier.id,
-            name: customer.currentTier.name,
-            minSpend: Number(customer.currentTier.minSpend || 0),
-            cashbackPercent: Number(customer.currentTier.cashbackPercent || 0)
-          }
-        } : null
+        lastSynced: customer.updatedAt
+      } : null,
+      membership: customerFound && customer.currentTier ? {
+        tier: {
+          id: customer.currentTier.id,
+          name: customer.currentTier.name,
+          cashbackPercent: Number(customer.currentTier.cashbackPercent || 0)
+        }
       } : null,
       rawResult: customerFound ? result.records[0] : null
     };

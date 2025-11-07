@@ -460,32 +460,19 @@
                   <span class="rp-widget__debug-log-value">${this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleTimeString() : 'N/A'}</span>
                 </div>
               </div>
-              <div class="rp-widget__query-info">
-                <div class="rp-widget__query-info-title">🔍 API Query Details</div>
-                <div class="rp-widget__query-info-content">
-                  <div class="rp-widget__query-item">
-                    <span class="rp-widget__query-label">Shop Domain:</span>
-                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.shopDomain || this.config.shop.domain)}</span>
+              <div class="rp-widget__api-journey">
+                <div class="rp-widget__api-journey-title">🔄 API Request Journey</div>
+                <div class="rp-widget__api-journey-steps">
+                  ${this.renderApiJourneySteps()}
+                </div>
+                <div class="rp-widget__api-journey-summary">
+                  <div class="rp-widget__journey-summary-item">
+                    <span class="rp-widget__journey-summary-label">Total Time:</span>
+                    <span class="rp-widget__journey-summary-value">${this.getJourneyTotalTime()}</span>
                   </div>
-                  <div class="rp-widget__query-item">
-                    <span class="rp-widget__query-label">Customer ID:</span>
-                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.shopifyCustomerId || this.config.customer.id)}</span>
-                  </div>
-                  <div class="rp-widget__query-item">
-                    <span class="rp-widget__query-label">Endpoint:</span>
-                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.endpoint || '/apps/rewardspro/api/customer')}</span>
-                  </div>
-                  <div class="rp-widget__query-item">
-                    <span class="rp-widget__query-label">Found in DB:</span>
-                    <span class="rp-widget__query-value ${this.state.data?.query?.foundInDatabase ? 'rp-widget__query-status--success' : 'rp-widget__query-status--not-found'}">${this.state.data?.query?.foundInDatabase ? '✅ Yes' : '❌ No'}</span>
-                  </div>
-                  <div class="rp-widget__query-item">
-                    <span class="rp-widget__query-label">Query Method:</span>
-                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.method || 'N/A')}</span>
-                  </div>
-                  <div class="rp-widget__query-item">
-                    <span class="rp-widget__query-label">Execution Time:</span>
-                    <span class="rp-widget__query-value">${this.escapeHtml(this.state.data?.query?.executionTime || 'N/A')}</span>
+                  <div class="rp-widget__journey-summary-item">
+                    <span class="rp-widget__journey-summary-label">Status:</span>
+                    <span class="rp-widget__journey-summary-value rp-widget__journey-status--${this.getJourneyStatus()}">${this.getJourneyStatusText()}</span>
                   </div>
                 </div>
               </div>
@@ -574,6 +561,187 @@
           </div>
         </div>
       `;
+    }
+
+    /**
+     * Render API journey steps with detailed status
+     */
+    renderApiJourneySteps() {
+      const query = this.state.data?.query || {};
+      const hasQueryData = this.state.data?.success && query;
+
+      const steps = [
+        {
+          number: 1,
+          title: 'Request Initiated',
+          description: `Widget sent request to fetch customer data`,
+          details: [
+            `Shop: ${this.escapeHtml(this.config.shop.domain)}`,
+            `Customer ID: ${this.escapeHtml(this.config.customer?.id || 'N/A')}`,
+            `Endpoint: ${this.escapeHtml(this.config.api.endpoint || 'N/A')}`
+          ],
+          status: this.state.lastFetch ? 'success' : 'pending',
+          timestamp: this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleTimeString() : null
+        },
+        {
+          number: 2,
+          title: 'Shopify Proxy Intercept',
+          description: 'Request routed through Shopify app proxy infrastructure',
+          details: [
+            'HMAC signature added for authentication',
+            'Customer session validated',
+            'Request forwarded to backend server'
+          ],
+          status: hasQueryData ? 'success' : 'pending',
+          timestamp: null
+        },
+        {
+          number: 3,
+          title: 'Backend Authentication',
+          description: 'Server validated Shopify HMAC signature',
+          details: [
+            'HMAC verification: ' + (hasQueryData ? '✓ Passed' : 'Pending'),
+            'Shop domain verified: ' + (query.shopDomain || this.config.shop.domain),
+            'Customer authorized: ' + (query.shopifyCustomerId || this.config.customer?.id || 'N/A')
+          ],
+          status: hasQueryData ? 'success' : 'pending',
+          timestamp: null
+        },
+        {
+          number: 4,
+          title: 'Database Query Execution',
+          description: query.method || 'Executing SQL query against database',
+          details: [
+            `Query Type: ${query.method || 'Unknown'}`,
+            `Execution Time: ${query.executionTime || 'N/A'}`,
+            `Records Found: ${query.foundInDatabase ? '1 customer record' : 'No records'}`,
+            `Tables Joined: Customer ⋈ Tier`
+          ],
+          status: hasQueryData ? (query.foundInDatabase ? 'success' : 'warning') : 'pending',
+          timestamp: null
+        },
+        {
+          number: 5,
+          title: 'Data Transformation',
+          description: 'Raw database results transformed to API response',
+          details: [
+            `Customer Data: ${this.state.data?.customer ? '✓ Mapped' : 'Pending'}`,
+            `Balance Data: ${this.state.data?.balance ? '✓ Calculated' : 'Pending'}`,
+            `Membership Tier: ${this.state.data?.membership?.tier?.name || 'Pending'}`,
+            `Response Format: JSON`
+          ],
+          status: this.state.data?.customer ? 'success' : 'pending',
+          timestamp: null
+        },
+        {
+          number: 6,
+          title: 'Response Returned',
+          description: 'Server sent JSON response back to widget',
+          details: [
+            `Status: ${this.state.data?.success ? '200 OK' : 'Error'}`,
+            `Data Source: ${this.getDataSourceLabel()}`,
+            `Response Size: ${this.state.data ? this.estimateResponseSize() : 'N/A'}`,
+            `Cache Status: ${this.state.dataSource === 'cache' ? 'Hit' : 'Miss'}`
+          ],
+          status: this.state.data ? 'success' : 'pending',
+          timestamp: null
+        },
+        {
+          number: 7,
+          title: 'Widget Rendering',
+          description: 'Data displayed in widget UI',
+          details: [
+            `Tier Displayed: ${this.state.data?.membership?.tier?.name || 'Pending'}`,
+            `Store Credit: ${this.state.data?.balance ? this.formatCurrency(this.state.data.balance.storeCredit) : 'Pending'}`,
+            `UI State: ${this.state.isExpanded ? 'Expanded' : 'Collapsed'}`,
+            `Render Time: ${this.state.lastFetch ? 'Complete' : 'Pending'}`
+          ],
+          status: this.state.data ? 'success' : 'pending',
+          timestamp: this.state.lastFetch ? new Date(this.state.lastFetch).toLocaleTimeString() : null
+        }
+      ];
+
+      return steps.map(step => `
+        <div class="rp-widget__journey-step rp-widget__journey-step--${step.status}">
+          <div class="rp-widget__journey-step-header">
+            <div class="rp-widget__journey-step-number">${step.number}</div>
+            <div class="rp-widget__journey-step-info">
+              <div class="rp-widget__journey-step-title">
+                ${step.title}
+                <span class="rp-widget__journey-step-status rp-widget__journey-status--${step.status}">
+                  ${this.getStatusIcon(step.status)}
+                </span>
+              </div>
+              <div class="rp-widget__journey-step-description">${step.description}</div>
+            </div>
+          </div>
+          <div class="rp-widget__journey-step-details">
+            ${step.details.map(detail => `
+              <div class="rp-widget__journey-detail">→ ${detail}</div>
+            `).join('')}
+            ${step.timestamp ? `<div class="rp-widget__journey-timestamp">⏱️ ${step.timestamp}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * Get status icon for journey step
+     */
+    getStatusIcon(status) {
+      switch(status) {
+        case 'success': return '✓';
+        case 'warning': return '⚠';
+        case 'error': return '✗';
+        case 'pending': return '○';
+        default: return '?';
+      }
+    }
+
+    /**
+     * Get total journey time
+     */
+    getJourneyTotalTime() {
+      const execTime = this.state.data?.query?.executionTime;
+      if (execTime) {
+        return `${execTime} (query) + network latency`;
+      }
+      return 'N/A';
+    }
+
+    /**
+     * Get overall journey status
+     */
+    getJourneyStatus() {
+      if (!this.state.data) return 'pending';
+      if (!this.state.data.success) return 'error';
+      if (!this.state.data.query?.foundInDatabase) return 'warning';
+      return 'success';
+    }
+
+    /**
+     * Get journey status text
+     */
+    getJourneyStatusText() {
+      const status = this.getJourneyStatus();
+      switch(status) {
+        case 'success': return '✓ All Steps Completed';
+        case 'warning': return '⚠ Completed with Warnings';
+        case 'error': return '✗ Failed';
+        case 'pending': return '○ In Progress';
+        default: return 'Unknown';
+      }
+    }
+
+    /**
+     * Estimate response size in KB
+     */
+    estimateResponseSize() {
+      if (!this.state.data) return '0 KB';
+      const jsonString = JSON.stringify(this.state.data);
+      const bytes = new Blob([jsonString]).size;
+      const kb = (bytes / 1024).toFixed(2);
+      return `${kb} KB`;
     }
 
     /**
