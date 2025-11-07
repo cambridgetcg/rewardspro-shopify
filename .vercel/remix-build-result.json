@@ -67,11 +67,13 @@
       "routes/app.orders-sync": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.additional": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.monitoring": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.proxy-test": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.analytics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.analytics.export.csv": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.analytics.realtime": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.analytics.new": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.customers": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.customers.sync": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings.store-metrics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings.automation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -605,6 +607,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/app.proxy-test": {
+        "id": "routes/app.proxy-test",
+        "parentId": "routes/app",
+        "file": "app/routes/app.proxy-test.tsx",
+        "path": "proxy-test",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/app.analytics": {
         "id": "routes/app.analytics",
         "parentId": "routes/app",
@@ -643,6 +654,13 @@
         "config": {
           "runtime": "nodejs"
         }
+      },
+      "routes/app.customers.sync": {
+        "id": "routes/app.customers.sync",
+        "parentId": "routes/app.customers",
+        "file": "app/routes/app.customers.sync.tsx",
+        "path": "sync",
+        "config": {}
       },
       "routes/app.settings": {
         "id": "routes/app.settings",
@@ -1082,6 +1100,12 @@
         "file": "routes/app.monitoring.tsx",
         "path": "monitoring"
       },
+      "routes/app.proxy-test": {
+        "id": "routes/app.proxy-test",
+        "parentId": "routes/app",
+        "file": "routes/app.proxy-test.tsx",
+        "path": "proxy-test"
+      },
       "routes/app.analytics": {
         "id": "routes/app.analytics",
         "parentId": "routes/app",
@@ -1111,6 +1135,12 @@
         "parentId": "routes/app",
         "file": "routes/app.customers.tsx",
         "path": "customers"
+      },
+      "routes/app.customers.sync": {
+        "id": "routes/app.customers.sync",
+        "parentId": "routes/app.customers",
+        "file": "routes/app.customers.sync.tsx",
+        "path": "sync"
       },
       "routes/app.settings": {
         "id": "routes/app.settings",

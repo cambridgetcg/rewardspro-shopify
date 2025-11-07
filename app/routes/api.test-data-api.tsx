@@ -8,23 +8,45 @@ import type { SqlParameter } from "@aws-sdk/client-rds-data";
  * This bypasses the proxy authentication and allows testing the query logic
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Authenticate as admin (not proxy)
-  await authenticate.admin(request);
+  console.log('[Test Data API] 🔵 Request received');
+  console.log('[Test Data API] 📍 URL:', request.url);
+
+  try {
+    // Authenticate as admin (not proxy)
+    console.log('[Test Data API] 🔐 Starting authentication...');
+    await authenticate.admin(request);
+    console.log('[Test Data API] ✅ Authentication successful');
+  } catch (authError) {
+    console.error('[Test Data API] ❌ Authentication failed:', authError);
+    const errorResponse = {
+      success: false,
+      error: "Authentication failed",
+      message: authError.message || "Unable to authenticate request",
+    };
+    console.log('[Test Data API] 📤 Returning auth error response:', JSON.stringify(errorResponse));
+    return json(errorResponse, { status: 401 });
+  }
 
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop");
   const customerId = url.searchParams.get("customerId");
 
+  console.log('[Test Data API] 📋 Query parameters:', { shop, customerId });
+
   if (!shop || !customerId) {
-    return json({
+    const errorResponse = {
       success: false,
       error: "Missing required parameters",
       message: "Both 'shop' and 'customerId' parameters are required",
-    }, { status: 400 });
+    };
+    console.log('[Test Data API] ❌ Missing parameters, returning error:', JSON.stringify(errorResponse));
+    return json(errorResponse, { status: 400 });
   }
 
   try {
+    console.log('[Test Data API] 🔍 Getting Aurora client...');
     const dataApi = getAuroraClient();
+    console.log('[Test Data API] ✅ Aurora client ready');
 
     // Build the exact SQL query used in the proxy
     const sql = `
@@ -82,9 +104,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     ];
 
     // Execute query and measure time
+    console.log('[Test Data API] ⏱️ Executing SQL query...');
     const startTime = Date.now();
     const result = await dataApi.executeStatement(sql, parameters);
     const executionTime = Date.now() - startTime;
+    console.log('[Test Data API] ✅ Query executed in', executionTime + 'ms');
+    console.log('[Test Data API] 📊 Result:', {
+      hasRecords: !!(result.records && result.records.length > 0),
+      recordCount: result.records?.length || 0
+    });
 
     // Format the SQL for display (pretty print)
     const formattedSql = sql
@@ -95,6 +123,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Check if customer was found
     const customerFound = result.records && result.records.length > 0;
+    console.log('[Test Data API] 🔍 Customer found:', customerFound);
     let customer = null;
 
     if (customerFound) {
@@ -133,7 +162,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       };
     }
 
-    return json({
+    const responseData = {
       success: true,
       query: {
         sql: formattedSql,
@@ -168,11 +197,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
         } : null
       } : null,
       rawResult: customerFound ? result.records[0] : null
-    });
+    };
+
+    console.log('[Test Data API] 📤 Preparing response...');
+    console.log('[Test Data API] 🎯 Response data keys:', Object.keys(responseData));
+    console.log('[Test Data API] 📦 Full response:', JSON.stringify(responseData, null, 2));
+
+    return json(responseData);
 
   } catch (error: any) {
-    console.error('[Test Data API] Error:', error);
-    return json({
+    console.error('[Test Data API] ❌ Caught error in main try-catch');
+    console.error('[Test Data API] ❌ Error message:', error.message);
+    console.error('[Test Data API] ❌ Error stack:', error.stack);
+    console.error('[Test Data API] ❌ Error details:', {
+      name: error.name,
+      code: error.code,
+      cause: error.cause
+    });
+
+    const errorResponse = {
       success: false,
       error: error.message || 'Database query failed',
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
@@ -181,6 +224,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
         executionTime: 'N/A',
         foundInDatabase: false
       }
-    }, { status: 500 });
+    };
+
+    console.log('[Test Data API] 📤 Returning error response:', JSON.stringify(errorResponse, null, 2));
+    return json(errorResponse, { status: 500 });
   }
 }

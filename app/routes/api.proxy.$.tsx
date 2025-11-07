@@ -9,9 +9,29 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const proxyPath = params["*"] || "";
   const url = new URL(request.url);
 
+  console.log('[Proxy API] 🔵 Request received');
+  console.log('[Proxy API] 📍 Path:', proxyPath);
+  console.log('[Proxy API] 📍 Full URL:', request.url);
+
   // SECURITY: Authenticate the app proxy request with HMAC validation
   // This ensures the request is coming from Shopify and not a direct attack
-  const { session, liquid } = await authenticate.public.appProxy(request);
+  let session, liquid;
+  try {
+    console.log('[Proxy API] 🔐 Starting proxy authentication...');
+    const authResult = await authenticate.public.appProxy(request);
+    session = authResult.session;
+    liquid = authResult.liquid;
+    console.log('[Proxy API] ✅ Proxy authentication successful');
+  } catch (authError) {
+    console.error('[Proxy API] ❌ Proxy authentication failed:', authError);
+    const errorResponse = {
+      success: false,
+      error: "Authentication failed",
+      message: "Unable to authenticate proxy request: " + (authError.message || "Unknown error")
+    };
+    console.log('[Proxy API] 📤 Returning auth error:', JSON.stringify(errorResponse));
+    return json(errorResponse, { status: 401 });
+  }
 
   // CORS headers for all responses
   const headers = {
@@ -482,7 +502,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         }
       };
 
-      console.log('[Proxy API] ✅ Returning response:', JSON.stringify(responseData, null, 2));
+      console.log('[Proxy API] 📤 Preparing success response...');
+      console.log('[Proxy API] 🎯 Response data keys:', Object.keys(responseData));
 
       // DEBUG: Extra validation before returning
       console.log('[Proxy API] 🎯 FINAL RESPONSE VALUES:', {
@@ -493,14 +514,26 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         'customerEmail': responseData.customer.email
       });
 
-      return json(responseData, { headers });
+      console.log('[Proxy API] ✅ Full response object:', JSON.stringify(responseData, null, 2));
+      console.log('[Proxy API] 📋 Response headers:', JSON.stringify(headers));
+      console.log('[Proxy API] 📤 Calling json() to return response...');
+
+      const jsonResponse = json(responseData, { headers });
+      console.log('[Proxy API] ✅ json() completed, returning response');
+      return jsonResponse;
       
     } catch (error) {
-      console.error('[Proxy API] ❌ Database error:', error);
+      console.error('[Proxy API] ❌ Caught error in membership endpoint');
+      console.error('[Proxy API] ❌ Error message:', error.message);
       console.error('[Proxy API] ❌ Error stack:', error.stack);
+      console.error('[Proxy API] ❌ Error details:', {
+        name: error.name,
+        code: error.code,
+        cause: error.cause
+      });
 
       // Return error with fallback data
-      return json({
+      const errorResponse = {
         success: false,
         error: "Database error",
         message: "Unable to load rewards data. Please try again later.",
@@ -530,17 +563,23 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             cashbackPercent: 1
           }
         }
-      }, { status: 500, headers });
+      };
+
+      console.log('[Proxy API] 📤 Returning error response:', JSON.stringify(errorResponse, null, 2));
+      return json(errorResponse, { status: 500, headers });
     }
   }
   
   // 404 for unknown paths
-  return json({
+  console.log('[Proxy API] ⚠️ Unknown path requested:', proxyPath);
+  const notFoundResponse = {
     success: false,
     error: "Not found",
     message: `Endpoint '${proxyPath}' not found`,
     availablePaths: ["test", "membership"]
-  }, { status: 404, headers });
+  };
+  console.log('[Proxy API] 📤 Returning 404 response:', JSON.stringify(notFoundResponse));
+  return json(notFoundResponse, { status: 404, headers });
 }
 
 // Handle OPTIONS requests for CORS
