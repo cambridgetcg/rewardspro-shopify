@@ -152,7 +152,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           c."orderCount",
           c."createdAt",
           c."updatedAt",
-          c."lastSyncedAt",
           c."currentTierId",
 
           t.id as "tier_id",
@@ -209,7 +208,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           orderCount: row.orderCount,
           createdAt: new Date(row.createdAt),
           updatedAt: new Date(row.updatedAt),
-          lastSyncedAt: row.lastSyncedAt ? new Date(row.lastSyncedAt) : null,
           currentTierId: row.currentTierId,
 
           // Transform currentTier relationship
@@ -450,7 +448,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         balance: {
           storeCredit: Number(customer.storeCredit || 0),
           totalEarned: Number(customer.totalCashbackEarned || 0),
-          lastSynced: customer.lastSyncedAt?.toISOString() || null
+          lastSynced: customer.updatedAt?.toISOString() || null
         },
         membership: {
           tier: currentTier ? {
