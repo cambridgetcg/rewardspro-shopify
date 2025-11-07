@@ -8,7 +8,11 @@ import type { SqlParameter } from "@aws-sdk/client-rds-data";
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const proxyPath = params["*"] || "";
   const url = new URL(request.url);
-  
+
+  // SECURITY: Authenticate the app proxy request with HMAC validation
+  // This ensures the request is coming from Shopify and not a direct attack
+  const { session, liquid } = await authenticate.public.appProxy(request);
+
   // CORS headers for all responses
   const headers = {
     "Access-Control-Allow-Origin": "*",
@@ -39,9 +43,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
                       url.searchParams.get("customerId") ||
                       url.searchParams.get("cid");
 
-    const shop = url.searchParams.get("shop");
+    // SECURITY: Use authenticated shop from session, not from query params
+    // The shop parameter in URL is ignored - we only trust the authenticated session
+    const shopFromQuery = url.searchParams.get("shop");
+    const shop = session?.shop || shopFromQuery;
 
-    console.log('[Proxy API] 🏪 Shop:', shop);
+    // If no session and no shop parameter, we can't proceed securely
+    if (!shop) {
+      console.error('[Proxy API] ❌ No authenticated session or shop parameter');
+      return json({
+        success: false,
+        error: "Authentication required",
+        message: "This request must come through Shopify app proxy",
+        requiresLogin: false
+      }, { status: 401, headers });
+    }
+
+    console.log('[Proxy API] 🏪 Shop (authenticated):', shop);
+    console.log('[Proxy API] 🔐 Session exists:', !!session);
     console.log('[Proxy API] 👤 Customer ID:', customerId);
     
     // Handle non-logged-in users
@@ -77,26 +96,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         headers
       });
     }
-    
-    // Validate shop parameter
-    if (!shop) {
-      console.error('[Proxy API] ❌ Missing shop parameter');
-      return json({
-        success: false,
-        error: "Missing shop parameter",
-        message: "Invalid request - shop parameter required",
-        requiresLogin: false,
-        query: {
-          shopDomain: 'missing',
-          shopifyCustomerId: customerId || 'unknown',
-          endpoint: '/apps/rewardspro/api/customer',
-          foundInDatabase: false,
-          method: 'No Query - Missing Shop Parameter',
-          executionTime: 'N/A'
-        }
-      }, { status: 400, headers });
-    }
-    
+
     try {
       console.log('[Proxy API] 🔍 Querying database for customer...');
       console.log('[Proxy API] 📊 Query params:', {
