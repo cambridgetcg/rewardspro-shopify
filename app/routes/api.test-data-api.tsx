@@ -34,6 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.log('[Test Data API] ✅ Aurora client ready');
 
     // Build the exact SQL query used in the proxy
+    // Note: Using currentTierId instead of MembershipHistory table
     const sql = `
       SELECT
         c.id,
@@ -46,17 +47,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
         c."totalEarned",
         c."totalCashbackEarned",
         c."totalSpent",
-        c."ordersCount",
+        c."orderCount",
         c."createdAt",
         c."updatedAt",
         c."lastSyncedAt",
-
-        mh.id as "membershipHistory_id",
-        mh."customerId" as "membershipHistory_customerId",
-        mh."tierId" as "membershipHistory_tierId",
-        mh."isActive" as "membershipHistory_isActive",
-        mh."assignmentType" as "membershipHistory_assignmentType",
-        mh."createdAt" as "membershipHistory_createdAt",
+        c."currentTierId",
 
         t.id as "tier_id",
         t."shopDomain" as "tier_shopDomain",
@@ -67,18 +62,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       FROM "Customer" c
 
-      LEFT JOIN "MembershipHistory" mh
-        ON mh."customerId" = c.id
-        AND mh."isActive" = true
-
       LEFT JOIN "Tier" t
-        ON t.id = mh."tierId"
+        ON t.id = c."currentTierId"
 
       WHERE
         c."shopDomain" = :shopDomain
         AND c."shopifyCustomerId" = :shopifyCustomerId
-
-      ORDER BY mh."createdAt" DESC
 
       LIMIT 1
     `;
@@ -124,26 +113,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
         totalEarned: row.totalEarned,
         totalCashbackEarned: row.totalCashbackEarned,
         totalSpent: row.totalSpent,
-        ordersCount: row.ordersCount,
+        orderCount: row.orderCount,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         lastSyncedAt: row.lastSyncedAt,
-        membershipHistory: row.membershipHistory_id ? [{
-          id: row.membershipHistory_id,
-          customerId: row.membershipHistory_customerId,
-          tierId: row.membershipHistory_tierId,
-          isActive: row.membershipHistory_isActive,
-          assignmentType: row.membershipHistory_assignmentType,
-          createdAt: row.membershipHistory_createdAt,
-          tier: row.tier_id ? {
-            id: row.tier_id,
-            shopDomain: row.tier_shopDomain,
-            name: row.tier_name,
-            minSpend: row.tier_minSpend,
-            cashbackPercent: row.tier_cashbackPercent,
-            isActive: row.tier_isActive
-          } : null
-        }] : []
+        currentTierId: row.currentTierId,
+        currentTier: row.tier_id ? {
+          id: row.tier_id,
+          shopDomain: row.tier_shopDomain,
+          name: row.tier_name,
+          minSpend: row.tier_minSpend,
+          cashbackPercent: row.tier_cashbackPercent,
+          isActive: row.tier_isActive
+        } : null
       };
     }
 
@@ -169,16 +151,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         storeCredit: Number(customer.storeCredit || 0),
         totalEarned: Number(customer.totalCashbackEarned || customer.totalEarned || 0),
         totalSpent: Number(customer.totalSpent || 0),
-        ordersCount: customer.ordersCount || 0,
+        orderCount: customer.orderCount || 0,
         memberSince: customer.createdAt,
         lastSynced: customer.lastSyncedAt,
-        membership: customer.membershipHistory[0] ? {
-          tier: customer.membershipHistory[0].tier ? {
-            id: customer.membershipHistory[0].tier.id,
-            name: customer.membershipHistory[0].tier.name,
-            minSpend: Number(customer.membershipHistory[0].tier.minSpend || 0),
-            cashbackPercent: Number(customer.membershipHistory[0].tier.cashbackPercent || 0)
-          } : null
+        membership: customer.currentTier ? {
+          tier: {
+            id: customer.currentTier.id,
+            name: customer.currentTier.name,
+            minSpend: Number(customer.currentTier.minSpend || 0),
+            cashbackPercent: Number(customer.currentTier.cashbackPercent || 0)
+          }
         } : null
       } : null,
       rawResult: customerFound ? result.records[0] : null

@@ -137,6 +137,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       });
 
       // Build the exact SQL query with proper joins
+      // Note: Using currentTierId instead of MembershipHistory table
       const sql = `
         SELECT
           c.id,
@@ -149,17 +150,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           c."totalEarned",
           c."totalCashbackEarned",
           c."totalSpent",
-          c."ordersCount",
+          c."orderCount",
           c."createdAt",
           c."updatedAt",
           c."lastSyncedAt",
-
-          mh.id as "membershipHistory_id",
-          mh."customerId" as "membershipHistory_customerId",
-          mh."tierId" as "membershipHistory_tierId",
-          mh."isActive" as "membershipHistory_isActive",
-          mh."assignmentType" as "membershipHistory_assignmentType",
-          mh."createdAt" as "membershipHistory_createdAt",
+          c."currentTierId",
 
           t.id as "tier_id",
           t."shopDomain" as "tier_shopDomain",
@@ -170,18 +165,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
         FROM "Customer" c
 
-        LEFT JOIN "MembershipHistory" mh
-          ON mh."customerId" = c.id
-          AND mh."isActive" = true
-
         LEFT JOIN "Tier" t
-          ON t.id = mh."tierId"
+          ON t.id = c."currentTierId"
 
         WHERE
           c."shopDomain" = :shopDomain
           AND c."shopifyCustomerId" = :shopifyCustomerId
-
-        ORDER BY mh."createdAt" DESC
 
         LIMIT 1
       `;
@@ -220,30 +209,21 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           totalEarned: row.totalEarned,
           totalCashbackEarned: row.totalCashbackEarned,
           totalSpent: row.totalSpent,
-          ordersCount: row.ordersCount,
+          orderCount: row.orderCount,
           createdAt: new Date(row.createdAt),
           updatedAt: new Date(row.updatedAt),
           lastSyncedAt: row.lastSyncedAt ? new Date(row.lastSyncedAt) : null,
+          currentTierId: row.currentTierId,
 
-          // Transform membership history (array format for compatibility)
-          membershipHistory: row.membershipHistory_id ? [{
-            id: row.membershipHistory_id,
-            customerId: row.membershipHistory_customerId,
-            tierId: row.membershipHistory_tierId,
-            isActive: row.membershipHistory_isActive,
-            assignmentType: row.membershipHistory_assignmentType,
-            createdAt: new Date(row.membershipHistory_createdAt),
-
-            // Transform nested tier
-            tier: row.tier_id ? {
-              id: row.tier_id,
-              shopDomain: row.tier_shopDomain,
-              name: row.tier_name,
-              minSpend: row.tier_minSpend,
-              cashbackPercent: row.tier_cashbackPercent,
-              isActive: row.tier_isActive
-            } : null
-          }] : []
+          // Transform currentTier relationship
+          currentTier: row.tier_id ? {
+            id: row.tier_id,
+            shopDomain: row.tier_shopDomain,
+            name: row.tier_name,
+            minSpend: row.tier_minSpend,
+            cashbackPercent: row.tier_cashbackPercent,
+            isActive: row.tier_isActive
+          } : null
         };
 
         console.log('[Proxy API] ✅ Customer transformed:', {
@@ -253,9 +233,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           storeCredit: customer.storeCredit,
           totalEarned: customer.totalEarned,
           totalCashbackEarned: customer.totalCashbackEarned,
-          membershipHistoryCount: customer.membershipHistory.length,
-          hasTier: customer.membershipHistory.length > 0 && !!customer.membershipHistory[0].tier,
-          tierName: customer.membershipHistory[0]?.tier?.name || 'NO_TIER'
+          currentTierId: customer.currentTierId,
+          hasTier: !!customer.currentTier,
+          tierName: customer.currentTier?.name || 'NO_TIER'
         });
       }
 
@@ -291,19 +271,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         });
       }
 
-      // Get current tier from membership history
-      let currentMembership = customer.membershipHistory[0];
-      let currentTier = currentMembership?.tier;
+      // Get current tier from customer
+      let currentTier = customer.currentTier;
 
-      console.log('[Proxy API] 🎖️ Current membership from history:', {
-        hasMembership: !!currentMembership,
+      console.log('[Proxy API] 🎖️ Current tier from customer:', {
+        hasTier: !!currentTier,
         tierName: currentTier?.name,
         tierCashback: currentTier?.cashbackPercent
       });
 
-      // FALLBACK: If no tier found in membership history, try to find/assign one
+      // FALLBACK: If no tier found, try to find/assign one
       if (!currentTier) {
-        console.log('[Proxy API] ⚠️ No tier in membership history, starting fallback logic...');
+        console.log('[Proxy API] ⚠️ No tier assigned to customer, starting fallback logic...');
         console.log('[Proxy API] 🔍 Customer data for tier lookup:', {
           customerId: customer.id,
           totalSpent: customer.totalSpent,
@@ -404,38 +383,41 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           console.log('[Proxy API] ✅ Bronze tier created:', assignedTier.id);
         }
 
-        // Create membership history for this customer
+        // Update customer's currentTierId
         if (assignedTier) {
-          console.log('[Proxy API] ➕ Creating membership history for customer:', {
+          console.log('[Proxy API] ➕ Updating customer currentTierId:', {
             customerId: customer.id,
             tierId: assignedTier.id,
             tierName: assignedTier.name
           });
 
           try {
-            currentMembership = await prisma.membershipHistory.create({
+            await prisma.customer.update({
+              where: { id: customer.id },
+              data: { currentTierId: assignedTier.id }
+            });
+
+            console.log('[Proxy API] ✅ Customer tier updated successfully');
+
+            // Also create a tier change log entry
+            await prisma.tierChangeLog.create({
               data: {
                 customerId: customer.id,
-                tierId: assignedTier.id,
-                isActive: true,
-                assignmentType: "AUTOMATIC"
-              },
-              include: {
-                tier: true
+                shop: shop,
+                fromTierId: null,
+                fromTierName: null,
+                toTierId: assignedTier.id,
+                toTierName: assignedTier.name,
+                changeType: "INITIAL_ASSIGNMENT",
+                triggerType: "ACCOUNT_CREATED",
+                totalSpending: customerSpending,
+                note: "Tier auto-assigned on first proxy API call"
               }
             });
 
-            console.log('[Proxy API] ✅ Membership history created successfully:', {
-              membershipId: currentMembership.id,
-              tierId: currentMembership.tierId,
-              isActive: currentMembership.isActive,
-              tierName: currentMembership.tier?.name,
-              tierCashback: currentMembership.tier?.cashbackPercent
-            });
-
-            currentTier = currentMembership.tier;
+            currentTier = assignedTier;
           } catch (error) {
-            console.error('[Proxy API] ❌ Failed to create membership history:', error);
+            console.error('[Proxy API] ❌ Failed to update customer tier:', error);
             console.error('[Proxy API] ❌ Error details:', {
               message: error.message,
               code: error.code,
@@ -458,14 +440,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         totalCashbackEarned: customer?.totalCashbackEarned,
         totalCashbackEarnedType: typeof customer?.totalCashbackEarned,
         totalSpent: customer?.totalSpent,
-        membershipHistoryLength: customer?.membershipHistory?.length,
-        hasMembership: !!currentMembership,
         currentTierName: currentTier?.name || 'NO_TIER',
         currentTierCashback: currentTier?.cashbackPercent || 'NO_CASHBACK',
         currentTierCashbackType: typeof currentTier?.cashbackPercent,
         currentTierId: currentTier?.id || 'NO_ID',
-        tierObjectExists: !!currentTier,
-        membershipObjectExists: !!currentMembership
+        tierObjectExists: !!currentTier
       });
 
       const responseData = {
@@ -521,8 +500,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       const jsonResponse = json(responseData, { headers });
       console.log('[Proxy API] ✅ json() completed, returning response');
       return jsonResponse;
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('[Proxy API] ❌ Caught error in membership endpoint');
       console.error('[Proxy API] ❌ Error message:', error.message);
       console.error('[Proxy API] ❌ Error stack:', error.stack);
