@@ -1829,9 +1829,6 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   padding: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
   transition: all 0.3s ease;
 }
 
@@ -1842,13 +1839,8 @@
   transform: translateY(-2px);
 }
 
-.rp-layout-c__card-icon {
-  font-size: 24px;
-  opacity: 0.9;
-}
-
 .rp-layout-c__card-content {
-  flex: 1;
+  width: 100%;
 }
 
 .rp-layout-c__card-label {
@@ -1876,23 +1868,12 @@
   z-index: 1;
 }
 
-.rp-layout-c__balance-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
 .rp-layout-c__balance-label {
   font-size: 11px;
   opacity: 0.8;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.rp-layout-c__balance-icon {
-  font-size: 20px;
-  opacity: 0.7;
+  margin-bottom: 8px;
 }
 
 .rp-layout-c__balance-amount {

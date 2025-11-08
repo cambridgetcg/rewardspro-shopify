@@ -490,14 +490,12 @@
                   <div class="rp-layout-c">
                     <div class="rp-layout-c__top-row">
                       <div class="rp-layout-c__tier-card">
-                        <div class="rp-layout-c__card-icon">⬢</div>
                         <div class="rp-layout-c__card-content">
                           <div class="rp-layout-c__card-label">Tier</div>
                           <div class="rp-layout-c__card-value">${this.escapeHtml(membership.tier.name)}</div>
                         </div>
                       </div>
                       <div class="rp-layout-c__cashback-card">
-                        <div class="rp-layout-c__card-icon">✦</div>
                         <div class="rp-layout-c__card-content">
                           <div class="rp-layout-c__card-label">Rewards</div>
                           <div class="rp-layout-c__card-value">${membership.tier.cashbackPercent}%</div>
@@ -506,10 +504,7 @@
                     </div>
 
                     <div class="rp-layout-c__balance-card">
-                      <div class="rp-layout-c__balance-header">
-                        <span class="rp-layout-c__balance-label">Store Credit</span>
-                        <span class="rp-layout-c__balance-icon">💳</span>
-                      </div>
+                      <div class="rp-layout-c__balance-label">Store Credit</div>
                       <div class="rp-layout-c__balance-amount">${this.formatCurrency(balance.storeCredit)}</div>
                     </div>
 
