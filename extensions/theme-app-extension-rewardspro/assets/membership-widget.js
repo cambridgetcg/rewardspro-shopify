@@ -406,18 +406,141 @@
           </div>
           ${this.state.isExpanded ? `
             <div class="rp-widget__body">
-              <div class="rp-widget__balance">
-                <span class="rp-widget__balance-label">Store Credit</span>
-                <span class="rp-widget__balance-amount">
-                  ${this.formatCurrency(balance.storeCredit)}
-                </span>
-              </div>
-              <div class="rp-widget__stats">
-                <div class="rp-widget__stat">
-                  <span class="rp-widget__stat-label">Total Earned</span>
-                  <span class="rp-widget__stat-value">${this.formatCurrency(balance.totalEarned)}</span>
+              <div class="rp-widget__layout-selector">
+                <h3 style="margin: 0 0 20px 0; font-size: 14px; color: #666; text-align: center;">Choose Your Layout Style</h3>
+
+                <!-- OPTION A: Modern Card Grid -->
+                <div class="rp-layout-option">
+                  <div class="rp-layout-label">OPTION A: Modern Grid</div>
+                  <div class="rp-layout-a">
+                    <div class="rp-layout-a__header">
+                      <div class="rp-layout-a__tier-badge">
+                        <div class="rp-layout-a__tier-icon">⬢</div>
+                        <div class="rp-layout-a__tier-info">
+                          <div class="rp-layout-a__tier-name">${this.escapeHtml(membership.tier.name)}</div>
+                          <div class="rp-layout-a__tier-subtitle">Member Status</div>
+                        </div>
+                      </div>
+                      <div class="rp-layout-a__cashback-badge">
+                        <div class="rp-layout-a__cashback-value">${membership.tier.cashbackPercent}%</div>
+                        <div class="rp-layout-a__cashback-label">Cashback</div>
+                      </div>
+                    </div>
+
+                    <div class="rp-layout-a__progress-section">
+                      <div class="rp-layout-a__progress-header">
+                        <span>Tier Progress</span>
+                        <span class="rp-layout-a__progress-percent">65%</span>
+                      </div>
+                      <div class="rp-layout-a__progress-bar">
+                        <div class="rp-layout-a__progress-fill" style="width: 65%"></div>
+                      </div>
+                      <div class="rp-layout-a__progress-footer">
+                        <span>$650 / $1,000</span>
+                        <span>$350 to next tier</span>
+                      </div>
+                    </div>
+
+                    <div class="rp-layout-a__stats-grid">
+                      <div class="rp-layout-a__stat-card">
+                        <div class="rp-layout-a__stat-icon">💳</div>
+                        <div class="rp-layout-a__stat-value">${this.formatCurrency(balance.storeCredit)}</div>
+                        <div class="rp-layout-a__stat-label">Store Credit</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- OPTION B: Glassmorphism Dashboard -->
+                <div class="rp-layout-option">
+                  <div class="rp-layout-label">OPTION B: Glass Dashboard</div>
+                  <div class="rp-layout-b">
+                    <div class="rp-layout-b__container">
+                      <div class="rp-layout-b__left">
+                        <div class="rp-layout-b__tier-section">
+                          <div class="rp-layout-b__tier-label">CURRENT TIER</div>
+                          <div class="rp-layout-b__tier-name">${this.escapeHtml(membership.tier.name)}</div>
+                          <div class="rp-layout-b__tier-rewards">${membership.tier.cashbackPercent}% Rewards Rate</div>
+                        </div>
+
+                        <div class="rp-layout-b__credit-card">
+                          <div class="rp-layout-b__credit-label">Available Balance</div>
+                          <div class="rp-layout-b__credit-amount">${this.formatCurrency(balance.storeCredit)}</div>
+                        </div>
+                      </div>
+
+                      <div class="rp-layout-b__right">
+                        <div class="rp-layout-b__progress-circle">
+                          <svg width="120" height="120" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="url(#gradient-b)" stroke-width="8"
+                              stroke-dasharray="339.292" stroke-dashoffset="118.752"
+                              stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                            <defs>
+                              <linearGradient id="gradient-b" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                              </linearGradient>
+                            </defs>
+                          </svg>
+                          <div class="rp-layout-b__progress-text">
+                            <div class="rp-layout-b__progress-percent">65%</div>
+                            <div class="rp-layout-b__progress-label">Complete</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- OPTION C: Terminal/Tech Style -->
+                <div class="rp-layout-option">
+                  <div class="rp-layout-label">OPTION C: Terminal Tech</div>
+                  <div class="rp-layout-c">
+                    <div class="rp-layout-c__terminal">
+                      <div class="rp-layout-c__line">
+                        <span class="rp-layout-c__prompt">$</span>
+                        <span class="rp-layout-c__command">member --status</span>
+                      </div>
+                      <div class="rp-layout-c__output">
+                        <div class="rp-layout-c__field">
+                          <span class="rp-layout-c__key">TIER:</span>
+                          <span class="rp-layout-c__value rp-layout-c__value--highlight">${this.escapeHtml(membership.tier.name)}</span>
+                        </div>
+                        <div class="rp-layout-c__field">
+                          <span class="rp-layout-c__key">CASHBACK_RATE:</span>
+                          <span class="rp-layout-c__value">${membership.tier.cashbackPercent}%</span>
+                        </div>
+                        <div class="rp-layout-c__field">
+                          <span class="rp-layout-c__key">BALANCE:</span>
+                          <span class="rp-layout-c__value rp-layout-c__value--currency">${this.formatCurrency(balance.storeCredit)}</span>
+                        </div>
+
+                        <div class="rp-layout-c__divider">────────────────────────────────</div>
+
+                        <div class="rp-layout-c__progress-section">
+                          <div class="rp-layout-c__progress-label">TIER_PROGRESS [65%]</div>
+                          <div class="rp-layout-c__progress-bar">
+                            <span class="rp-layout-c__progress-filled">█████████████████████</span><span class="rp-layout-c__progress-empty">──────────</span>
+                          </div>
+                          <div class="rp-layout-c__progress-info">
+                            <span class="rp-layout-c__key">CURRENT:</span>
+                            <span class="rp-layout-c__value">$650.00</span>
+                            <span class="rp-layout-c__separator">|</span>
+                            <span class="rp-layout-c__key">TARGET:</span>
+                            <span class="rp-layout-c__value">$1,000.00</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="rp-layout-c__line">
+                        <span class="rp-layout-c__prompt">$</span>
+                        <span class="rp-layout-c__cursor">▊</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
               ${isStale ? '<div class="rp-widget__indicator rp-widget__indicator--stale">Data may be outdated</div>' : ''}
               ${isOffline ? '<div class="rp-widget__indicator rp-widget__indicator--offline">Offline mode</div>' : ''}
               ${this.state.needsSync ? '<div class="rp-widget__indicator rp-widget__indicator--sync"><strong>⚠️ Data Not Synced:</strong> Your account is showing default data. The merchant needs to run customer sync from the admin panel to display your real tier and rewards.</div>' : ''}

@@ -1484,6 +1484,413 @@
   }
 }
 
+/* ============================================
+   LAYOUT PREVIEW STYLES
+   ============================================ */
+
+.rp-widget__layout-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rp-layout-option {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.rp-layout-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+/* ============================================
+   OPTION A: MODERN GRID LAYOUT
+   ============================================ */
+
+.rp-layout-a {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: #ffffff;
+}
+
+.rp-layout-a__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rp-layout-a__tier-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rp-layout-a__tier-icon {
+  font-size: 32px;
+  opacity: 0.9;
+}
+
+.rp-layout-a__tier-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.rp-layout-a__tier-subtitle {
+  font-size: 11px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rp-layout-a__cashback-badge {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  text-align: center;
+}
+
+.rp-layout-a__cashback-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rp-layout-a__cashback-label {
+  font-size: 10px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rp-layout-a__progress-section {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.rp-layout-a__progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rp-layout-a__progress-percent {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rp-layout-a__progress-bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.rp-layout-a__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.rp-layout-a__progress-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.rp-layout-a__stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.rp-layout-a__stat-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.rp-layout-a__stat-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.rp-layout-a__stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.rp-layout-a__stat-label {
+  font-size: 11px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================
+   OPTION B: GLASS DASHBOARD LAYOUT
+   ============================================ */
+
+.rp-layout-b {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.rp-layout-b::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.rp-layout-b__container {
+  display: flex;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.rp-layout-b__left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rp-layout-b__tier-section {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.rp-layout-b__tier-label {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.rp-layout-b__tier-name {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.rp-layout-b__tier-rewards {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.rp-layout-b__credit-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.rp-layout-b__credit-label {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.rp-layout-b__credit-amount {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.rp-layout-b__right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-layout-b__progress-circle {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.rp-layout-b__progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.rp-layout-b__progress-percent {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rp-layout-b__progress-label {
+  font-size: 10px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================
+   OPTION C: TERMINAL/TECH LAYOUT
+   ============================================ */
+
+.rp-layout-c {
+  background: #0d1117;
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.rp-layout-c__terminal {
+  padding: 16px;
+  color: #58a6ff;
+}
+
+.rp-layout-c__line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.rp-layout-c__prompt {
+  color: #7ee787;
+  font-weight: 700;
+}
+
+.rp-layout-c__command {
+  color: #ffa657;
+}
+
+.rp-layout-c__cursor {
+  color: #58a6ff;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.rp-layout-c__output {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.rp-layout-c__field {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.rp-layout-c__key {
+  color: #79c0ff;
+  min-width: 140px;
+}
+
+.rp-layout-c__value {
+  color: #c9d1d9;
+}
+
+.rp-layout-c__value--highlight {
+  color: #7ee787;
+  font-weight: 700;
+}
+
+.rp-layout-c__value--currency {
+  color: #ffa657;
+  font-weight: 700;
+}
+
+.rp-layout-c__separator {
+  color: #484f58;
+  margin: 0 8px;
+}
+
+.rp-layout-c__divider {
+  color: #30363d;
+  margin: 12px 0;
+  font-size: 12px;
+}
+
+.rp-layout-c__progress-section {
+  margin-top: 12px;
+}
+
+.rp-layout-c__progress-label {
+  color: #79c0ff;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.rp-layout-c__progress-bar {
+  font-size: 14px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.rp-layout-c__progress-filled {
+  color: #7ee787;
+}
+
+.rp-layout-c__progress-empty {
+  color: #30363d;
+}
+
+.rp-layout-c__progress-info {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+   END LAYOUT PREVIEW STYLES
+   ============================================ */
+
 /* Accessibility: Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .rp-widget,
