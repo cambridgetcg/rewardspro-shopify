@@ -419,7 +419,16 @@
                 </div>
               </div>
               <div class="rp-widget__debug">
-                <div class="rp-widget__debug-title">🔧 Debug Info</div>
+                <div class="rp-widget__debug-header">
+                  <div class="rp-widget__debug-title">🔧 Debug Info</div>
+                  <button class="rp-widget__refresh-btn" data-action="refresh" title="Clear cache and fetch fresh data">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M13.65 2.35A7.5 7.5 0 1 0 15.5 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <path d="M12 1L13.65 2.35L12 3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Refresh Data</span>
+                  </button>
+                </div>
                 <div class="rp-widget__debug-item">
                   <span class="rp-widget__debug-label">Email:</span>
                   <span class="rp-widget__debug-value">${this.escapeHtml(this.config.customer.email)}</span>
@@ -831,6 +840,7 @@
     attachEventListeners() {
       const header = this.root.querySelector('.rp-widget__header');
       const toggle = this.root.querySelector('.rp-widget__toggle');
+      const refreshBtn = this.root.querySelector('[data-action="refresh"]');
 
       if (header) {
         header.addEventListener('click', (e) => {
@@ -856,8 +866,98 @@
         });
       }
 
+      // Refresh button
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleRefresh();
+        });
+      }
+
       // Add scroll detection for fade indicators
       this.attachScrollListeners();
+    }
+
+    /**
+     * Handle refresh button click
+     */
+    async handleRefresh() {
+      console.log('[RewardsWidget] 🔄 Refresh button clicked');
+
+      const refreshBtn = this.root.querySelector('[data-action="refresh"]');
+
+      // Add loading state to button
+      if (refreshBtn) {
+        refreshBtn.classList.add('rp-widget__refresh-btn--loading');
+        refreshBtn.disabled = true;
+      }
+
+      try {
+        // Clear cache for this customer
+        this.clearCache();
+        console.log('[RewardsWidget] 🗑️ Cache cleared');
+
+        // Show loading state in widget
+        this.state.isLoading = true;
+        this.renderLoading();
+
+        // Fetch fresh data with cache-busting parameter
+        console.log('[RewardsWidget] 📞 Fetching fresh data...');
+        await this.fetchCustomerData();
+
+        console.log('[RewardsWidget] ✅ Refresh complete');
+
+        // Show success feedback
+        this.showRefreshFeedback('success', 'Data refreshed successfully!');
+
+      } catch (error) {
+        console.error('[RewardsWidget] ❌ Refresh failed:', error);
+        this.showRefreshFeedback('error', 'Failed to refresh data');
+      } finally {
+        // Remove loading state from button
+        if (refreshBtn) {
+          refreshBtn.classList.remove('rp-widget__refresh-btn--loading');
+          refreshBtn.disabled = false;
+        }
+        this.state.isLoading = false;
+      }
+    }
+
+    /**
+     * Clear cache for current customer
+     */
+    clearCache() {
+      if (!this.config.customer?.id) return;
+
+      try {
+        const key = `rp-widget-${this.config.customer.id}`;
+        localStorage.removeItem(key);
+        console.log('[RewardsWidget] ✅ Removed cache key:', key);
+      } catch (error) {
+        console.error('[RewardsWidget] ❌ Failed to clear cache:', error);
+      }
+    }
+
+    /**
+     * Show refresh feedback message
+     */
+    showRefreshFeedback(type, message) {
+      // Create feedback element
+      const feedback = document.createElement('div');
+      feedback.className = `rp-widget__refresh-feedback rp-widget__refresh-feedback--${type}`;
+      feedback.textContent = message;
+
+      // Insert after refresh button
+      const refreshBtn = this.root.querySelector('[data-action="refresh"]');
+      if (refreshBtn && refreshBtn.parentElement) {
+        refreshBtn.parentElement.appendChild(feedback);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+          feedback.style.opacity = '0';
+          setTimeout(() => feedback.remove(), 300);
+        }, 3000);
+      }
     }
 
     /**

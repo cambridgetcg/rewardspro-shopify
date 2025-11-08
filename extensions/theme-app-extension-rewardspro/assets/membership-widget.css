@@ -639,11 +639,95 @@
   font-size: 11px;
 }
 
+.rp-widget__debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
 .rp-widget__debug-title {
   font-weight: 600;
-  margin-bottom: 8px;
   color: #2c5aa0;
   font-size: 12px;
+  flex: 1;
+}
+
+/* Refresh button */
+.rp-widget__refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #007bff;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.rp-widget__refresh-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.rp-widget__refresh-btn:active {
+  transform: translateY(0);
+}
+
+.rp-widget__refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.rp-widget__refresh-btn svg {
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.rp-widget__refresh-btn--loading svg {
+  animation: rp-spin 1s linear infinite;
+}
+
+@keyframes rp-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Refresh feedback message */
+.rp-widget__refresh-feedback {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  transition: opacity 0.3s ease;
+  width: 100%;
+}
+
+.rp-widget__refresh-feedback--success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.rp-widget__refresh-feedback--error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
 .rp-widget__debug-item {
@@ -1356,6 +1440,28 @@
   .rp-widget__debug-log-badge--unknown {
     background: #383d41;
     color: #e2e3e5;
+  }
+
+  /* Refresh button in dark mode */
+  .rp-widget__refresh-btn {
+    background: #0d6efd;
+  }
+
+  .rp-widget__refresh-btn:hover {
+    background: #0b5ed7;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.4);
+  }
+
+  .rp-widget__refresh-feedback--success {
+    background: #1e4620;
+    color: #d4edda;
+    border-color: #2d5a2e;
+  }
+
+  .rp-widget__refresh-feedback--error {
+    background: #4a1c1c;
+    color: #f8d7da;
+    border-color: #5a2424;
   }
 
   /* Keep error state visible in dark mode */
