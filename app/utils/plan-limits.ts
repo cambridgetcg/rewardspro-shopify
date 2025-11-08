@@ -45,6 +45,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: false,
     purchasableTiers: false,
     lifetimeTiers: false,
+    annualEvaluationPeriod: false,
 
     // Email Features
     emailNotifications: false,
@@ -76,6 +77,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: true,
     purchasableTiers: true,
     lifetimeTiers: true,
+    annualEvaluationPeriod: false,
 
     // Email Features
     emailNotifications: true,
@@ -107,6 +109,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: true,
     purchasableTiers: true,
     lifetimeTiers: true,
+    annualEvaluationPeriod: false,
 
     // Email Features
     emailNotifications: true,
@@ -138,6 +141,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: true,
     purchasableTiers: true,
     lifetimeTiers: true,
+    annualEvaluationPeriod: true,
 
     // Email Features
     emailNotifications: true,
@@ -169,6 +173,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: true,
     purchasableTiers: true,
     lifetimeTiers: true,
+    annualEvaluationPeriod: true,
 
     // Email Features
     emailNotifications: true,
@@ -197,6 +202,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: true,
     purchasableTiers: true,
     lifetimeTiers: true,
+    annualEvaluationPeriod: false,
     emailNotifications: true,
     customEmailTemplates: false,
     whiteLabel: false,
@@ -220,6 +226,7 @@ export const PLAN_LIMITS = {
     subscriptionTiers: true,
     purchasableTiers: true,
     lifetimeTiers: true,
+    annualEvaluationPeriod: false,
     emailNotifications: true,
     customEmailTemplates: true,
     whiteLabel: true,
@@ -337,6 +344,7 @@ export function getUpgradeMessage(feature: FeatureName): string {
     subscriptionTiers: `Upgrade to ${requiredPlan} to enable subscription tiers`,
     purchasableTiers: `Upgrade to ${requiredPlan} to enable purchasable tiers`,
     lifetimeTiers: `Upgrade to ${requiredPlan} to enable lifetime tiers`,
+    annualEvaluationPeriod: `Upgrade to ${requiredPlan} to enable annual tier evaluation`,
     emailNotifications: `Upgrade to ${requiredPlan} to enable email notifications`,
     customEmailTemplates: `Upgrade to ${requiredPlan} for custom email templates`,
     whiteLabel: `Upgrade to ${requiredPlan} for white-label email branding`,

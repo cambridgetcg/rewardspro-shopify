@@ -79,13 +79,14 @@ import { checkTierMembershipExpiry } from "../services/tier-product-purchase.ser
 import { CustomerDetailModal } from "../components/CustomerDetailModal";
 import { TierBadge } from "../components/TierBadge";
 import { StoreCreditDisplay } from "../components/StoreCredit";
-import { 
-  getTierStyle, 
+import {
+  getTierStyle,
   formatTierName,
   getTierEmoji,
   getTierGradientCSS,
   getTierTextColor
 } from "../utils/tier-styles";
+import { getCurrentPlan, hasFeature } from "../utils/plan-limits";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -132,6 +133,7 @@ interface LoaderData {
     storeCurrency: string;
     currencyDisplayType: string;
   } | null;
+  currentPlan: string;
 
   // Deferred data (streams in)
   customersData: Promise<{
@@ -310,7 +312,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // ============================================
     // IMMEDIATE: Fetch shell data (FAST - blocks render)
     // ============================================
-    const [tiers, shopSettings] = await Promise.all([
+    const [tiers, shopSettings, billingSubscription] = await Promise.all([
       db.tier.findMany({
         where: { shop },
         orderBy: { minSpend: 'asc' },
@@ -318,7 +320,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       db.shopSettings.findUnique({
         where: { shop },
       }),
+      db.billingSubscription.findUnique({
+        where: { shop },
+      }),
     ]);
+
+    const currentPlan = getCurrentPlan(null, billingSubscription);
 
     // Serialize dates for tiers
     const serializedTiers = tiers.map(tier => ({
@@ -355,6 +362,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
       } : null,
+      currentPlan,
 
       // Deferred data (streams in)
       customersData: customersDataPromise,
@@ -2123,12 +2131,23 @@ export default function Customers() {
               
               <Select
                 label="Evaluation Period"
-                options={[
-                  { label: "Annual (resets yearly)", value: "ANNUAL" },
-                  { label: "Lifetime (cumulative)", value: "LIFETIME" },
-                ]}
+                options={
+                  hasFeature(data.currentPlan, 'annualEvaluationPeriod')
+                    ? [
+                        { label: "Annual (resets yearly)", value: "ANNUAL" },
+                        { label: "Lifetime (cumulative)", value: "LIFETIME" },
+                      ]
+                    : [
+                        { label: "Lifetime (cumulative)", value: "LIFETIME" },
+                      ]
+                }
                 value={tierFormData.evaluationPeriod}
                 onChange={(value) => setTierFormData({ ...tierFormData, evaluationPeriod: value as "ANNUAL" | "LIFETIME" })}
+                helpText={
+                  !hasFeature(data.currentPlan, 'annualEvaluationPeriod')
+                    ? "Annual evaluation period is only available on Ultra plan and above. Upgrade to unlock this feature."
+                    : "Choose how tier status is calculated: annually reset or lifetime cumulative"
+                }
               />
             </FormLayout>
           </Modal.Section>

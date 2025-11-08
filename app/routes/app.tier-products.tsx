@@ -2767,12 +2767,23 @@ export default function TierProducts() {
 
               <Select
                 label="Evaluation Period"
-                options={[
-                  { label: "Annual (resets yearly)", value: "ANNUAL" },
-                  { label: "Lifetime (cumulative)", value: "LIFETIME" },
-                ]}
+                options={
+                  hasFeature(data.currentPlan, 'annualEvaluationPeriod')
+                    ? [
+                        { label: "Annual (resets yearly)", value: "ANNUAL" },
+                        { label: "Lifetime (cumulative)", value: "LIFETIME" },
+                      ]
+                    : [
+                        { label: "Lifetime (cumulative)", value: "LIFETIME" },
+                      ]
+                }
                 value={tierFormData.evaluationPeriod}
                 onChange={(value) => setTierFormData({ ...tierFormData, evaluationPeriod: value as "ANNUAL" | "LIFETIME" })}
+                helpText={
+                  !hasFeature(data.currentPlan, 'annualEvaluationPeriod')
+                    ? "Annual evaluation period is only available on Ultra plan and above. Upgrade to unlock this feature."
+                    : "Choose how tier status is calculated: annually reset or lifetime cumulative"
+                }
               />
             </FormLayout>
           </Modal.Section>
