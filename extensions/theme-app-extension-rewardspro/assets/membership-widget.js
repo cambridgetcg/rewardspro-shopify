@@ -172,6 +172,7 @@
         const data = await response.json();
 
         console.log('[RewardsWidget] ✅ Response received:', data);
+        console.log('[RewardsWidget] 📦 Full JSON response:', JSON.stringify(data, null, 2));
         console.log('[RewardsWidget] Response details:', {
           success: data.success,
           status: data.status,
@@ -179,6 +180,11 @@
           hasMembership: !!data.membership,
           tierName: data.membership?.tier?.name,
           storeCredit: data.balance?.storeCredit,
+          storeCreditType: typeof data.balance?.storeCredit,
+          totalEarned: data.balance?.totalEarned,
+          totalEarnedType: typeof data.balance?.totalEarned,
+          cashbackPercent: data.membership?.tier?.cashbackPercent,
+          cashbackPercentType: typeof data.membership?.tier?.cashbackPercent,
           needsSync: data.needsSync || false,
           query: data.query
         });
@@ -388,15 +394,54 @@
         return;
       }
 
+      console.log('[RewardsWidget] 🎨 Starting renderAuthenticated');
+      console.log('[RewardsWidget] 📊 Full state.data:', JSON.stringify(this.state.data, null, 2));
+
       const { balance, membership } = this.state.data;
+
+      console.log('[RewardsWidget] 💰 Balance object:', balance);
+      console.log('[RewardsWidget] 💰 Balance.storeCredit:', balance?.storeCredit);
+      console.log('[RewardsWidget] 💰 Balance.storeCredit type:', typeof balance?.storeCredit);
+      console.log('[RewardsWidget] 🎖️ Membership object:', membership);
+      console.log('[RewardsWidget] 🎖️ Tier object:', membership?.tier);
+      console.log('[RewardsWidget] 🎖️ Tier.cashbackPercent:', membership?.tier?.cashbackPercent);
+      console.log('[RewardsWidget] 🎖️ Tier.cashbackPercent type:', typeof membership?.tier?.cashbackPercent);
+
       const expandedClass = this.state.isExpanded ? 'rp-widget--expanded' : 'rp-widget--collapsed';
+
+      // Pre-format values with error handling
+      let tierName, cashbackPercent, storeCreditFormatted;
+      try {
+        tierName = this.escapeHtml(membership?.tier?.name || 'Member');
+        console.log('[RewardsWidget] 🏷️ Tier name:', tierName);
+      } catch (e) {
+        console.error('[RewardsWidget] ❌ Error formatting tier name:', e);
+        tierName = 'Member';
+      }
+
+      try {
+        cashbackPercent = membership?.tier?.cashbackPercent ?? 0;
+        console.log('[RewardsWidget] 💎 Cashback percent:', cashbackPercent);
+      } catch (e) {
+        console.error('[RewardsWidget] ❌ Error getting cashback percent:', e);
+        cashbackPercent = 0;
+      }
+
+      try {
+        console.log('[RewardsWidget] 💰 About to format storeCredit:', balance?.storeCredit);
+        storeCreditFormatted = this.formatCurrency(balance?.storeCredit);
+        console.log('[RewardsWidget] ✅ Store credit formatted:', storeCreditFormatted);
+      } catch (e) {
+        console.error('[RewardsWidget] ❌ Error formatting store credit:', e);
+        storeCreditFormatted = '$0.00';
+      }
 
       this.root.innerHTML = `
         <div class="rp-widget rp-widget--authenticated ${expandedClass}">
           <div class="rp-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
             <div class="rp-widget__header-content">
-              <span class="rp-widget__tier">${this.escapeHtml(membership.tier.name)}</span>
-              <span class="rp-widget__cashback">${membership.tier.cashbackPercent}% back</span>
+              <span class="rp-widget__tier">${tierName}</span>
+              <span class="rp-widget__cashback">${cashbackPercent}% back</span>
             </div>
             <button class="rp-widget__toggle" aria-label="${this.state.isExpanded ? 'Collapse widget' : 'Expand widget'}">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -441,7 +486,7 @@
 
                     <div class="rp-layout-a__credit-card">
                       <div class="rp-layout-a__credit-label">Available Balance</div>
-                      <div class="rp-layout-a__credit-amount">${this.formatCurrency(balance.storeCredit)}</div>
+                      <div class="rp-layout-a__credit-amount">${storeCreditFormatted}</div>
                     </div>
                   </div>
                 </div>
@@ -463,7 +508,7 @@
 
                     <div class="rp-layout-b__balance-section">
                       <div class="rp-layout-b__balance-label">Store Credit Available</div>
-                      <div class="rp-layout-b__balance-amount">${this.formatCurrency(balance.storeCredit)}</div>
+                      <div class="rp-layout-b__balance-amount">${storeCreditFormatted}</div>
                     </div>
 
                     <div class="rp-layout-b__progress-section">
@@ -505,7 +550,7 @@
 
                     <div class="rp-layout-c__balance-card">
                       <div class="rp-layout-c__balance-label">Store Credit</div>
-                      <div class="rp-layout-c__balance-amount">${this.formatCurrency(balance.storeCredit)}</div>
+                      <div class="rp-layout-c__balance-amount">${storeCreditFormatted}</div>
                     </div>
 
                     <div class="rp-layout-c__progress-card">
@@ -569,14 +614,41 @@
      * Format currency
      */
     formatCurrency(amount) {
+      console.log('[RewardsWidget] 💵 formatCurrency called with:', {
+        amount,
+        type: typeof amount,
+        isNull: amount === null,
+        isUndefined: amount === undefined,
+        orZero: amount || 0,
+        currency: this.config.shop.currency
+      });
+
       try {
-        return new Intl.NumberFormat('en-US', {
+        const formatted = new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: this.config.shop.currency
         }).format(amount || 0);
+        console.log('[RewardsWidget] ✅ Formatted successfully:', formatted);
+        return formatted;
       } catch (error) {
-        // Fallback if currency code is invalid
-        return '$' + (amount || 0).toFixed(2);
+        console.error('[RewardsWidget] ❌ Intl.NumberFormat failed:', error);
+        console.log('[RewardsWidget] 🔄 Trying fallback formatting...');
+
+        const fallbackAmount = amount || 0;
+        console.log('[RewardsWidget] 💵 Fallback amount:', fallbackAmount, 'type:', typeof fallbackAmount);
+
+        // Extra safety: ensure it's a number
+        const numericAmount = Number(fallbackAmount);
+        console.log('[RewardsWidget] 💵 Numeric amount:', numericAmount, 'type:', typeof numericAmount);
+
+        if (isNaN(numericAmount)) {
+          console.error('[RewardsWidget] ❌ Amount is NaN, returning $0.00');
+          return '$0.00';
+        }
+
+        const result = '$' + numericAmount.toFixed(2);
+        console.log('[RewardsWidget] ✅ Fallback formatted:', result);
+        return result;
       }
     }
 
