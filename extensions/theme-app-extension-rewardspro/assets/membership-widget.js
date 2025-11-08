@@ -322,6 +322,14 @@
             name: 'Member',
             cashbackPercent: 1
           }
+        },
+        tierProgress: {
+          currentSpending: 0,
+          nextTierTarget: 0,
+          nextTierName: '',
+          amountRemaining: 0,
+          progressPercent: 0,
+          isMaxTier: false
         }
       };
       this.state.dataSource = 'fallback';
@@ -397,7 +405,7 @@
       console.log('[RewardsWidget] 🎨 Starting renderAuthenticated');
       console.log('[RewardsWidget] 📊 Full state.data:', JSON.stringify(this.state.data, null, 2));
 
-      const { balance, membership } = this.state.data;
+      const { balance, membership, tierProgress } = this.state.data;
 
       console.log('[RewardsWidget] 💰 Balance object:', balance);
       console.log('[RewardsWidget] 💰 Balance.storeCredit:', balance?.storeCredit);
@@ -406,6 +414,7 @@
       console.log('[RewardsWidget] 🎖️ Tier object:', membership?.tier);
       console.log('[RewardsWidget] 🎖️ Tier.cashbackPercent:', membership?.tier?.cashbackPercent);
       console.log('[RewardsWidget] 🎖️ Tier.cashbackPercent type:', typeof membership?.tier?.cashbackPercent);
+      console.log('[RewardsWidget] 📊 TierProgress object:', tierProgress);
 
       const expandedClass = this.state.isExpanded ? 'rp-widget--expanded' : 'rp-widget--collapsed';
 
@@ -435,6 +444,58 @@
         console.error('[RewardsWidget] ❌ Error formatting store credit:', e);
         storeCreditFormatted = '$0.00';
       }
+
+      // Calculate tier progress values
+      let progressPercent = 0;
+      let currentSpending = 0;
+      let nextTierTarget = 0;
+      let amountRemaining = 0;
+      let nextTierName = '';
+      let isMaxTier = false;
+      let progressStats = '';
+      let progressStatsCompact = '';
+
+      try {
+        if (tierProgress) {
+          progressPercent = tierProgress.progressPercent || 0;
+          currentSpending = tierProgress.currentSpending || 0;
+          nextTierTarget = tierProgress.nextTierTarget || 0;
+          amountRemaining = tierProgress.amountRemaining || 0;
+          nextTierName = tierProgress.nextTierName || '';
+          isMaxTier = tierProgress.isMaxTier || false;
+
+          // Format progress stats for display
+          const currentSpendingFormatted = this.formatCurrency(currentSpending);
+          const nextTierTargetFormatted = this.formatCurrency(nextTierTarget);
+          const amountRemainingFormatted = this.formatCurrency(amountRemaining);
+
+          if (isMaxTier) {
+            progressStats = 'Max tier reached';
+            progressStatsCompact = 'Max tier';
+          } else {
+            progressStats = `${currentSpendingFormatted} / ${nextTierTargetFormatted}`;
+            progressStatsCompact = `${currentSpendingFormatted} of ${nextTierTargetFormatted}`;
+          }
+
+          console.log('[RewardsWidget] 📊 Tier Progress Calculated:', {
+            progressPercent,
+            currentSpending,
+            nextTierTarget,
+            amountRemaining,
+            nextTierName,
+            isMaxTier,
+            progressStats
+          });
+        } else {
+          console.warn('[RewardsWidget] ⚠️ No tierProgress data available');
+        }
+      } catch (e) {
+        console.error('[RewardsWidget] ❌ Error calculating tier progress:', e);
+      }
+
+      // Calculate SVG stroke-dashoffset for circular progress (Layout A)
+      const circumference = 2 * Math.PI * 62; // radius = 62
+      const strokeDashoffset = circumference - (circumference * progressPercent / 100);
 
       this.root.innerHTML = `
         <div class="rp-widget rp-widget--authenticated ${expandedClass}">
@@ -468,7 +529,7 @@
                       <svg width="140" height="140" viewBox="0 0 140 140">
                         <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="10"/>
                         <circle cx="70" cy="70" r="62" fill="none" stroke="url(#gradient-a)" stroke-width="10"
-                          stroke-dasharray="389.557" stroke-dashoffset="136.345"
+                          stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
                           stroke-linecap="round" transform="rotate(-90 70 70)"/>
                         <defs>
                           <linearGradient id="gradient-a" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -478,9 +539,9 @@
                         </defs>
                       </svg>
                       <div class="rp-layout-a__progress-text">
-                        <div class="rp-layout-a__progress-percent">65%</div>
-                        <div class="rp-layout-a__progress-label">Complete</div>
-                        <div class="rp-layout-a__progress-stats">$650 / $1,000</div>
+                        <div class="rp-layout-a__progress-percent">${progressPercent}%</div>
+                        <div class="rp-layout-a__progress-label">${isMaxTier ? 'Max Tier' : 'to ' + this.escapeHtml(nextTierName)}</div>
+                        <div class="rp-layout-a__progress-stats">${this.escapeHtml(progressStats)}</div>
                       </div>
                     </div>
 
@@ -514,16 +575,16 @@
                     <div class="rp-layout-b__progress-section">
                       <div class="rp-layout-b__progress-header">
                         <span class="rp-layout-b__progress-title">Tier Progress</span>
-                        <span class="rp-layout-b__progress-percent">65%</span>
+                        <span class="rp-layout-b__progress-percent">${progressPercent}%</span>
                       </div>
                       <div class="rp-layout-b__progress-bar">
-                        <div class="rp-layout-b__progress-fill" style="width: 65%">
+                        <div class="rp-layout-b__progress-fill" style="width: ${progressPercent}%">
                           <div class="rp-layout-b__progress-shine"></div>
                         </div>
                       </div>
                       <div class="rp-layout-b__progress-footer">
-                        <span>$650 spent</span>
-                        <span>$350 to Gold</span>
+                        <span>${this.formatCurrency(currentSpending)} spent</span>
+                        <span>${isMaxTier ? 'Max Tier' : this.formatCurrency(amountRemaining) + ' to ' + this.escapeHtml(nextTierName)}</span>
                       </div>
                     </div>
                   </div>
@@ -554,16 +615,16 @@
                     </div>
 
                     <div class="rp-layout-c__progress-card">
-                      <div class="rp-layout-c__progress-label">Next Tier Progress</div>
+                      <div class="rp-layout-c__progress-label">${isMaxTier ? 'Tier Status' : 'Next Tier Progress'}</div>
                       <div class="rp-layout-c__progress-wrapper">
                         <div class="rp-layout-c__progress-track">
-                          <div class="rp-layout-c__progress-fill" style="width: 65%"></div>
+                          <div class="rp-layout-c__progress-fill" style="width: ${progressPercent}%"></div>
                         </div>
-                        <div class="rp-layout-c__progress-percent">65%</div>
+                        <div class="rp-layout-c__progress-percent">${progressPercent}%</div>
                       </div>
                       <div class="rp-layout-c__progress-info">
-                        <span>$650 of $1,000</span>
-                        <span class="rp-layout-c__progress-remaining">$350 remaining</span>
+                        <span>${this.escapeHtml(progressStatsCompact)}</span>
+                        <span class="rp-layout-c__progress-remaining">${isMaxTier ? 'Highest tier achieved!' : this.formatCurrency(amountRemaining) + ' remaining'}</span>
                       </div>
                     </div>
                   </div>

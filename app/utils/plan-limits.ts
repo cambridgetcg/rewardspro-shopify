@@ -11,7 +11,7 @@ import {
   ENTERPRISE_PLAN,
   STARTER_PLAN,
   GROWTH_PLAN,
-} from "../shopify.server";
+} from "../constants/plans";
 
 // Plan hierarchy (higher number = higher tier)
 export const PLAN_HIERARCHY = {

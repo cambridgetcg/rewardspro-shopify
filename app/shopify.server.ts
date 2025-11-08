@@ -9,22 +9,39 @@ import {
 import { createDataAPISessionStorage } from "./utils/session-data-api-adapter";
 import { syncCustomersInBackground } from "./services/background-customer-sync.server";
 
-// Define billing plan names (should match Partner Dashboard configuration)
-export const FREE_PLAN = "RewardsPro Free";
-export const PRO_PLAN = "RewardsPro Pro";
-export const PRO_ANNUAL_PLAN = "RewardsPro Pro Annual";
-export const MAX_PLAN = "RewardsPro Max";
-export const MAX_ANNUAL_PLAN = "RewardsPro Max Annual";
-export const ULTRA_PLAN = "RewardsPro Ultra";
-export const ULTRA_ANNUAL_PLAN = "RewardsPro Ultra Annual";
-export const ENTERPRISE_PLAN = "RewardsPro Enterprise";
+// Import and re-export billing plan names from shared constants
+import {
+  FREE_PLAN,
+  PRO_PLAN,
+  PRO_ANNUAL_PLAN,
+  MAX_PLAN,
+  MAX_ANNUAL_PLAN,
+  ULTRA_PLAN,
+  ULTRA_ANNUAL_PLAN,
+  ENTERPRISE_PLAN,
+  STARTER_PLAN,
+  GROWTH_PLAN,
+  MONTHLY_PLAN,
+  ANNUAL_PLAN,
+  USAGE_PLAN,
+} from "./constants/plans";
 
-// Legacy plans - keeping for backward compatibility
-export const STARTER_PLAN = "RewardsPro Starter";
-export const GROWTH_PLAN = "RewardsPro Growth";
-export const MONTHLY_PLAN = "RewardsPro Monthly";
-export const ANNUAL_PLAN = "RewardsPro Annual";
-export const USAGE_PLAN = "RewardsPro Usage";
+// Re-export for backward compatibility
+export {
+  FREE_PLAN,
+  PRO_PLAN,
+  PRO_ANNUAL_PLAN,
+  MAX_PLAN,
+  MAX_ANNUAL_PLAN,
+  ULTRA_PLAN,
+  ULTRA_ANNUAL_PLAN,
+  ENTERPRISE_PLAN,
+  STARTER_PLAN,
+  GROWTH_PLAN,
+  MONTHLY_PLAN,
+  ANNUAL_PLAN,
+  USAGE_PLAN,
+};
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
