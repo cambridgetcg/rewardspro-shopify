@@ -11,6 +11,9 @@ import type { SqlParameter } from "@aws-sdk/client-rds-data";
  * @param currentTier - Customer's current tier object
  * @param allTiers - All tiers for the shop
  * @returns Tier progress data including next tier, progress percentage, and amount remaining
+ *
+ * Note: Tier progression is based on netSpend (total spent minus refunds) to ensure
+ * customers who return items don't get credit toward tier upgrades for refunded purchases.
  */
 function calculateTierProgress(
   currentNetSpend: number,
@@ -614,7 +617,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
           id: customer.id,
           shopifyId: customer.shopifyCustomerId,
           email: customer.email,
-          memberSince: customer.createdAt.toISOString()
+          memberSince: customer.createdAt.toISOString(),
+          totalSpent: Number(customer.totalSpent || 0),
+          totalRefunded: Number(customer.totalRefunded || 0),
+          netSpent: Number(customer.netSpent || 0),
+          orderCount: Number(customer.orderCount || 0)
         },
         balance: {
           storeCredit: Number(customer.storeCredit || 0),
@@ -634,6 +641,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         },
         tierProgress: {
           currentSpending: tierProgress.currentSpending,
+          totalSpent: Number(customer.totalSpent || 0),
+          totalRefunded: Number(customer.totalRefunded || 0),
+          netSpent: Number(customer.netSpent || 0),
           nextTierTarget: tierProgress.nextTierTarget,
           nextTierName: tierProgress.nextTierName,
           nextTierCashback: tierProgress.nextTierCashback,
