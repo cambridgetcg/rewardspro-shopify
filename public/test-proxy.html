@@ -818,10 +818,20 @@
           document.getElementById('customerIdValue').textContent = data.customer.shopifyId || data.customer.id;
           document.getElementById('customerEmail').textContent = data.customer.email || 'N/A';
           document.getElementById('memberSince').textContent = data.customer.memberSince ? new Date(data.customer.memberSince).toLocaleString() : 'N/A';
-          document.getElementById('storeCredit').textContent = data.balance ? `$${data.balance.storeCredit.toFixed(2)}` : 'N/A';
-          document.getElementById('totalEarned').textContent = data.balance ? `$${data.balance.totalEarned.toFixed(2)}` : 'N/A';
+
+          // Safely handle balance values that might be null or undefined
+          const storeCredit = data.balance?.storeCredit ?? 0;
+          const totalEarned = data.balance?.totalEarned ?? 0;
+          document.getElementById('storeCredit').textContent = data.balance ? `$${Number(storeCredit).toFixed(2)}` : 'N/A';
+          document.getElementById('totalEarned').textContent = data.balance ? `$${Number(totalEarned).toFixed(2)}` : 'N/A';
           document.getElementById('lastSynced').textContent = data.balance?.lastSynced ? new Date(data.balance.lastSynced).toLocaleString() : 'Never';
-          document.getElementById('tierInfo').textContent = data.membership ? `${data.membership.tier.name} (${data.membership.tier.cashbackPercent}% back)` : 'N/A';
+
+          // Safely handle tier data
+          if (data.membership?.tier) {
+            document.getElementById('tierInfo').textContent = `${data.membership.tier.name} (${data.membership.tier.cashbackPercent}% back)`;
+          } else {
+            document.getElementById('tierInfo').textContent = 'N/A';
+          }
         }
 
         // Show raw JSON
@@ -956,11 +966,17 @@
           document.getElementById('dataApiCustomerSection').classList.remove('hidden');
           document.getElementById('dataApiCustId').textContent = data.customer.shopifyId;
           document.getElementById('dataApiEmail').textContent = data.customer.email || 'N/A';
-          document.getElementById('dataApiCredit').textContent = `$${data.customer.storeCredit.toFixed(2)}`;
-          document.getElementById('dataApiEarned').textContent = `$${data.customer.totalEarned.toFixed(2)}`;
-          document.getElementById('dataApiTier').textContent = data.customer.membership?.tier?.name || 'No tier';
-          document.getElementById('dataApiCashback').textContent = data.customer.membership?.tier?.cashbackPercent
-            ? `${data.customer.membership.tier.cashbackPercent}%`
+
+          // Balance data comes from data.balance, not data.customer
+          const storeCredit = data.balance?.storeCredit ?? 0;
+          const totalEarned = data.balance?.totalEarned ?? 0;
+          document.getElementById('dataApiCredit').textContent = `$${Number(storeCredit).toFixed(2)}`;
+          document.getElementById('dataApiEarned').textContent = `$${Number(totalEarned).toFixed(2)}`;
+
+          // Membership data comes from data.membership, not data.customer.membership
+          document.getElementById('dataApiTier').textContent = data.membership?.tier?.name || 'No tier';
+          document.getElementById('dataApiCashback').textContent = data.membership?.tier?.cashbackPercent
+            ? `${data.membership.tier.cashbackPercent}%`
             : 'N/A';
         }
 
