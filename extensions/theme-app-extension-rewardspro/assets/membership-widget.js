@@ -493,10 +493,6 @@
         console.error('[RewardsWidget] ❌ Error calculating tier progress:', e);
       }
 
-      // Calculate SVG stroke-dashoffset for circular progress (Layout A)
-      const circumference = 2 * Math.PI * 62; // radius = 62
-      const strokeDashoffset = circumference - (circumference * progressPercent / 100);
-
       this.root.innerHTML = `
         <div class="rp-widget rp-widget--authenticated ${expandedClass}">
           <div class="rp-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
@@ -512,121 +508,38 @@
           </div>
           ${this.state.isExpanded ? `
             <div class="rp-widget__body">
-              <div class="rp-widget__layout-selector">
-                <h3 style="margin: 0 0 20px 0; font-size: 14px; color: #666; text-align: center;">Choose Your Glass Dashboard Style</h3>
-
-                <!-- OPTION A: Vertical Stack with Circle -->
-                <div class="rp-layout-option">
-                  <div class="rp-layout-label">OPTION A: Vertical Stack</div>
-                  <div class="rp-layout-a">
-                    <div class="rp-layout-a__tier-section">
-                      <div class="rp-layout-a__tier-label">CURRENT TIER</div>
-                      <div class="rp-layout-a__tier-name">${this.escapeHtml(membership.tier.name)}</div>
-                      <div class="rp-layout-a__tier-rewards">${membership.tier.cashbackPercent}% Rewards Rate</div>
+              <div class="rp-layout-c">
+                <div class="rp-layout-c__top-row">
+                  <div class="rp-layout-c__tier-card">
+                    <div class="rp-layout-c__card-content">
+                      <div class="rp-layout-c__card-label">Tier</div>
+                      <div class="rp-layout-c__card-value">${this.escapeHtml(membership.tier.name)}</div>
                     </div>
-
-                    <div class="rp-layout-a__progress-center">
-                      <svg width="140" height="140" viewBox="0 0 140 140">
-                        <circle cx="70" cy="70" r="62" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="10"/>
-                        <circle cx="70" cy="70" r="62" fill="none" stroke="url(#gradient-a)" stroke-width="10"
-                          stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
-                          stroke-linecap="round" transform="rotate(-90 70 70)"/>
-                        <defs>
-                          <linearGradient id="gradient-a" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      <div class="rp-layout-a__progress-text">
-                        <div class="rp-layout-a__progress-percent">${progressPercent}%</div>
-                        <div class="rp-layout-a__progress-label">${isMaxTier ? 'Max Tier' : 'to ' + this.escapeHtml(nextTierName)}</div>
-                        <div class="rp-layout-a__progress-stats">${this.escapeHtml(progressStats)}</div>
-                      </div>
-                    </div>
-
-                    <div class="rp-layout-a__credit-card">
-                      <div class="rp-layout-a__credit-label">Available Balance</div>
-                      <div class="rp-layout-a__credit-amount">${storeCreditFormatted}</div>
+                  </div>
+                  <div class="rp-layout-c__cashback-card">
+                    <div class="rp-layout-c__card-content">
+                      <div class="rp-layout-c__card-label">Rewards</div>
+                      <div class="rp-layout-c__card-value">${membership.tier.cashbackPercent}%</div>
                     </div>
                   </div>
                 </div>
 
-                <!-- OPTION B: Horizontal Bar Progress -->
-                <div class="rp-layout-option">
-                  <div class="rp-layout-label">OPTION B: Progress Bar</div>
-                  <div class="rp-layout-b">
-                    <div class="rp-layout-b__header">
-                      <div class="rp-layout-b__tier-badge">
-                        <div class="rp-layout-b__tier-name">${this.escapeHtml(membership.tier.name)}</div>
-                        <div class="rp-layout-b__tier-label">Member Tier</div>
-                      </div>
-                      <div class="rp-layout-b__cashback-badge">
-                        <div class="rp-layout-b__cashback-value">${membership.tier.cashbackPercent}%</div>
-                        <div class="rp-layout-b__cashback-label">Cashback</div>
-                      </div>
-                    </div>
-
-                    <div class="rp-layout-b__balance-section">
-                      <div class="rp-layout-b__balance-label">Store Credit Available</div>
-                      <div class="rp-layout-b__balance-amount">${storeCreditFormatted}</div>
-                    </div>
-
-                    <div class="rp-layout-b__progress-section">
-                      <div class="rp-layout-b__progress-header">
-                        <span class="rp-layout-b__progress-title">Tier Progress</span>
-                        <span class="rp-layout-b__progress-percent">${progressPercent}%</span>
-                      </div>
-                      <div class="rp-layout-b__progress-bar">
-                        <div class="rp-layout-b__progress-fill" style="width: ${progressPercent}%">
-                          <div class="rp-layout-b__progress-shine"></div>
-                        </div>
-                      </div>
-                      <div class="rp-layout-b__progress-footer">
-                        <span>${this.formatCurrency(currentSpending)} spent</span>
-                        <span>${isMaxTier ? 'Max Tier' : this.formatCurrency(amountRemaining) + ' to ' + this.escapeHtml(nextTierName)}</span>
-                      </div>
-                    </div>
-                  </div>
+                <div class="rp-layout-c__balance-card">
+                  <div class="rp-layout-c__balance-label">Store Credit</div>
+                  <div class="rp-layout-c__balance-amount">${storeCreditFormatted}</div>
                 </div>
 
-                <!-- OPTION C: Compact Card Style -->
-                <div class="rp-layout-option">
-                  <div class="rp-layout-label">OPTION C: Compact Cards</div>
-                  <div class="rp-layout-c">
-                    <div class="rp-layout-c__top-row">
-                      <div class="rp-layout-c__tier-card">
-                        <div class="rp-layout-c__card-content">
-                          <div class="rp-layout-c__card-label">Tier</div>
-                          <div class="rp-layout-c__card-value">${this.escapeHtml(membership.tier.name)}</div>
-                        </div>
-                      </div>
-                      <div class="rp-layout-c__cashback-card">
-                        <div class="rp-layout-c__card-content">
-                          <div class="rp-layout-c__card-label">Rewards</div>
-                          <div class="rp-layout-c__card-value">${membership.tier.cashbackPercent}%</div>
-                        </div>
-                      </div>
+                <div class="rp-layout-c__progress-card">
+                  <div class="rp-layout-c__progress-label">${isMaxTier ? 'Tier Status' : 'Next Tier Progress'}</div>
+                  <div class="rp-layout-c__progress-wrapper">
+                    <div class="rp-layout-c__progress-track">
+                      <div class="rp-layout-c__progress-fill" style="width: ${progressPercent}%"></div>
                     </div>
-
-                    <div class="rp-layout-c__balance-card">
-                      <div class="rp-layout-c__balance-label">Store Credit</div>
-                      <div class="rp-layout-c__balance-amount">${storeCreditFormatted}</div>
-                    </div>
-
-                    <div class="rp-layout-c__progress-card">
-                      <div class="rp-layout-c__progress-label">${isMaxTier ? 'Tier Status' : 'Next Tier Progress'}</div>
-                      <div class="rp-layout-c__progress-wrapper">
-                        <div class="rp-layout-c__progress-track">
-                          <div class="rp-layout-c__progress-fill" style="width: ${progressPercent}%"></div>
-                        </div>
-                        <div class="rp-layout-c__progress-percent">${progressPercent}%</div>
-                      </div>
-                      <div class="rp-layout-c__progress-info">
-                        <span>${this.escapeHtml(progressStatsCompact)}</span>
-                        <span class="rp-layout-c__progress-remaining">${isMaxTier ? 'Highest tier achieved!' : this.formatCurrency(amountRemaining) + ' remaining'}</span>
-                      </div>
-                    </div>
+                    <div class="rp-layout-c__progress-percent">${progressPercent}%</div>
+                  </div>
+                  <div class="rp-layout-c__progress-info">
+                    <span>${this.escapeHtml(progressStatsCompact)}</span>
+                    <span class="rp-layout-c__progress-remaining">${isMaxTier ? 'Highest tier achieved!' : this.formatCurrency(amountRemaining) + ' remaining'}</span>
                   </div>
                 </div>
               </div>
