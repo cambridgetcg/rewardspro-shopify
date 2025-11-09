@@ -493,7 +493,7 @@
 /* Widget body */
 .rp-widget__body {
   padding: 0;
-  background: #ffffff;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   animation: rp-slideDown 0.3s ease;
   max-height: 70vh;
   overflow-y: auto;
