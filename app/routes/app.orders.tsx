@@ -152,6 +152,29 @@ interface LoaderData {
  * This ensures totalSpent, netSpent, totalRefunded are accurate
  */
 async function updateCustomerSpendingTotals(customerId: string, shop: string) {
+  console.log(`[Orders] Starting spending totals update for customer ${customerId}`);
+
+  // First, check ALL orders for this customer (no filter)
+  const allOrders = await db.order.findMany({
+    where: {
+      shop,
+      customerId
+    },
+    select: {
+      id: true,
+      shopifyOrderName: true,
+      financialStatus: true,
+      totalPrice: true,
+      totalRefunded: true
+    }
+  });
+
+  console.log(`[Orders] Found ${allOrders.length} total orders for customer ${customerId}`);
+  allOrders.forEach(o => {
+    console.log(`  - Order ${o.shopifyOrderName}: status=${o.financialStatus}, price=${o.totalPrice}`);
+  });
+
+  // Now aggregate with the filter
   const orderStats = await db.order.aggregate({
     where: {
       shop,
@@ -171,20 +194,30 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
     }
   });
 
+  console.log(`[Orders] Aggregation results (PAID/PARTIALLY_REFUNDED only):`, {
+    count: orderStats._count.id,
+    totalPrice: orderStats._sum.totalPrice,
+    totalRefunded: orderStats._sum.totalRefunded
+  });
+
+  const totalSpent = orderStats._sum.totalPrice || 0;
+  const totalRefunded = orderStats._sum.totalRefunded || 0;
+  const netSpent = totalSpent - totalRefunded;
+
   await db.customer.update({
     where: { id: customerId },
     data: {
-      totalSpent: orderStats._sum.totalPrice || 0,
-      totalRefunded: orderStats._sum.totalRefunded || 0,
+      totalSpent,
+      totalRefunded,
       // Note: totalCashbackEarned is NOT updated here - it's updated when cashback is processed
-      netSpent: (orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0),
+      netSpent,
       orderCount: orderStats._count.id || 0,
       lastOrderDate: orderStats._max.shopifyCreatedAt || null,
       updatedAt: new Date()
     }
   });
 
-  console.log(`[Orders] Updated spending totals for customer ${customerId}: totalSpent=${orderStats._sum.totalPrice}, netSpent=${(orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0)}`);
+  console.log(`[Orders] ✅ Updated customer ${customerId}: totalSpent=${totalSpent}, netSpent=${netSpent}, orderCount=${orderStats._count.id}`);
 }
 
 // ============================================
