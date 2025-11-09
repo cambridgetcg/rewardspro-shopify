@@ -498,7 +498,7 @@
           <div class="rp-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
             <div class="rp-widget__header-content">
               <span class="rp-widget__tier">VIP Status</span>
-              <span class="rp-widget__cashback">${tierName} · ${cashbackPercent}% back</span>
+              ${this.state.isExpanded ? `<span class="rp-widget__cashback">${tierName} · ${cashbackPercent}% back</span>` : ''}
             </div>
             <button class="rp-widget__toggle" aria-label="${this.state.isExpanded ? 'Collapse widget' : 'Expand widget'}">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
