@@ -883,7 +883,7 @@ export class DataAPIModelProxy<T = any> {
     const aggregates: string[] = [];
 
     if (args._count) {
-      aggregates.push("COUNT(*) as _count");
+      aggregates.push('COUNT(*) as "_count"');
     }
 
     ["_sum", "_avg", "_min", "_max"].forEach((op) => {
@@ -891,13 +891,13 @@ export class DataAPIModelProxy<T = any> {
       if (fields && typeof fields === "object") {
         Object.keys(fields).forEach((field) => {
           const func = op.substring(1).toUpperCase();
-          aggregates.push(`${func}("${field}") as ${op}_${field}`);
+          aggregates.push(`${func}("${field}") as "${op}_${field}"`);
         });
       }
     });
 
     if (aggregates.length === 0) {
-      aggregates.push("COUNT(*) as _count");
+      aggregates.push('COUNT(*) as "_count"');
     }
 
     let sql = `SELECT ${aggregates.join(", ")} FROM "${this.tableName}"`;
