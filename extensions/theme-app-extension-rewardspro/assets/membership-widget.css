@@ -492,7 +492,7 @@
 
 /* Widget body */
 .rp-widget__body {
-  padding: 16px;
+  padding: 0;
   background: #ffffff;
   animation: rp-slideDown 0.3s ease;
   max-height: 70vh;
@@ -540,7 +540,7 @@
   background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
   pointer-events: none;
   z-index: 1;
-  margin: -16px -16px 0 -16px;
+  margin: 0;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -560,7 +560,7 @@
   background: linear-gradient(to top, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
   pointer-events: none;
   z-index: 1;
-  margin: 0 -16px -16px -16px;
+  margin: 0;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -1797,6 +1797,7 @@
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   border-radius: 12px;
   padding: 20px;
+  margin: 16px;
   color: #ffffff;
   position: relative;
   overflow: hidden;

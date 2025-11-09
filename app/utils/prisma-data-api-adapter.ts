@@ -833,7 +833,7 @@ export class DataAPIModelProxy<T = any> {
           if (Array.isArray(inValues) && inValues.length > 0) {
             const placeholders = inValues.map((_, i) => `:param${index}_${i}`);
             // Check if this field is an enum type that needs casting
-            const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType', 'evaluationPeriod'];
+            const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType', 'evaluationPeriod', 'financialStatus', 'fulfillmentStatus'];
             if (enumFields.includes(key)) {
               // Cast enum types explicitly for PostgreSQL
               conditions.push(`"${key}"::text IN (${placeholders.join(', ')})`);
@@ -846,7 +846,10 @@ export class DataAPIModelProxy<T = any> {
           }
         } else if (value !== undefined) {
           // Check if this field is an enum type that needs casting
-          const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType', 'evaluationPeriod'];
+          const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType',
+                             'evaluationPeriod', 'purchaseType', 'duration', 'currency', 'status',
+                             'billingInterval', 'deliveryInterval', 'financialStatus', 'fulfillmentStatus',
+                             'lastPaymentStatus', 'discountType', 'eventType'];
           if (enumFields.includes(key)) {
             // Cast enum types explicitly for PostgreSQL
             conditions.push(`"${key}"::text = :param${index}`);
@@ -949,7 +952,7 @@ export class DataAPIModelProxy<T = any> {
           if (Array.isArray(inValues) && inValues.length > 0) {
             const placeholders = inValues.map((_, i) => `:param${index}_${i}`);
             // Check if this field is an enum type that needs casting
-            const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType', 'evaluationPeriod'];
+            const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType', 'evaluationPeriod', 'financialStatus', 'fulfillmentStatus'];
             if (enumFields.includes(key)) {
               // Cast enum types explicitly for PostgreSQL
               conditions.push(`"${key}"::text IN (${placeholders.join(', ')})`);
@@ -962,7 +965,10 @@ export class DataAPIModelProxy<T = any> {
           }
         } else if (value !== undefined) {
           // Check if this field is an enum type that needs casting
-          const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType', 'evaluationPeriod'];
+          const enumFields = ['type', 'changeType', 'triggerType', 'storeCurrency', 'currencyDisplayType',
+                             'evaluationPeriod', 'purchaseType', 'duration', 'currency', 'status',
+                             'billingInterval', 'deliveryInterval', 'financialStatus', 'fulfillmentStatus',
+                             'lastPaymentStatus', 'discountType', 'eventType'];
           if (enumFields.includes(key)) {
             // Cast enum types explicitly for PostgreSQL
             conditions.push(`"${key}"::text = :param${index}`);
