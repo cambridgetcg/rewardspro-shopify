@@ -882,8 +882,15 @@ export class DataAPIModelProxy<T = any> {
   }): Promise<any> {
     const aggregates: string[] = [];
 
+    // Handle _count - can be boolean or object with field names
     if (args._count) {
-      aggregates.push('COUNT(*) as "_count"');
+      if (typeof args._count === 'boolean') {
+        aggregates.push('COUNT(*) as "_count"');
+      } else if (typeof args._count === 'object') {
+        Object.keys(args._count).forEach((field) => {
+          aggregates.push(`COUNT("${field}") as "_count_${field}"`);
+        });
+      }
     }
 
     ["_sum", "_avg", "_min", "_max"].forEach((op) => {
@@ -1001,9 +1008,17 @@ export class DataAPIModelProxy<T = any> {
 
     // Format the response to match Prisma's structure
     const response: any = {};
-    
+
     if (args._count) {
-      response._count = parseInt(record._count || '0');
+      if (typeof args._count === 'boolean') {
+        response._count = parseInt(record._count || '0');
+      } else if (typeof args._count === 'object') {
+        response._count = {};
+        Object.keys(args._count).forEach(field => {
+          const value = record[`_count_${field}`];
+          response._count[field] = value !== null && value !== undefined ? parseInt(value) : 0;
+        });
+      }
     }
     
     if (args._sum) {
