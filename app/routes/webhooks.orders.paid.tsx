@@ -399,6 +399,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   storeCredit: 0,
                   totalSpent: 0,
                   netSpent: 0,
+                  totalRefunded: 0,
                   orderCount: 0,
                   createdAt: new Date(),
                   updatedAt: new Date()
@@ -626,6 +627,10 @@ async function processOneTimeTierPurchase(tx: any, params: {
       shopifyCustomerId: order.customer?.id?.toString() || '',
       email: order.customer?.email || order.email || '',
       storeCredit: 0,
+      totalSpent: 0,
+      netSpent: 0,
+      totalRefunded: 0,
+      orderCount: 0,
       currentTierId: null,
       createdAt: new Date(),
       updatedAt: new Date(),

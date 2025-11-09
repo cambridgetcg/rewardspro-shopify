@@ -334,6 +334,42 @@ export class IncrementalOrderSync {
       // Process line items if needed
       await this.syncLineItems(existingOrder.id, orderData.lineItems?.edges || []);
 
+      // Update customer spending totals after order update
+      if (existingOrder.customerId && existingOrder.customerId !== 'unknown') {
+        const orderStats = await db.order.aggregate({
+          where: {
+            shop,
+            customerId: existingOrder.customerId,
+            financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] }
+          },
+          _sum: {
+            totalPrice: true,
+            totalRefunded: true,
+            cashbackAmount: true
+          },
+          _count: {
+            id: true
+          },
+          _max: {
+            shopifyCreatedAt: true
+          }
+        });
+
+        await db.customer.update({
+          where: { id: existingOrder.customerId },
+          data: {
+            totalSpent: orderStats._sum.totalPrice || 0,
+            totalRefunded: orderStats._sum.totalRefunded || 0,
+            netSpent: (orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0),
+            orderCount: orderStats._count.id || 0,
+            lastOrderDate: orderStats._max.shopifyCreatedAt || null,
+            updatedAt: new Date()
+          }
+        });
+
+        console.log(`[IncrementalSync] Updated spending totals for customer ${existingOrder.customerId}`);
+      }
+
       return { updated: true };
     } else {
       // Create new order in a transaction

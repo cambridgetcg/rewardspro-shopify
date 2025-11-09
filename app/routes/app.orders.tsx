@@ -144,6 +144,50 @@ interface LoaderData {
 }
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Update customer spending totals from Order table (source of truth)
+ * This ensures totalSpent, netSpent, totalRefunded are accurate
+ */
+async function updateCustomerSpendingTotals(customerId: string, shop: string) {
+  const orderStats = await db.order.aggregate({
+    where: {
+      shop,
+      customerId,
+      financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] }
+    },
+    _sum: {
+      totalPrice: true,
+      totalRefunded: true,
+      cashbackAmount: true
+    },
+    _count: {
+      id: true
+    },
+    _max: {
+      shopifyCreatedAt: true
+    }
+  });
+
+  await db.customer.update({
+    where: { id: customerId },
+    data: {
+      totalSpent: orderStats._sum.totalPrice || 0,
+      totalRefunded: orderStats._sum.totalRefunded || 0,
+      // Note: totalCashbackEarned is NOT updated here - it's updated when cashback is processed
+      netSpent: (orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0),
+      orderCount: orderStats._count.id || 0,
+      lastOrderDate: orderStats._max.shopifyCreatedAt || null,
+      updatedAt: new Date()
+    }
+  });
+
+  console.log(`[Orders] Updated spending totals for customer ${customerId}: totalSpent=${orderStats._sum.totalPrice}, netSpent=${(orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0)}`);
+}
+
+// ============================================
 // LOADER
 // ============================================
 
@@ -555,6 +599,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               updatedAt: new Date(),
             },
           });
+
+          // Update customer spending totals from Order table
+          await updateCustomerSpendingTotals(order.customerId, shop);
 
           return json({
             success: true,
@@ -1175,6 +1222,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                   updatedAt: new Date(),
                 },
               });
+
+              // Update customer spending totals from Order table
+              await updateCustomerSpendingTotals(customer.id, shop);
 
               successCount++;
               if (enableDebugLog) {
