@@ -222,18 +222,16 @@ export const BillingConfig: BillingConfigType = {
 };
 
 /**
- * Helper to determine if shop is on development store
+ * Test mode detection utilities
+ * Re-exported from centralized billing test mode utility
  */
-export function isDevelopmentStore(shopDomain: string): boolean {
-  const devPatterns = [
-    '.myshopify.io',
-    '-dev.myshopify.com',
-    'development-',
-    '-staging'
-  ];
-
-  return devPatterns.some(pattern => shopDomain.includes(pattern));
-}
+export {
+  checkDevStoreByDomain as isDevelopmentStore,
+  getTestMode,
+  isTestMode,
+  clearTestModeCache,
+  getTestModeCacheStats
+} from "./billing-test-mode.server";
 
 /**
  * Get plan configuration by type

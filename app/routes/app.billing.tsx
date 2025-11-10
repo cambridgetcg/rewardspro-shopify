@@ -37,7 +37,7 @@ import {
 // ============================================
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, billing, admin } = await authenticate.admin(request);
 
   if (!session?.shop) {
     throw new Response("Unauthorized", { status: 401 });
@@ -45,7 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   try {
     // Get current subscription status
-    const subscriptionStatus = await getSubscriptionStatus(session.shop, billing);
+    const subscriptionStatus = await getSubscriptionStatus(session.shop, billing, admin);
 
     // Get all available plans
     const plans = getAllPlans();
@@ -93,7 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const billingService = new GraphQLBillingService(admin);
 
     // Determine if this is an upgrade
-    const currentStatus = await getSubscriptionStatus(session.shop, billing);
+    const currentStatus = await getSubscriptionStatus(session.shop, billing, admin);
     const isUpgrade = currentStatus.hasActiveSubscription;
 
     // Create subscription via GraphQL

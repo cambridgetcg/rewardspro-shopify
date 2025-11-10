@@ -9,6 +9,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import db from "~/db.server";
 import { v4 as uuidv4 } from "uuid";
 import { updatePlanLimit, unlockShop } from "~/utils/plan-access-control.server";
+import { isTestMode } from "~/utils/billing-test-mode.server";
 
 // ============================================
 // TYPES & INTERFACES
@@ -200,15 +201,21 @@ export async function logBillingAttempt(
  */
 export async function getSubscriptionStatus(
   shop: string,
-  billing: AdminApiContext['billing']
+  billing: AdminApiContext['billing'],
+  admin?: AdminApiContext
 ): Promise<SubscriptionStatus> {
   try {
     // Check all plans
     const allPlans = Object.values(PLAN_CONFIGS).map(p => p.planName);
 
-    const { hasActivePayment, appSubscriptions } = await billing.check({
+    // Determine test mode using centralized utility
+    const testMode = admin
+      ? await isTestMode(shop, admin)
+      : process.env.NODE_ENV === 'development';
+
+    const { hasActivePayment, appSubscriptions} = await billing.check({
       plans: allPlans,
-      isTest: process.env.NODE_ENV === 'development',
+      isTest: testMode,
     });
 
     const activeSubscription = appSubscriptions?.[0];
@@ -261,9 +268,17 @@ export async function createSubscription(
   shop: string,
   planId: string,
   billing: AdminApiContext['billing'],
+  admin?: AdminApiContext,
   metadata?: Record<string, any>
 ): Promise<BillingResult> {
   console.log(`[BillingService] Creating subscription for ${shop}, plan: ${planId}`);
+
+  // Determine test mode using centralized utility
+  const testMode = admin
+    ? await isTestMode(shop, admin)
+    : process.env.NODE_ENV === 'development';
+
+  console.log(`[BillingService] Test mode: ${testMode}`);
 
   // Step 1: Validate plan
   const planConfig = PLAN_CONFIGS[planId];
@@ -304,14 +319,14 @@ export async function createSubscription(
 
     const billingCheck = await billing.require({
       plans: [planConfig.planName],
-      isTest: process.env.NODE_ENV === 'development',
+      isTest: testMode,
       onFailure: async () => {
         // No active subscription found - create new one
         console.log(`[BillingService] No active subscription, creating new billing request`);
 
         const result = await billing.request({
           plan: planConfig.planName,
-          isTest: process.env.NODE_ENV === 'development',
+          isTest: testMode,
           returnUrl: process.env.SHOPIFY_APP_URL ?
             `${process.env.SHOPIFY_APP_URL}/app/billing/callback?plan=${planId}` :
             `https://${shop}/admin/apps`,

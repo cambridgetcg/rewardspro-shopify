@@ -12,6 +12,7 @@ import {
   getPlanConfig,
   isDevelopmentStore
 } from "../../utils/billing-config";
+import { getTestMode } from "../../utils/billing-test-mode.server";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 
@@ -204,14 +205,13 @@ export class GraphQLBillingService {
     }
 
     try {
-      // Check if development store for test mode
-      const isDevStore = await this.checkIfDevStore(shop);
-      const isTestMode = process.env.NODE_ENV === 'development' || isDevStore;
+      // Determine test mode using centralized utility
+      const testModeResult = await getTestMode(shop, this.admin);
 
       console.log(`[GraphQLBilling] Creating subscription for ${shop}:`, {
         planType,
-        isDevStore,
-        isTestMode
+        isTestMode: testModeResult.isTest,
+        testModeSource: testModeResult.source
       });
 
       // Build return URL with shop parameter
@@ -268,7 +268,7 @@ export class GraphQLBillingService {
         replacementBehavior: isUpgrade
           ? BillingConfig.replacementBehavior.upgrade
           : BillingConfig.replacementBehavior.downgrade,
-        test: isTestMode  // Auto-detect test mode
+        test: testModeResult.isTest  // Auto-detect test mode
       };
 
       const response = await this.admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
@@ -687,35 +687,6 @@ export class GraphQLBillingService {
     return { expired: false };
   }
 
-  /**
-   * Check if shop is a development store
-   */
-  private async checkIfDevStore(shop: string): Promise<boolean> {
-    try {
-      const query = `#graphql
-        query GetShopPlan {
-          shop {
-            plan {
-              partnerDevelopment
-            }
-          }
-        }
-      `;
-
-      const response = await this.admin.graphql(query);
-      const result = await response.json();
-
-      const isDevStore = result.data?.shop?.plan?.partnerDevelopment || false;
-
-      console.log(`[GraphQLBilling] Shop ${shop} is dev store: ${isDevStore}`);
-
-      return isDevStore;
-    } catch (error) {
-      console.error("[GraphQLBilling] Error checking dev store:", error);
-      // Fallback: check domain patterns
-      const fallback = shop.includes('.myshopify.io') || shop.includes('-dev.');
-      console.log(`[GraphQLBilling] Using fallback dev detection for ${shop}: ${fallback}`);
-      return fallback;
-    }
-  }
+  // NOTE: checkIfDevStore() method removed - now using centralized utility
+  // from app/utils/billing-test-mode.server.ts
 }
