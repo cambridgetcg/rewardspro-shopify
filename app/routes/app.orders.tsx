@@ -208,6 +208,35 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
+  console.log(`[Orders] 📅 Calculating annual spending from ${twelveMonthsAgo.toISOString()} to now`);
+
+  // First, get the list of orders included in annual calculation for logging
+  const annualOrders = await db.order.findMany({
+    where: {
+      shop,
+      customerId,
+      shopifyCreatedAt: { gte: twelveMonthsAgo },
+      financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] }
+    },
+    select: {
+      shopifyOrderName: true,
+      shopifyCreatedAt: true,
+      totalPrice: true,
+      totalRefunded: true,
+      financialStatus: true
+    },
+    orderBy: {
+      shopifyCreatedAt: 'desc'
+    }
+  });
+
+  console.log(`[Orders] 📦 Found ${annualOrders.length} orders in last 12 months for annualSpent calculation:`);
+  annualOrders.forEach(order => {
+    const netAmount = Number(order.totalPrice) - Number(order.totalRefunded);
+    console.log(`  - ${order.shopifyOrderName} (${order.shopifyCreatedAt.toISOString().split('T')[0]}): ${order.totalPrice} - ${order.totalRefunded} = ${netAmount} [${order.financialStatus}]`);
+  });
+
+  // Now do the aggregation
   const annualOrderStats = await db.order.aggregate({
     where: {
       shop,
@@ -223,7 +252,7 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
 
   const annualSpent = (annualOrderStats._sum.totalPrice || 0) - (annualOrderStats._sum.totalRefunded || 0);
 
-  console.log(`[Orders] Annual spending (last 12 months): ${annualSpent}`);
+  console.log(`[Orders] 💰 Annual spending calculation: ${annualOrderStats._sum.totalPrice} - ${annualOrderStats._sum.totalRefunded} = ${annualSpent}`);
 
   await db.customer.update({
     where: { id: customerId },
@@ -239,7 +268,12 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
     }
   });
 
-  console.log(`[Orders] ✅ Updated customer ${customerId}: totalSpent=${totalSpent}, annualSpent=${annualSpent}, netSpent=${netSpent}, orderCount=${orderStats._count.id}`);
+  console.log(`[Orders] ✅ Updated customer ${customerId}:`);
+  console.log(`[Orders]    - totalSpent (all-time): ${totalSpent}`);
+  console.log(`[Orders]    - annualSpent (12 months): ${annualSpent}`);
+  console.log(`[Orders]    - netSpent: ${netSpent}`);
+  console.log(`[Orders]    - totalRefunded: ${totalRefunded}`);
+  console.log(`[Orders]    - orderCount: ${orderStats._count.id}`);
 }
 
 // ============================================

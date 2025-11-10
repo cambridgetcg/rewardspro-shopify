@@ -165,6 +165,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         c."storeCredit",
         c."totalCashbackEarned",
         c."totalSpent",
+        c."annualSpent",
         c."netSpent",
         c."totalRefunded",
         c."orderCount",
@@ -230,6 +231,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         storeCredit: row.storeCredit,
         totalCashbackEarned: row.totalCashbackEarned,
         totalSpent: row.totalSpent,
+        annualSpent: row.annualSpent,
         netSpent: row.netSpent,
         totalRefunded: row.totalRefunded,
         orderCount: row.orderCount,
@@ -318,6 +320,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         email: customer.email,
         memberSince: customer.createdAt,
         totalSpent: Number(customer.totalSpent || 0),
+        annualSpent: Number(customer.annualSpent || 0),
         totalRefunded: Number(customer.totalRefunded || 0),
         netSpent: Number(customer.netSpent || 0),
         orderCount: Number(customer.orderCount || 0)

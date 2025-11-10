@@ -360,6 +360,35 @@ export class IncrementalOrderSync {
         const twelveMonthsAgo = new Date();
         twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
+        console.log(`[IncrementalSync] 📅 Calculating annual spending from ${twelveMonthsAgo.toISOString()} to now`);
+
+        // Get the list of orders included in annual calculation for logging
+        const annualOrders = await db.order.findMany({
+          where: {
+            shop,
+            customerId: existingOrder.customerId,
+            shopifyCreatedAt: { gte: twelveMonthsAgo },
+            financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] }
+          },
+          select: {
+            shopifyOrderName: true,
+            shopifyCreatedAt: true,
+            totalPrice: true,
+            totalRefunded: true,
+            financialStatus: true
+          },
+          orderBy: {
+            shopifyCreatedAt: 'desc'
+          }
+        });
+
+        console.log(`[IncrementalSync] 📦 Found ${annualOrders.length} orders in last 12 months:`);
+        annualOrders.forEach(order => {
+          const netAmount = Number(order.totalPrice) - Number(order.totalRefunded);
+          console.log(`  - ${order.shopifyOrderName} (${order.shopifyCreatedAt.toISOString().split('T')[0]}): ${order.totalPrice} - ${order.totalRefunded} = ${netAmount} [${order.financialStatus}]`);
+        });
+
+        // Now do the aggregation
         const annualOrderStats = await db.order.aggregate({
           where: {
             shop,
@@ -375,6 +404,8 @@ export class IncrementalOrderSync {
 
         const annualSpent = (annualOrderStats._sum.totalPrice || 0) - (annualOrderStats._sum.totalRefunded || 0);
 
+        console.log(`[IncrementalSync] 💰 Annual spending calculation: ${annualOrderStats._sum.totalPrice} - ${annualOrderStats._sum.totalRefunded} = ${annualSpent}`);
+
         await db.customer.update({
           where: { id: existingOrder.customerId },
           data: {
@@ -388,7 +419,12 @@ export class IncrementalOrderSync {
           }
         });
 
-        console.log(`[IncrementalSync] Updated spending totals for customer ${existingOrder.customerId}: totalSpent=${orderStats._sum.totalPrice}, annualSpent=${annualSpent}`);
+        console.log(`[IncrementalSync] ✅ Updated spending totals for customer ${existingOrder.customerId}:`);
+        console.log(`[IncrementalSync]    - totalSpent (all-time): ${orderStats._sum.totalPrice}`);
+        console.log(`[IncrementalSync]    - annualSpent (12 months): ${annualSpent}`);
+        console.log(`[IncrementalSync]    - netSpent: ${(orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0)}`);
+        console.log(`[IncrementalSync]    - totalRefunded: ${orderStats._sum.totalRefunded}`);
+        console.log(`[IncrementalSync]    - orderCount: ${orderStats._count.id}`);
       }
 
       return { updated: true };
