@@ -18,6 +18,79 @@ import { logBillingAttempt } from "~/services/billing/plan-subscription.server";
 import { updatePlanLimit, unlockShop } from "~/utils/plan-access-control.server";
 import { getPlanConfig } from "~/utils/billing-config";
 
+/**
+ * Helper function to create an App Bridge redirect response
+ * This ensures navigation works correctly in embedded app context
+ */
+function createAppBridgeRedirect(path: string, message: string = 'Redirecting...', planId?: string): Response {
+  return new Response(
+    `<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.shopify && window.shopify.environment) {
+        var AppBridge = window['app-bridge'];
+        var createApp = AppBridge.default;
+        var Redirect = AppBridge.actions.Redirect;
+
+        var app = createApp({
+          apiKey: "${process.env.SHOPIFY_API_KEY}",
+          host: new URLSearchParams(window.location.search).get('host') || btoa(window.location.hostname)
+        });
+
+        var redirect = Redirect.create(app);
+        redirect.dispatch(Redirect.Action.APP, '${path}');
+      } else {
+        window.location.href = '${path}';
+      }
+    });
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #f6f6f7;
+    }
+    .loader {
+      text-align: center;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #008060;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <div class="spinner"></div>
+    <p>${message}</p>
+  </div>
+</body>
+</html>`,
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html',
+      },
+    }
+  );
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const startTime = Date.now();
 
@@ -61,12 +134,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       type: typeof error
     });
     // If auth fails, redirect to main billing page
-    return redirect('/app/billing?error=auth_failed');
+    return createAppBridgeRedirect('/app/billing?error=auth_failed', 'Authentication failed');
   }
 
   if (!session?.shop) {
     console.error('[Billing Process] ❌ No shop in session');
-    return redirect('/app/billing?error=no_session');
+    return createAppBridgeRedirect('/app/billing?error=no_session', 'No session found');
   }
 
   const shop = session.shop;
@@ -96,7 +169,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.log('[Billing Process] ⏱️  Total time:', Date.now() - startTime, 'ms');
     console.log('════════════════════════════════════════════════════════════');
 
-    return redirect('/app/billing?cancelled=true');
+    return createAppBridgeRedirect('/app/billing?cancelled=true', 'Subscription cancelled');
   }
 
   // ============================================
@@ -112,7 +185,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.log('[Billing Process] ⏱️  Total time:', Date.now() - startTime, 'ms');
     console.log('════════════════════════════════════════════════════════════');
 
-    return redirect('/app/billing?error=invalid_plan');
+    return createAppBridgeRedirect('/app/billing?error=invalid_plan', 'Invalid plan');
   }
 
   console.log('[Billing Process] ✅ Plan configuration found:', {
@@ -159,7 +232,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       console.log('[Billing Process] ⏱️  Total time:', Date.now() - startTime, 'ms');
       console.log('════════════════════════════════════════════════════════════');
 
-      return redirect('/app/billing?error=no_pending_charge');
+      return createAppBridgeRedirect('/app/billing?error=no_pending_charge', 'No pending charge found');
     }
 
     // Extract subscription ID from pending charge
@@ -223,7 +296,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       console.log('[Billing Process] ⏱️  Total time:', Date.now() - startTime, 'ms');
       console.log('════════════════════════════════════════════════════════════');
 
-      return redirect(`/app/billing?success=true&plan=${planId}`);
+      return createAppBridgeRedirect(
+        `/app/billing?success=true&plan=${planId}`,
+        'Subscription activated! Redirecting...',
+        planId
+      );
 
     } else {
       // Verification failed
@@ -238,7 +315,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       console.log('[Billing Process] ⏱️  Total time:', Date.now() - startTime, 'ms');
       console.log('════════════════════════════════════════════════════════════');
 
-      return redirect('/app/billing?error=subscription_not_found');
+      return createAppBridgeRedirect('/app/billing?error=subscription_not_found', 'Subscription not found');
     }
 
   } catch (error) {
@@ -265,6 +342,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.log('[Billing Process] ⏱️  Total time:', Date.now() - startTime, 'ms');
     console.log('════════════════════════════════════════════════════════════');
 
-    return redirect(`/app/billing?error=processing_failed`);
+    return createAppBridgeRedirect('/app/billing?error=processing_failed', 'Processing failed');
   }
 };
