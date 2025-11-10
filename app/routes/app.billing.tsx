@@ -426,7 +426,7 @@ export default function BillingPage() {
                           loading={isSubmitting}
                           onClick={() => handleSubscribe(planIdToUse)}
                         >
-                          {isCurrentPlan ? "Current Plan" : `Upgrade to ${plan.name}`}
+                          {isCurrentPlan ? "Current Plan" : "Subscribe"}
                         </Button>
 
                         <Divider />
