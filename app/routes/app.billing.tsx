@@ -162,6 +162,8 @@ export default function BillingPage() {
     return new URLSearchParams();
   });
   const cancelled = searchParams.get('cancelled') === 'true';
+  const successParam = searchParams.get('success') === 'true';
+  const successPlan = searchParams.get('plan');
   const urlError = searchParams.get('error');
 
   // Handle redirect to Shopify confirmation page using App Bridge
@@ -172,17 +174,36 @@ export default function BillingPage() {
       hasConfirmationUrl: !!actionData?.confirmationUrl,
       confirmationUrl: actionData?.confirmationUrl,
       hasApp: !!app,
-      hasAppRedirect: !!(app && app.redirect)
+      hasAppRedirect: !!(app && app.redirect),
+      appType: typeof app
     });
 
     if (actionData?.success && actionData.confirmationUrl) {
-      console.log('[Billing] Attempting redirect to:', actionData.confirmationUrl);
+      console.log('[Billing] ⚠️ Attempting redirect to Shopify confirmation page');
+      console.log('[Billing] Confirmation URL:', actionData.confirmationUrl);
+
       // Use App Bridge redirect for embedded apps
-      if (app && app.redirect) {
-        console.log('[Billing] Calling app.redirect.toRemote()');
-        app.redirect.toRemote(actionData.confirmationUrl);
+      if (app && typeof app.redirect === 'object' && app.redirect.toRemote) {
+        console.log('[Billing] ✅ App Bridge available, calling toRemote()');
+        try {
+          app.redirect.toRemote(actionData.confirmationUrl);
+          console.log('[Billing] ✅ Redirect initiated successfully');
+        } catch (error) {
+          console.error('[Billing] ❌ Redirect failed:', error);
+        }
       } else {
-        console.error('[Billing] App Bridge redirect not available:', { app });
+        console.error('[Billing] ❌ App Bridge redirect not available');
+        console.error('[Billing] App object:', {
+          hasApp: !!app,
+          hasRedirect: !!(app && app.redirect),
+          redirectType: app && app.redirect ? typeof app.redirect : 'undefined',
+          hasToRemote: !!(app && app.redirect && app.redirect.toRemote)
+        });
+        // Fallback: try window redirect (won't work in embedded app)
+        console.log('[Billing] Attempting window.top.location fallback');
+        if (typeof window !== 'undefined' && window.top) {
+          window.top.location.href = actionData.confirmationUrl;
+        }
       }
     }
   }, [actionData, app]);
@@ -266,7 +287,15 @@ export default function BillingPage() {
         <Layout.Section>
           <BlockStack gap="600">
             {/* Success/Error Banners */}
-            {actionData?.success && (
+            {/* Only show success banner if user came back from Shopify (URL param) */}
+            {successParam && successPlan && (
+              <Banner tone="success">
+                <p>Successfully subscribed to {successPlan} plan! Your trial period has started.</p>
+              </Banner>
+            )}
+
+            {/* Show success for immediate activation (no confirmation needed) */}
+            {actionData?.success && !actionData.confirmationUrl && actionData.planName && (
               <Banner tone="success">
                 <p>Successfully subscribed to {actionData.planName}!</p>
               </Banner>
