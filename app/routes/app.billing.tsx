@@ -1,6 +1,6 @@
 /**
- * Billing Page - Clean Implementation
- * Handles plan selection and subscription management
+ * Billing Page - Using Shopify App Remix Billing
+ * Handles plan selection and subscription management with billing.request()
  */
 
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
@@ -22,15 +22,34 @@ import {
   ButtonGroup,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
-import { useState, useEffect } from "react";
+import {
+  authenticate,
+  PRO_PLAN,
+  PRO_ANNUAL_PLAN,
+  MAX_PLAN,
+  MAX_ANNUAL_PLAN,
+  ULTRA_PLAN,
+  ULTRA_ANNUAL_PLAN,
+} from "../shopify.server";
+import { useState } from "react";
 import {
   getSubscriptionStatus,
   getAllPlans,
-  type BillingResult,
   type SubscriptionStatus,
 } from "~/services/billing/plan-subscription.server";
+
+// Map plan IDs to Shopify plan constants
+function getPlanConstant(planId: string): string {
+  const planMap: Record<string, string> = {
+    'pro': PRO_PLAN,
+    'pro-annual': PRO_ANNUAL_PLAN,
+    'max': MAX_PLAN,
+    'max-annual': MAX_ANNUAL_PLAN,
+    'ultra': ULTRA_PLAN,
+    'ultra-annual': ULTRA_ANNUAL_PLAN,
+  };
+  return planMap[planId] || PRO_PLAN;
+}
 
 // ============================================
 // LOADER - Get Current Subscription Status
@@ -66,7 +85,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 // ============================================
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, admin, billing } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
 
   if (!session?.shop) {
     throw new Response("Unauthorized", { status: 401 });
@@ -79,7 +98,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const planId = action?.replace("subscribe-", "");
 
   if (!planId) {
-    return json<BillingResult>({
+    return json({
       success: false,
       error: "Invalid action"
     }, { status: 400 });
@@ -88,52 +107,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   console.log(`[Billing Action] Shop ${session.shop} requesting ${planId} plan`);
 
   try {
-    // Use GraphQL Billing Service (with auto-detection of dev stores)
-    const { GraphQLBillingService } = await import("~/services/billing/graphql-billing.service");
-    const billingService = new GraphQLBillingService(admin);
+    // Map plan ID to plan constant
+    const planConstant = getPlanConstant(planId) as keyof typeof import("../shopify.server");
 
-    // Determine if this is an upgrade
-    const currentStatus = await getSubscriptionStatus(session.shop, billing, admin);
-    const isUpgrade = currentStatus.hasActiveSubscription;
+    console.log(`[Billing Action] Requesting billing for plan: ${planConstant}`);
 
-    // Create subscription via GraphQL
-    const result = await billingService.createSubscription({
-      shop: session.shop,
-      planType: planId as any,
-      isUpgrade,
+    // Use billing.request() - this will automatically redirect to Shopify's confirmation page
+    // and then return the user back to the returnUrl after approval
+    await billing.request({
+      plan: planConstant,
+      isTest: process.env.NODE_ENV === 'development' || session.shop.includes('.myshopify.com'),
+      returnUrl: `${process.env.SHOPIFY_APP_URL}/app/billing?success=true&plan=${planId}`,
     });
 
-    console.log(`[Billing Action] Subscription creation result:`, {
-      success: result.success,
-      hasConfirmationUrl: !!result.confirmationUrl,
-      confirmationUrl: result.confirmationUrl,
-      subscriptionId: result.subscriptionId,
-      error: result.error
-    });
-
-    if (result.success && result.confirmationUrl) {
-      console.log(`[Billing Action] Subscription created, returning confirmation URL:`, result.confirmationUrl);
-      // Return confirmation URL for client-side redirect (embedded app compatible)
-      return json<BillingResult>({
-        success: true,
-        confirmationUrl: result.confirmationUrl,
-        subscriptionId: result.subscriptionId,
-      });
-    }
-
-    if (!result.success) {
-      console.error(`[Billing Action] Failed to create subscription:`, result.error);
-      return json<BillingResult>({
-        success: false,
-        error: result.error || "Failed to create subscription",
-      });
-    }
-
-    return json<BillingResult>(result);
+    // billing.request() throws a redirect, so this code won't be reached
+    // But TypeScript needs a return statement
+    return json({ success: true });
   } catch (error) {
-    // Handle errors
-    console.error(`[Billing Action] Unexpected error:`, error);
-    return json<BillingResult>({
+    // Handle errors (billing.request() throws redirects, not errors for success)
+    console.error(`[Billing Action] Error:`, error);
+    return json({
       success: false,
       error: error instanceof Error ? error.message : "An unexpected error occurred"
     }, { status: 500 });
@@ -150,63 +143,18 @@ export default function BillingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  const app = useAppBridge();
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
-  // Check URL params for cancellation or errors
+  // Check URL params for success messages
   const [searchParams] = useState(() => {
     if (typeof window !== 'undefined') {
       return new URLSearchParams(window.location.search);
     }
     return new URLSearchParams();
   });
-  const cancelled = searchParams.get('cancelled') === 'true';
   const successParam = searchParams.get('success') === 'true';
   const successPlan = searchParams.get('plan');
-  const urlError = searchParams.get('error');
-
-  // Handle redirect to Shopify confirmation page using App Bridge
-  useEffect(() => {
-    console.log('[Billing] useEffect triggered:', {
-      hasActionData: !!actionData,
-      success: actionData?.success,
-      hasConfirmationUrl: !!actionData?.confirmationUrl,
-      confirmationUrl: actionData?.confirmationUrl,
-      hasApp: !!app,
-      hasAppRedirect: !!(app && app.redirect),
-      appType: typeof app
-    });
-
-    if (actionData?.success && actionData.confirmationUrl) {
-      console.log('[Billing] ⚠️ Attempting redirect to Shopify confirmation page');
-      console.log('[Billing] Confirmation URL:', actionData.confirmationUrl);
-
-      // Use App Bridge redirect for embedded apps
-      if (app && typeof app.redirect === 'object' && app.redirect.toRemote) {
-        console.log('[Billing] ✅ App Bridge available, calling toRemote()');
-        try {
-          app.redirect.toRemote(actionData.confirmationUrl);
-          console.log('[Billing] ✅ Redirect initiated successfully');
-        } catch (error) {
-          console.error('[Billing] ❌ Redirect failed:', error);
-        }
-      } else {
-        console.error('[Billing] ❌ App Bridge redirect not available');
-        console.error('[Billing] App object:', {
-          hasApp: !!app,
-          hasRedirect: !!(app && app.redirect),
-          redirectType: app && app.redirect ? typeof app.redirect : 'undefined',
-          hasToRemote: !!(app && app.redirect && app.redirect.toRemote)
-        });
-        // Fallback: try window redirect (won't work in embedded app)
-        console.log('[Billing] Attempting window.top.location fallback');
-        if (typeof window !== 'undefined' && window.top) {
-          window.top.location.href = actionData.confirmationUrl;
-        }
-      }
-    }
-  }, [actionData, app]);
 
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
@@ -287,32 +235,14 @@ export default function BillingPage() {
         <Layout.Section>
           <BlockStack gap="600">
             {/* Success/Error Banners */}
-            {/* Only show success banner if user came back from Shopify (URL param) */}
+            {/* Show success banner when user returns from Shopify after approval */}
             {successParam && successPlan && (
               <Banner tone="success">
                 <p>Successfully subscribed to {successPlan} plan! Your trial period has started.</p>
               </Banner>
             )}
 
-            {/* Show success for immediate activation (no confirmation needed) */}
-            {actionData?.success && !actionData.confirmationUrl && actionData.planName && (
-              <Banner tone="success">
-                <p>Successfully subscribed to {actionData.planName}!</p>
-              </Banner>
-            )}
-
-            {cancelled && (
-              <Banner tone="info">
-                <p>Subscription upgrade was cancelled. Your current plan remains active.</p>
-              </Banner>
-            )}
-
-            {urlError && (
-              <Banner tone="critical">
-                <p>Error: {urlError.replace(/_/g, ' ')}</p>
-              </Banner>
-            )}
-
+            {/* Show errors if billing.request() fails */}
             {actionData && !actionData.success && actionData.error && (
               <Banner tone="critical">
                 <p>{actionData.error}</p>
