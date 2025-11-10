@@ -229,7 +229,8 @@ model Customer {
   lifetimePoints    Decimal         @default(0) @db.Decimal(10, 2)  // Total points ever earned
 
   // Spending tracking fields
-  totalSpent            Decimal     @default(0) @db.Decimal(10, 2)  // Total order value
+  totalSpent            Decimal     @default(0) @db.Decimal(10, 2)  // Total order value (all-time)
+  annualSpent           Decimal     @default(0) @db.Decimal(10, 2)  // Spending in last 12 months (for tier calculation)
   totalCashbackEarned   Decimal     @default(0) @db.Decimal(10, 2)  // Total cashback earned
   totalRefunded         Decimal     @default(0) @db.Decimal(10, 2)  // Total refunds received
   netSpent              Decimal     @default(0) @db.Decimal(10, 2)  // totalSpent - totalRefunded

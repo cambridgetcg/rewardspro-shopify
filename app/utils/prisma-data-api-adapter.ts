@@ -991,20 +991,8 @@ export class DataAPIModelProxy<T = any> {
       }
     }
 
-    // DEBUG: Log SQL query
-    console.log('[Aggregate] Generated SQL:', sql);
-    console.log('[Aggregate] Parameters:', JSON.stringify(params, null, 2));
-
     const result = await this.client.executeStatement(sql, params);
-
-    // DEBUG: Log raw Data API response
-    console.log('[Aggregate] Raw Data API result:', JSON.stringify({
-      recordCount: result.records?.length,
-      firstRecord: result.records?.[0],
-    }, null, 2));
-
     const record = result.records[0] || {};
-    console.log('[Aggregate] Formatted record object:', JSON.stringify(record, null, 2));
 
     // Format the response to match Prisma's structure
     const response: any = {};

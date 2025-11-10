@@ -336,6 +336,7 @@ export class IncrementalOrderSync {
 
       // Update customer spending totals after order update
       if (existingOrder.customerId && existingOrder.customerId !== 'unknown') {
+        // Aggregate all-time spending
         const orderStats = await db.order.aggregate({
           where: {
             shop,
@@ -355,10 +356,30 @@ export class IncrementalOrderSync {
           }
         });
 
+        // Calculate annual spending (last 12 months)
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+        const annualOrderStats = await db.order.aggregate({
+          where: {
+            shop,
+            customerId: existingOrder.customerId,
+            shopifyCreatedAt: { gte: twelveMonthsAgo },
+            financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] }
+          },
+          _sum: {
+            totalPrice: true,
+            totalRefunded: true
+          }
+        });
+
+        const annualSpent = (annualOrderStats._sum.totalPrice || 0) - (annualOrderStats._sum.totalRefunded || 0);
+
         await db.customer.update({
           where: { id: existingOrder.customerId },
           data: {
             totalSpent: orderStats._sum.totalPrice || 0,
+            annualSpent,
             totalRefunded: orderStats._sum.totalRefunded || 0,
             netSpent: (orderStats._sum.totalPrice || 0) - (orderStats._sum.totalRefunded || 0),
             orderCount: orderStats._count.id || 0,
@@ -367,7 +388,7 @@ export class IncrementalOrderSync {
           }
         });
 
-        console.log(`[IncrementalSync] Updated spending totals for customer ${existingOrder.customerId}`);
+        console.log(`[IncrementalSync] Updated spending totals for customer ${existingOrder.customerId}: totalSpent=${orderStats._sum.totalPrice}, annualSpent=${annualSpent}`);
       }
 
       return { updated: true };

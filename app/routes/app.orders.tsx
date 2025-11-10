@@ -174,7 +174,7 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
     console.log(`  - Order ${o.shopifyOrderName}: status=${o.financialStatus}, price=${o.totalPrice}`);
   });
 
-  // Now aggregate with the filter
+  // Aggregate all-time spending (PAID/PARTIALLY_REFUNDED)
   const orderStats = await db.order.aggregate({
     where: {
       shop,
@@ -204,10 +204,32 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
   const totalRefunded = orderStats._sum.totalRefunded || 0;
   const netSpent = totalSpent - totalRefunded;
 
+  // Calculate annual spending (last 12 months) for tier calculations
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+  const annualOrderStats = await db.order.aggregate({
+    where: {
+      shop,
+      customerId,
+      shopifyCreatedAt: { gte: twelveMonthsAgo },
+      financialStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] }
+    },
+    _sum: {
+      totalPrice: true,
+      totalRefunded: true
+    }
+  });
+
+  const annualSpent = (annualOrderStats._sum.totalPrice || 0) - (annualOrderStats._sum.totalRefunded || 0);
+
+  console.log(`[Orders] Annual spending (last 12 months): ${annualSpent}`);
+
   await db.customer.update({
     where: { id: customerId },
     data: {
       totalSpent,
+      annualSpent,
       totalRefunded,
       // Note: totalCashbackEarned is NOT updated here - it's updated when cashback is processed
       netSpent,
@@ -217,7 +239,7 @@ async function updateCustomerSpendingTotals(customerId: string, shop: string) {
     }
   });
 
-  console.log(`[Orders] ✅ Updated customer ${customerId}: totalSpent=${totalSpent}, netSpent=${netSpent}, orderCount=${orderStats._count.id}`);
+  console.log(`[Orders] ✅ Updated customer ${customerId}: totalSpent=${totalSpent}, annualSpent=${annualSpent}, netSpent=${netSpent}, orderCount=${orderStats._count.id}`);
 }
 
 // ============================================
