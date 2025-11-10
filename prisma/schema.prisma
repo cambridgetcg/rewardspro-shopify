@@ -78,9 +78,16 @@ model ShopSettings {
   // Email Templates (JSON)
   emailTemplates          Json?               // Custom email templates configuration
 
-  // Billing
-  billingStatus           String?             @default("INACTIVE")  // ACTIVE, INACTIVE, TRIAL
-  currentPlan             String?             @default("free")  // free, pro, max, ultra
+  // Billing (simplified - using billing.check() as source of truth)
+  billingStatus           String?             @default("INACTIVE")  // ACTIVE, INACTIVE, TRIAL (legacy)
+  currentPlan             String?             @default("free")  // free, pro, max, ultra (legacy)
+
+  // NEW: Simplified billing fields (Phase 1)
+  subscriptionStatus      String?             // ACTIVE, CANCELLED, EXPIRED, PENDING (from webhook)
+  subscriptionUpdatedAt   DateTime?           // When webhook last updated subscription
+  currentPlanName         String?             // Plan name for display only (optional)
+  usageCapReached         Boolean?            @default(false)  // Flag when usage cap reached
+  usageCapReachedAt       DateTime?           // Timestamp when cap was reached
 
   // Initial Data Sync Status
   customersInitialSynced  Boolean             @default(false)  // Has initial customer sync completed
@@ -507,6 +514,40 @@ model BillingAuditLog {
 
   @@index([shop, attemptedAt(sort: Desc)])  // Recent attempts by shop
   @@index([shop, planName])                  // Attempts by shop and plan
+}
+
+// ============================================
+// USAGE CAP ALERT MODEL (Phase 1)
+// ============================================
+
+model UsageCapAlert {
+  id                String   @id @default(uuid())
+  shop              String
+
+  // Subscription details
+  subscriptionId    String   // Shopify AppSubscription GID
+  subscriptionName  String   // Plan name (e.g., "RewardsPro Pro")
+
+  // Usage details
+  cappedAmount      Decimal  @db.Decimal(10, 2)  // Maximum allowed usage
+  balanceUsed       Decimal  @db.Decimal(10, 2)  // Current usage
+  balanceRemaining  Decimal  @db.Decimal(10, 2)  // Remaining before cap
+  usagePercentage   Decimal  @db.Decimal(5, 2)   // Percentage of cap used
+
+  // Alert level
+  alertLevel        String   // WARNING (>80%), CRITICAL (>95%)
+
+  // Notification tracking
+  notificationSent  Boolean  @default(false)
+  notifiedAt        DateTime?
+
+  // Metadata
+  metadata          Json?    // Additional webhook data
+  createdAt         DateTime @default(now())
+
+  @@index([shop, createdAt(sort: Desc)])  // Recent alerts by shop
+  @@index([shop, usagePercentage])         // Query by usage level
+  @@index([alertLevel, notificationSent])  // Find unsent critical alerts
 }
 
 // ============================================

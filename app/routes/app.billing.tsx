@@ -33,10 +33,9 @@ import {
 } from "../shopify.server";
 import { useState } from "react";
 import {
-  getSubscriptionStatus,
   getAllPlans,
-  type SubscriptionStatus,
 } from "~/services/billing/plan-subscription.server";
+import { detectNewSubscription } from "~/utils/billing-success-detection.server";
 
 // Map plan IDs to Shopify plan constants
 function getPlanConstant(planId: string): string {
@@ -56,21 +55,69 @@ function getPlanConstant(planId: string): string {
 // ============================================
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, billing, admin } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
 
   if (!session?.shop) {
     throw new Response("Unauthorized", { status: 401 });
   }
 
   try {
-    // Get current subscription status
-    const subscriptionStatus = await getSubscriptionStatus(session.shop, billing, admin);
+    console.log('[Billing Loader] Starting for shop:', session.shop);
 
-    // Get all available plans
+    // Check actual subscription status with billing.check()
+    const billingCheck = await billing.check({
+      plans: [
+        PRO_PLAN,
+        PRO_ANNUAL_PLAN,
+        MAX_PLAN,
+        MAX_ANNUAL_PLAN,
+        ULTRA_PLAN,
+        ULTRA_ANNUAL_PLAN
+      ],
+      isTest: process.env.NODE_ENV === 'development',
+    });
+
+    console.log('[Billing Loader] Billing check result:', {
+      hasActivePayment: billingCheck.hasActivePayment,
+      subscriptionCount: billingCheck.appSubscriptions.length,
+      subscriptions: billingCheck.appSubscriptions.map(s => ({
+        id: s.id,
+        name: s.name,
+        test: s.test
+      })),
+    });
+
+    // Get URL params to detect return from Shopify
+    const url = new URL(request.url);
+    const returnedFromShopify = url.searchParams.get('success') === 'true';
+
+    console.log('[Billing Loader] Returned from Shopify:', returnedFromShopify);
+
+    // Detect if this is a NEW subscription (just completed)
+    const justSubscribed = await detectNewSubscription(
+      session,
+      billingCheck,
+      returnedFromShopify
+    );
+
+    // Detect cancellation (returned from Shopify but no active payment)
+    const cancelled = returnedFromShopify && !billingCheck.hasActivePayment;
+
+    console.log('[Billing Loader] Final state:', {
+      justSubscribed,
+      cancelled,
+    });
+
+    // Get all available plans for UI
     const plans = getAllPlans();
 
     return json({
-      subscriptionStatus,
+      hasActivePayment: billingCheck.hasActivePayment,
+      appSubscriptions: billingCheck.appSubscriptions,
+      oneTimePurchases: billingCheck.oneTimePurchases,
+      justSubscribed,
+      cancelled,
+      newSubscriptionPlan: justSubscribed ? billingCheck.appSubscriptions[0]?.name : null,
       plans,
       shop: session.shop,
     });
@@ -114,10 +161,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Use billing.request() - this will automatically redirect to Shopify's confirmation page
     // and then return the user back to the returnUrl after approval
+    // We include success=true to signal return from Shopify, but verify with billing.check()
     await billing.request({
       plan: planConstant,
       isTest: process.env.NODE_ENV === 'development' || session.shop.includes('.myshopify.com'),
-      returnUrl: `${process.env.SHOPIFY_APP_URL}/app/billing?success=true&plan=${planId}`,
+      returnUrl: `${process.env.SHOPIFY_APP_URL}/app/billing?success=true`,
     });
 
     // billing.request() throws a redirect, so this code won't be reached
@@ -146,23 +194,16 @@ export default function BillingPage() {
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
-  // Check URL params for success messages
-  const [searchParams] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search);
-    }
-    return new URLSearchParams();
-  });
-  const successParam = searchParams.get('success') === 'true';
-  const successPlan = searchParams.get('plan');
-
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
     formData.set("action", `subscribe-${planId}`);
     submit(formData, { method: "post" });
   };
 
-  const currentPlan = data.subscriptionStatus.currentPlan;
+  // Get current plan from billing.check() data
+  const currentSubscription = data.appSubscriptions[0];
+  const currentPlan = currentSubscription?.name;
+  const isCurrentPlanActive = data.hasActivePayment;
 
   // Define plan UI configurations with both monthly and annual pricing
   const planCards = [
@@ -235,10 +276,30 @@ export default function BillingPage() {
         <Layout.Section>
           <BlockStack gap="600">
             {/* Success/Error Banners */}
-            {/* Show success banner when user returns from Shopify after approval */}
-            {successParam && successPlan && (
+            {/* Show success banner based on verified subscription data */}
+            {data.justSubscribed && data.newSubscriptionPlan && (
               <Banner tone="success">
-                <p>Successfully subscribed to {successPlan} plan! Your trial period has started.</p>
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h2">
+                    🎉 Subscription Activated!
+                  </Text>
+                  <Text as="p">
+                    You're now subscribed to <strong>{data.newSubscriptionPlan}</strong>.
+                    {currentSubscription?.test && ' (Test Mode)'}
+                  </Text>
+                  <Text as="p" tone="subdued">
+                    Your trial period has started. You won't be charged until the trial ends.
+                  </Text>
+                </BlockStack>
+              </Banner>
+            )}
+
+            {/* Show cancellation message */}
+            {data.cancelled && (
+              <Banner tone="info">
+                <Text as="p">
+                  Subscription was not completed. Your current plan remains active.
+                </Text>
               </Banner>
             )}
 
@@ -294,8 +355,11 @@ export default function BillingPage() {
             }}>
               {planCards.map((plan) => {
                 const planIdToUse = billingInterval === 'annual' ? plan.idAnnual : plan.id;
-                const isCurrentPlan = currentPlan === `RewardsPro ${plan.name}` ||
-                                     currentPlan === `RewardsPro ${plan.name} Annual`;
+                // Check if this plan matches the current subscription
+                const planConstantMonthly = getPlanConstant(plan.id);
+                const planConstantAnnual = getPlanConstant(plan.idAnnual);
+                const isCurrentPlan = currentPlan === planConstantMonthly ||
+                                     currentPlan === planConstantAnnual;
 
                 return (
                   <Card key={plan.id}>
