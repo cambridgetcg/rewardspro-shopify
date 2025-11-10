@@ -1,6 +1,10 @@
 /**
- * Billing Callback Route - REBUILT
+ * Billing Callback Route - OAuth Return Handler
  * Handles the redirect back from Shopify after subscription confirmation
+ *
+ * IMPORTANT: This route receives a direct browser redirect from Shopify,
+ * NOT an embedded app request. Therefore, we need to redirect back to
+ * the embedded app context to complete the flow.
  *
  * This route is called when:
  * 1. User approves subscription on Shopify
@@ -11,13 +15,13 @@
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import { logBillingAttempt } from "~/services/billing/plan-subscription.server";
-import { updatePlanLimit, unlockShop } from "~/utils/plan-access-control.server";
-import { getPlanConfig } from "~/utils/billing-config";
 
 /**
  * Loader function - handles GET requests to callback
+ *
+ * Since Shopify redirects here OUTSIDE the embedded app context,
+ * we can't authenticate normally. Instead, we redirect to the
+ * embedded app with all parameters preserved.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const startTime = Date.now();
@@ -43,259 +47,69 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   console.log('════════════════════════════════════════════════════════════');
 
   // ============================================
-  // STEP 2: Authenticate with Shopify
+  // STEP 2: Extract Parameters
   // ============================================
-  console.log('[Billing Callback] 🔐 Attempting authentication...');
-
-  let session, admin;
-  try {
-    const authResult = await authenticate.admin(request);
-    session = authResult.session;
-    admin = authResult.admin;
-
-    console.log('[Billing Callback] ✅ Authentication successful');
-    console.log('[Billing Callback] 🏪 Session shop:', session?.shop);
-    console.log('[Billing Callback] 🆔 Session ID:', session?.id);
-    console.log('[Billing Callback] 👤 Session isOnline:', session?.isOnline);
-    console.log('[Billing Callback] 🔑 Has admin context:', !!admin);
-  } catch (error) {
-    console.error('[Billing Callback] ❌ Authentication failed:', error);
-    console.error('[Billing Callback] Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    throw error; // Re-throw to let Shopify handle auth redirect
-  }
-
-  // ============================================
-  // STEP 3: Validate Session
-  // ============================================
-  if (!session?.shop) {
-    console.error('[Billing Callback] ❌ No shop in session');
-    console.error('[Billing Callback] Session object:', session);
-    throw new Response("Unauthorized - No shop in session", { status: 401 });
-  }
-
-  const shop = session.shop;
-  console.log('[Billing Callback] ✅ Session validated for shop:', shop);
-
-  // ============================================
-  // STEP 4: Extract and Validate Parameters
-  // ============================================
+  const shop = url.searchParams.get("shop");
   const planId = url.searchParams.get("plan");
-  const shopParam = url.searchParams.get("shop");
   const chargeId = url.searchParams.get("charge_id");
 
   console.log('[Billing Callback] 📦 Extracted parameters:', {
+    shop,
     planId,
-    shopParam,
-    chargeId,
-    sessionShop: shop
-  });
-
-  // Validate shop parameter matches session
-  if (shopParam && shopParam !== shop) {
-    console.warn('[Billing Callback] ⚠️  Shop mismatch!', {
-      urlShop: shopParam,
-      sessionShop: shop
-    });
-  }
-
-  // ============================================
-  // STEP 5: Handle Cancellation
-  // ============================================
-  if (!planId) {
-    console.log('[Billing Callback] ⚠️  No plan ID - user likely cancelled subscription');
-    await logBillingAttempt(shop, "unknown", false, "Merchant cancelled subscription");
-
-    const embeddedAppUrl = `/app/billing?cancelled=true`;
-    console.log('[Billing Callback] 🔀 Redirecting to:', embeddedAppUrl);
-    console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
-    console.log('════════════════════════════════════════════════════════════');
-
-    return redirect(embeddedAppUrl);
-  }
-
-  // ============================================
-  // STEP 6: Validate Plan Configuration
-  // ============================================
-  console.log('[Billing Callback] 🔍 Looking up plan configuration for:', planId);
-  const planConfig = getPlanConfig(planId);
-
-  if (!planConfig) {
-    console.error('[Billing Callback] ❌ Invalid plan ID:', planId);
-    console.error('[Billing Callback] Available plans:', Object.keys(await import("~/utils/billing-config").then(m => m.BillingConfig.plans)));
-
-    const embeddedAppUrl = `/app/billing?error=invalid_plan`;
-    console.log('[Billing Callback] 🔀 Redirecting to:', embeddedAppUrl);
-    console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
-    console.log('════════════════════════════════════════════════════════════');
-
-    return redirect(embeddedAppUrl);
-  }
-
-  console.log('[Billing Callback] ✅ Plan configuration found:', {
-    planId,
-    planName: planConfig.name,
-    price: planConfig.price,
-    orderLimit: planConfig.orderLimit
+    chargeId
   });
 
   // ============================================
-  // STEP 7: Process Subscription
+  // STEP 3: Validate Required Parameters
   // ============================================
-  try {
-    console.log('[Billing Callback] 🔄 Starting subscription verification process...');
-
-    // Import GraphQL Billing Service
-    console.log('[Billing Callback] 📥 Importing GraphQL Billing Service...');
-    const { GraphQLBillingService } = await import("~/services/billing/graphql-billing.service");
-    const billingService = new GraphQLBillingService(admin);
-    console.log('[Billing Callback] ✅ Billing service initialized');
-
-    // Check for pending charge in database
-    console.log('[Billing Callback] 🗄️  Checking database for pending charge...');
-    const db = await import("~/db.server");
-    const billingSubscription = await db.default.billingSubscription.findUnique({
-      where: { shop }
-    });
-
-    console.log('[Billing Callback] 📊 Database query result:', {
-      found: !!billingSubscription,
-      hasPendingCharge: !!billingSubscription?.pendingChargeId,
-      pendingChargeId: billingSubscription?.pendingChargeId,
-      subscriptionStatus: billingSubscription?.subscriptionStatus,
-      createdAt: billingSubscription?.createdAt
-    });
-
-    if (!billingSubscription?.pendingChargeId) {
-      console.warn('[Billing Callback] ⚠️  No pending charge found in database for shop:', shop);
-      console.warn('[Billing Callback] This might mean:');
-      console.warn('[Billing Callback]   1. Subscription was not properly created');
-      console.warn('[Billing Callback]   2. Database record is missing');
-      console.warn('[Billing Callback]   3. This is a duplicate callback');
-
-      const embeddedAppUrl = `/app/billing?error=no_pending_charge`;
-      console.log('[Billing Callback] 🔀 Redirecting to:', embeddedAppUrl);
-      console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
-      console.log('════════════════════════════════════════════════════════════');
-
-      return redirect(embeddedAppUrl);
-    }
-
-    // Extract subscription ID from pending charge
-    const subscriptionId = billingSubscription.pendingChargeId.split('/').pop();
-    console.log('[Billing Callback] 🔑 Extracted subscription ID:', subscriptionId);
-    console.log('[Billing Callback] 📋 Full pending charge ID:', billingSubscription.pendingChargeId);
-
-    // Verify subscription is now active via GraphQL
-    console.log('[Billing Callback] 📡 Verifying subscription status with Shopify GraphQL API...');
-    const verifyStartTime = Date.now();
-    const verifyResult = await billingService.verifySubscription(shop, subscriptionId!);
-    const verifyDuration = Date.now() - verifyStartTime;
-
-    console.log('[Billing Callback] 📊 Verification result:', {
-      success: verifyResult.success,
-      subscriptionId: verifyResult.subscriptionId,
-      status: verifyResult.status,
-      error: verifyResult.error,
-      duration: verifyDuration + 'ms'
-    });
-
-    if (verifyResult.success) {
-      console.log('[Billing Callback] ✅ SUBSCRIPTION CONFIRMED!');
-      console.log('[Billing Callback] 🎉 Shop:', shop);
-      console.log('[Billing Callback] 🎉 Plan:', planConfig.name);
-      console.log('[Billing Callback] 🎉 Status:', verifyResult.status);
-
-      // ============================================
-      // STEP 8: Update Database and Shop Settings
-      // ============================================
-      console.log('[Billing Callback] 💾 Updating database records...');
-
-      // Log successful subscription
-      console.log('[Billing Callback] 📝 Logging billing attempt...');
-      await logBillingAttempt(shop, planId, true, null, {
-        subscriptionId: verifyResult.subscriptionId,
-        callbackUrl: request.url,
-        verifyDuration,
-        totalDuration: Date.now() - startTime
-      });
-      console.log('[Billing Callback] ✅ Billing attempt logged');
-
-      // Update plan limits
-      console.log('[Billing Callback] 📊 Updating plan limits...');
-      console.log('[Billing Callback]   - Shop:', shop);
-      console.log('[Billing Callback]   - Plan name:', planConfig.name);
-      console.log('[Billing Callback]   - Order limit:', planConfig.orderLimit);
-      await updatePlanLimit(shop, planConfig.name, planConfig.orderLimit);
-      console.log('[Billing Callback] ✅ Plan limits updated');
-
-      // Unlock shop
-      console.log('[Billing Callback] 🔓 Unlocking shop...');
-      await unlockShop(shop);
-      console.log('[Billing Callback] ✅ Shop unlocked');
-
-      // ============================================
-      // STEP 9: Redirect to Success Page
-      // ============================================
-      // Use relative URL to stay in embedded app context
-      const embeddedAppUrl = `/app/billing?success=true&plan=${planId}`;
-
-      console.log('[Billing Callback] ✅ ALL PROCESSING COMPLETE');
-      console.log('[Billing Callback] 🔀 Redirecting to:', embeddedAppUrl);
-      console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
-      console.log('════════════════════════════════════════════════════════════');
-
-      return redirect(embeddedAppUrl);
-
-    } else {
-      // ============================================
-      // VERIFICATION FAILED
-      // ============================================
-      console.error('[Billing Callback] ❌ SUBSCRIPTION VERIFICATION FAILED');
-      console.error('[Billing Callback] Shop:', shop);
-      console.error('[Billing Callback] Plan:', planId);
-      console.error('[Billing Callback] Error:', verifyResult.error);
-      console.error('[Billing Callback] Subscription ID:', subscriptionId);
-
-      // Log failed attempt
-      await logBillingAttempt(shop, planId, false, verifyResult.error || "Subscription not confirmed");
-
-      const embeddedAppUrl = `/app/billing?error=subscription_not_found`;
-      console.log('[Billing Callback] 🔀 Redirecting to:', embeddedAppUrl);
-      console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
-      console.log('════════════════════════════════════════════════════════════');
-
-      return redirect(embeddedAppUrl);
-    }
-
-  } catch (error) {
-    // ============================================
-    // ERROR HANDLING
-    // ============================================
-    console.error('════════════════════════════════════════════════════════════');
-    console.error('[Billing Callback] ❌ ERROR PROCESSING CALLBACK');
-    console.error('[Billing Callback] Shop:', shop);
-    console.error('[Billing Callback] Plan:', planId);
-    console.error('[Billing Callback] Error type:', error instanceof Error ? error.constructor.name : typeof error);
-    console.error('[Billing Callback] Error message:', error instanceof Error ? error.message : String(error));
-    console.error('[Billing Callback] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('════════════════════════════════════════════════════════════');
-
-    // Log failed attempt
-    await logBillingAttempt(
-      shop,
-      planId,
-      false,
-      error instanceof Error ? error.message : String(error)
-    );
-
-    const embeddedAppUrl = `/app/billing?error=callback_failed&details=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`;
-    console.log('[Billing Callback] 🔀 Redirecting to error page:', embeddedAppUrl);
-    console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
-    console.log('════════════════════════════════════════════════════════════');
-
-    return redirect(embeddedAppUrl);
+  if (!shop) {
+    console.error('[Billing Callback] ❌ Missing required parameter: shop');
+    console.error('[Billing Callback] Cannot proceed without shop domain');
+    throw new Response("Missing shop parameter", { status: 400 });
   }
+
+  console.log('[Billing Callback] ✅ Shop parameter validated:', shop);
+
+  // ============================================
+  // STEP 4: Build Embedded App Redirect URL
+  // ============================================
+  // We redirect to a processing route that runs in the embedded app context
+  // where we CAN authenticate and process the subscription
+
+  const processingParams = new URLSearchParams();
+  processingParams.set('shop', shop);
+
+  if (planId) {
+    processingParams.set('plan', planId);
+    console.log('[Billing Callback] ✅ Plan parameter found:', planId);
+  } else {
+    // No plan = user cancelled
+    processingParams.set('cancelled', 'true');
+    console.log('[Billing Callback] ⚠️  No plan parameter - user likely cancelled');
+  }
+
+  if (chargeId) {
+    processingParams.set('charge_id', chargeId);
+    console.log('[Billing Callback] ℹ️  Charge ID found:', chargeId);
+  }
+
+  // Redirect to the embedded app's billing processing route
+  const embeddedAppUrl = `https://${shop}/admin/apps/${getAppHandle()}/app/billing/process?${processingParams.toString()}`;
+
+  console.log('[Billing Callback] 🔀 Redirecting to embedded app processing route');
+  console.log('[Billing Callback] 📍 Target URL:', embeddedAppUrl);
+  console.log('[Billing Callback] ⏱️  Total time:', Date.now() - startTime, 'ms');
+  console.log('════════════════════════════════════════════════════════════');
+
+  // Redirect to embedded app context where we can authenticate
+  return redirect(embeddedAppUrl);
 };
+
+/**
+ * Get the app handle for building embedded app URLs
+ * This should match your app's handle in Shopify Partner Dashboard
+ */
+function getAppHandle(): string {
+  // TODO: Move this to environment variable if needed
+  return "RewardsproMembership";
+}
