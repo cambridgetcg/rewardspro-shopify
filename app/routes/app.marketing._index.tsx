@@ -301,22 +301,22 @@ export default function MarketingDashboard() {
         {/* Metrics Section */}
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-            {/* Emails Sent */}
+            {/* Option 1: Icon on Left - Emails Sent */}
             <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Icon source={EmailIcon} tone="base" />
-                </InlineStack>
-                <Text variant="headingXl" as="h2">
-                  {data.metrics.emailsSent.toLocaleString()}
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  Emails Sent This Month
-                </Text>
-              </BlockStack>
+              <InlineStack gap="400" blockAlign="center">
+                <Icon source={EmailIcon} tone="base" />
+                <BlockStack gap="100">
+                  <Text variant="headingXl" as="h2">
+                    {data.metrics.emailsSent.toLocaleString()}
+                  </Text>
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    Emails Sent This Month
+                  </Text>
+                </BlockStack>
+              </InlineStack>
             </Card>
 
-            {/* Open Rate */}
+            {/* Option 2: Icon on Top - Open Rate */}
             <Card>
               <BlockStack gap="200">
                 <InlineStack align="space-between" blockAlign="start">
@@ -332,19 +332,19 @@ export default function MarketingDashboard() {
               </BlockStack>
             </Card>
 
-            {/* Revenue Generated */}
+            {/* Option 3: Icon on Right - Revenue Generated */}
             <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Icon source={CashDollarIcon} tone="base" />
-                </InlineStack>
-                <Text variant="headingXl" as="h2">
-                  ${data.metrics.revenue.toLocaleString()}
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  Revenue Generated
-                </Text>
-              </BlockStack>
+              <InlineStack gap="400" align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <Text variant="headingXl" as="h2">
+                    ${data.metrics.revenue.toLocaleString()}
+                  </Text>
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    Revenue Generated
+                  </Text>
+                </BlockStack>
+                <Icon source={CashDollarIcon} tone="base" />
+              </InlineStack>
             </Card>
           </InlineGrid>
         </Layout.Section>

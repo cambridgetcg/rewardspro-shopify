@@ -498,13 +498,14 @@
           <div class="rp-widget__header" role="button" tabindex="0" aria-expanded="${this.state.isExpanded}">
             <div class="rp-widget__header-content">
               <span class="rp-widget__tier">VIP Status</span>
-              ${this.state.isExpanded ? `<span class="rp-widget__cashback">${tierName} · ${cashbackPercent}% back</span>` : ''}
             </div>
-            <button class="rp-widget__toggle" aria-label="${this.state.isExpanded ? 'Collapse widget' : 'Expand widget'}">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
+            ${this.state.isExpanded ? `
+              <button class="rp-widget__toggle" aria-label="Collapse widget">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            ` : ''}
           </div>
           ${this.state.isExpanded ? `
             <div class="rp-widget__body">
