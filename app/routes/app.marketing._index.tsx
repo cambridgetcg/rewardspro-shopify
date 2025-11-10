@@ -4,6 +4,7 @@ import {
   Page,
   Layout,
   Card,
+  Box,
   BlockStack,
   InlineStack,
   Text,
@@ -301,50 +302,52 @@ export default function MarketingDashboard() {
         {/* Metrics Section */}
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-            {/* Option 1: Icon on Left - Emails Sent */}
+            {/* Emails Sent */}
             <Card>
-              <InlineStack gap="400" blockAlign="center">
-                <Icon source={EmailIcon} tone="base" />
-                <BlockStack gap="100">
-                  <Text variant="headingXl" as="h2">
-                    {data.metrics.emailsSent.toLocaleString()}
-                  </Text>
+              <Box padding="400">
+                <BlockStack gap="200">
                   <Text variant="bodySm" tone="subdued" as="p">
                     Emails Sent This Month
                   </Text>
-                </BlockStack>
-              </InlineStack>
-            </Card>
-
-            {/* Option 2: Icon on Top - Open Rate */}
-            <Card>
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="start">
-                  <Icon source={ChartVerticalIcon} tone="base" />
-                  <Badge tone="success">↑ 5.2%</Badge>
-                </InlineStack>
-                <Text variant="headingXl" as="h2">
-                  {data.metrics.openRate}%
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  Open Rate
-                </Text>
-              </BlockStack>
-            </Card>
-
-            {/* Option 3: Icon on Right - Revenue Generated */}
-            <Card>
-              <InlineStack gap="400" align="space-between" blockAlign="center">
-                <BlockStack gap="100">
-                  <Text variant="headingXl" as="h2">
-                    ${data.metrics.revenue.toLocaleString()}
+                  <Text variant="headingLg" as="h3">
+                    {data.metrics.emailsSent.toLocaleString()}
                   </Text>
+                </BlockStack>
+              </Box>
+            </Card>
+
+            {/* Open Rate */}
+            <Card>
+              <Box padding="400">
+                <BlockStack gap="200">
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    Open Rate
+                  </Text>
+                  <Text variant="headingLg" as="h3">
+                    {data.metrics.openRate}%
+                  </Text>
+                  <InlineStack gap="200" blockAlign="center">
+                    <Badge tone="success">+5.2%</Badge>
+                    <Text variant="bodySm" tone="subdued" as="span">
+                      vs last month
+                    </Text>
+                  </InlineStack>
+                </BlockStack>
+              </Box>
+            </Card>
+
+            {/* Revenue Generated */}
+            <Card>
+              <Box padding="400">
+                <BlockStack gap="200">
                   <Text variant="bodySm" tone="subdued" as="p">
                     Revenue Generated
                   </Text>
+                  <Text variant="headingLg" as="h3">
+                    ${data.metrics.revenue.toLocaleString()}
+                  </Text>
                 </BlockStack>
-                <Icon source={CashDollarIcon} tone="base" />
-              </InlineStack>
+              </Box>
             </Card>
           </InlineGrid>
         </Layout.Section>
