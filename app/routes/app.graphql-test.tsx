@@ -302,6 +302,424 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 }`,
+    "Test: Recurring Only (No Usage)": `mutation CreateRecurringOnlySubscription {
+  appSubscriptionCreate(
+    name: "Test - Recurring Only"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=test-recurring"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 29.99
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 7
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      name
+      status
+      test
+      trialDays
+      createdAt
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price {
+                amount
+                currencyCode
+              }
+            }
+          }
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Test mutation for creating a subscription with ONLY recurring pricing (no usage charges)
+# Use this to test:
+# - Simple monthly/annual subscriptions
+# - Trial periods
+# - Basic recurring billing`,
+    "Test: Usage Only (No Recurring)": `mutation CreateUsageOnlySubscription {
+  appSubscriptionCreate(
+    name: "Test - Usage Only"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=test-usage"
+    lineItems: [
+      {
+        plan: {
+          appUsagePricingDetails: {
+            terms: "$1 per additional API call (max $100/month)"
+            cappedAmount: {
+              amount: 100.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      name
+      status
+      test
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppUsagePricing {
+              balanceUsed {
+                amount
+                currencyCode
+              }
+              cappedAmount {
+                amount
+                currencyCode
+              }
+              interval
+              terms
+            }
+          }
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Test mutation for creating a subscription with ONLY usage-based pricing (no recurring charges)
+# Use this to test:
+# - Pay-as-you-go models
+# - Usage tracking
+# - Capped amounts`,
+    "Test: With Discount (Percentage)": `mutation CreateSubscriptionWithPercentageDiscount {
+  appSubscriptionCreate(
+    name: "Test - 20% Off First 3 Months"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=test-discount"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 50.00
+              currencyCode: USD
+            }
+            discount: {
+              durationLimitInIntervals: 3
+              value: {
+                percentage: 20.0
+              }
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 0
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      name
+      status
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price {
+                amount
+                currencyCode
+              }
+              discount {
+                durationLimitInIntervals
+                priceAfterDiscount {
+                  amount
+                  currencyCode
+                }
+                remainingDurationInIntervals
+                value {
+                  ... on AppSubscriptionDiscountPercentage {
+                    percentage
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Test mutation for creating a subscription with a percentage discount
+# Use this to test:
+# - Promotional pricing
+# - Limited-time discounts (durationLimitInIntervals)
+# - Discount tracking (remainingDurationInIntervals)`,
+    "Test: With Discount (Fixed Amount)": `mutation CreateSubscriptionWithFixedDiscount {
+  appSubscriptionCreate(
+    name: "Test - $10 Off First 6 Months"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=test-discount-fixed"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 50.00
+              currencyCode: USD
+            }
+            discount: {
+              durationLimitInIntervals: 6
+              value: {
+                amount: 10.00
+                currencyCode: USD
+              }
+            }
+          }
+        }
+      }
+    ]
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      name
+      status
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price {
+                amount
+                currencyCode
+              }
+              discount {
+                durationLimitInIntervals
+                priceAfterDiscount {
+                  amount
+                  currencyCode
+                }
+                remainingDurationInIntervals
+                value {
+                  ... on AppSubscriptionDiscountAmount {
+                    amount {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Test mutation for creating a subscription with a fixed amount discount
+# Use this to test:
+# - Fixed dollar-off promotions ($10 off, $20 off, etc.)
+# - Limited-duration discounts
+# - Price after discount calculation`,
+    "Test: Replace Existing Subscription": `mutation ReplaceExistingSubscription {
+  appSubscriptionCreate(
+    name: "Test - Replacement Plan"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=test-replace"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: EVERY_30_DAYS
+            price: {
+              amount: 99.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    replacementBehavior: APPLY_IMMEDIATELY
+    test: true
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      name
+      status
+      createdAt
+      currentPeriodEnd
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Test mutation for replacing an existing subscription
+#
+# replacementBehavior options:
+# - APPLY_IMMEDIATELY: Replace immediately, prorate previous subscription
+# - APPLY_ON_NEXT_BILLING_CYCLE: Replace at end of current billing period
+# - STANDARD: Default Shopify behavior (merchant chooses in approval screen)
+#
+# Use this to test:
+# - Plan upgrades/downgrades
+# - Prorated credits
+# - Subscription replacement flow`,
+    "Test: Annual with All Options": `mutation CreateAnnualWithAllOptions {
+  appSubscriptionCreate(
+    name: "Test - Annual Complete"
+    returnUrl: "${process.env.SHOPIFY_APP_URL || 'https://rewardspro-production.vercel.app'}/app/billing/callback?shop=${session.shop}&plan=test-annual-complete"
+    lineItems: [
+      {
+        plan: {
+          appRecurringPricingDetails: {
+            interval: ANNUAL
+            price: {
+              amount: 499.00
+              currencyCode: USD
+            }
+            discount: {
+              durationLimitInIntervals: 1
+              value: {
+                percentage: 15.0
+              }
+            }
+          }
+        }
+      }
+      {
+        plan: {
+          appUsagePricingDetails: {
+            terms: "$0.50 per additional transaction (max $300/month)"
+            cappedAmount: {
+              amount: 300.00
+              currencyCode: USD
+            }
+          }
+        }
+      }
+    ]
+    trialDays: 14
+    test: true
+    replacementBehavior: STANDARD
+  ) {
+    confirmationUrl
+    appSubscription {
+      id
+      name
+      status
+      test
+      trialDays
+      createdAt
+      currentPeriodEnd
+      returnUrl
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price {
+                amount
+                currencyCode
+              }
+              discount {
+                durationLimitInIntervals
+                priceAfterDiscount {
+                  amount
+                  currencyCode
+                }
+                remainingDurationInIntervals
+                value {
+                  ... on AppSubscriptionDiscountPercentage {
+                    percentage
+                  }
+                  ... on AppSubscriptionDiscountAmount {
+                    amount {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+            ... on AppUsagePricing {
+              balanceUsed {
+                amount
+                currencyCode
+              }
+              cappedAmount {
+                amount
+                currencyCode
+              }
+              interval
+              terms
+            }
+          }
+        }
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+
+# Comprehensive test mutation showing ALL appSubscriptionCreate options:
+# - Annual recurring pricing
+# - Usage-based pricing
+# - Percentage discount
+# - Trial period
+# - Replacement behavior
+# - Test mode
+#
+# Use this as a reference for all available options`,
     "Get Active Subscriptions": `{
   currentAppInstallation {
     activeSubscriptions {
