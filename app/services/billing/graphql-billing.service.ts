@@ -362,6 +362,7 @@ export class GraphQLBillingService {
         await db.billingSubscription.upsert({
           where: { shop },
           create: {
+            id: uuidv4(), // Data API doesn't auto-generate UUIDs
             shop,
             subscriptionId: subscription.id,
             subscriptionStatus: subscription.status,
