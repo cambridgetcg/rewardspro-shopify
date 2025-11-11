@@ -62,9 +62,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
-    console.log('[Billing Loader] Starting for shop:', session.shop);
+    // Log initial request details
+    const url = new URL(request.url);
+    console.log('[Billing Loader] ========================================');
+    console.log('[Billing Loader] Request received');
+    console.log('[Billing Loader] Shop:', session.shop);
+    console.log('[Billing Loader] Full URL:', url.toString());
+    console.log('[Billing Loader] URL Params:', Object.fromEntries(url.searchParams));
+    console.log('[Billing Loader] ========================================');
 
     // Check actual subscription status with billing.check()
+    console.log('[Billing Loader] Calling billing.check()...');
     const billingCheck = await billing.check({
       plans: [
         PRO_PLAN,
@@ -77,7 +85,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       isTest: process.env.NODE_ENV === 'development',
     });
 
-    console.log('[Billing Loader] Billing check result:', {
+    console.log('[Billing Loader] billing.check() completed:', {
       hasActivePayment: billingCheck.hasActivePayment,
       subscriptionCount: billingCheck.appSubscriptions.length,
       subscriptions: billingCheck.appSubscriptions.map(s => ({
@@ -88,6 +96,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 
     // Fetch detailed subscription information via GraphQL
+    console.log('[Billing Loader] Fetching detailed subscription via GraphQL...');
     const {
       getSubscriptionDetails,
       getUsageLineItem,
@@ -100,21 +109,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const subscriptionDetails = await getSubscriptionDetails(admin);
     const detailedSubscription = subscriptionDetails?.currentAppInstallation.activeSubscriptions[0] || null;
 
-    console.log('[Billing Loader] Detailed subscription:', {
+    console.log('[Billing Loader] GraphQL subscription details:', {
       hasDetails: !!detailedSubscription,
       name: detailedSubscription?.name,
+      status: detailedSubscription?.status,
       trialDays: detailedSubscription?.trialDays,
+      createdAt: detailedSubscription?.createdAt,
+      currentPeriodEnd: detailedSubscription?.currentPeriodEnd,
       lineItemCount: detailedSubscription?.lineItems?.length,
     });
 
     // Calculate subscription details server-side
     let subscriptionInfo = null;
     if (detailedSubscription) {
+      console.log('[Billing Loader] Calculating subscription details...');
+
       const usageLineItem = getUsageLineItem(detailedSubscription);
       const recurringLineItem = getRecurringLineItem(detailedSubscription);
       const usagePercentage = calculateUsagePercentage(usageLineItem);
       const inTrialPeriod = isInTrialPeriod(detailedSubscription);
       const remainingTrialDays = getRemainingTrialDays(detailedSubscription);
+
+      console.log('[Billing Loader] Calculated values:', {
+        hasUsageLineItem: !!usageLineItem,
+        hasRecurringLineItem: !!recurringLineItem,
+        usagePercentage,
+        inTrialPeriod,
+        remainingTrialDays,
+      });
 
       subscriptionInfo = {
         id: detailedSubscription.id,
@@ -153,15 +175,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             : null,
         } : null,
       };
+
+      console.log('[Billing Loader] Built subscriptionInfo:', {
+        id: subscriptionInfo.id,
+        name: subscriptionInfo.name,
+        inTrialPeriod: subscriptionInfo.inTrialPeriod,
+        remainingTrialDays: subscriptionInfo.remainingTrialDays,
+        hasRecurringCharge: !!subscriptionInfo.recurringCharge,
+        recurringAmount: subscriptionInfo.recurringCharge?.amount,
+        hasUsageCharge: !!subscriptionInfo.usageCharge,
+        usageCappedAmount: subscriptionInfo.usageCharge?.cappedAmount?.amount,
+      });
     }
 
     // Get URL params to detect return from Shopify
-    const url = new URL(request.url);
     const returnedFromShopify = url.searchParams.get('success') === 'true';
+    const charge = url.searchParams.get('charge_id');
 
-    console.log('[Billing Loader] Returned from Shopify:', returnedFromShopify);
+    console.log('[Billing Loader] Return detection:', {
+      returnedFromShopify,
+      hasChargeId: !!charge,
+      chargeId: charge,
+    });
 
     // Detect if this is a NEW subscription (just completed)
+    console.log('[Billing Loader] Calling detectNewSubscription()...');
     const justSubscribed = await detectNewSubscription(
       session,
       billingCheck,
@@ -171,15 +209,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Detect cancellation (returned from Shopify but no active payment)
     const cancelled = returnedFromShopify && !billingCheck.hasActivePayment;
 
-    console.log('[Billing Loader] Final state:', {
+    console.log('[Billing Loader] Success/Cancellation detection:', {
       justSubscribed,
       cancelled,
+      newSubscriptionPlan: justSubscribed ? billingCheck.appSubscriptions[0]?.name : null,
     });
 
     // Get all available plans for UI
     const plans = getAllPlans();
 
-    return json({
+    const loaderData = {
       hasActivePayment: billingCheck.hasActivePayment,
       appSubscriptions: billingCheck.appSubscriptions,
       oneTimePurchases: billingCheck.oneTimePurchases,
@@ -189,7 +228,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       newSubscriptionPlan: justSubscribed ? billingCheck.appSubscriptions[0]?.name : null,
       plans,
       shop: session.shop,
+    };
+
+    console.log('[Billing Loader] Returning loader data:', {
+      hasActivePayment: loaderData.hasActivePayment,
+      subscriptionCount: loaderData.appSubscriptions.length,
+      hasSubscriptionInfo: !!loaderData.subscriptionInfo,
+      justSubscribed: loaderData.justSubscribed,
+      cancelled: loaderData.cancelled,
+      newSubscriptionPlan: loaderData.newSubscriptionPlan,
     });
+    console.log('[Billing Loader] ========================================');
+
+    return json(loaderData);
   } catch (error) {
     console.error("[Billing Loader] Error:", error);
     throw new Response("Failed to load billing information", { status: 500 });
@@ -288,6 +339,21 @@ export default function BillingPage() {
   const isSubmitting = navigation.state === "submitting";
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+
+  // Log when component renders with loader data
+  useEffect(() => {
+    console.log('[Billing Page] Component rendered with loader data:', {
+      hasActivePayment: data.hasActivePayment,
+      subscriptionCount: data.appSubscriptions.length,
+      hasSubscriptionInfo: !!data.subscriptionInfo,
+      justSubscribed: data.justSubscribed,
+      cancelled: data.cancelled,
+      newSubscriptionPlan: data.newSubscriptionPlan,
+      subscriptionName: data.subscriptionInfo?.name,
+      inTrialPeriod: data.subscriptionInfo?.inTrialPeriod,
+      remainingTrialDays: data.subscriptionInfo?.remainingTrialDays,
+    });
+  }, [data]);
 
   // Handle redirect to Shopify charge approval page
   useEffect(() => {
