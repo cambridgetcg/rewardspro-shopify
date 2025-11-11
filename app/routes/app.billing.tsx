@@ -190,26 +190,83 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Get URL params to detect return from Shopify
     const returnedFromShopify = url.searchParams.get('success') === 'true';
-    const charge = url.searchParams.get('charge_id');
+    const chargeId = url.searchParams.get('charge_id');
 
     console.log('[Billing Loader] Return detection:', {
       returnedFromShopify,
-      hasChargeId: !!charge,
-      chargeId: charge,
+      hasChargeId: !!chargeId,
+      chargeId: chargeId,
     });
 
+    // NEW: If charge_id is present, verify and save subscription
+    let subscriptionVerified = false;
+    if (chargeId && returnedFromShopify) {
+      console.log('[Billing Loader] ========================================');
+      console.log('[Billing Loader] 🔐 VERIFYING SUBSCRIPTION VIA CHARGE_ID');
+      console.log('[Billing Loader] ========================================');
+
+      const { getSubscriptionByChargeId } = await import("~/services/billing/subscription-details.server");
+      const { saveSubscription } = await import("~/services/billing/subscription-persistence.server");
+
+      // Fetch subscription using charge_id for direct verification
+      const verifiedSubscription = await getSubscriptionByChargeId(admin, chargeId);
+
+      if (verifiedSubscription) {
+        console.log('[Billing Loader] Subscription verification result:', {
+          id: verifiedSubscription.id,
+          name: verifiedSubscription.name,
+          status: verifiedSubscription.status,
+          test: verifiedSubscription.test,
+        });
+
+        // Check if subscription is ACTIVE
+        if (verifiedSubscription.status === 'ACTIVE') {
+          console.log('[Billing Loader] ✅ Subscription is ACTIVE - saving to database...');
+
+          try {
+            // Save subscription to database
+            await saveSubscription(session.shop, verifiedSubscription);
+            subscriptionVerified = true;
+
+            console.log('[Billing Loader] ✅ Subscription saved successfully!');
+          } catch (saveError) {
+            console.error('[Billing Loader] ❌ Error saving subscription:', saveError);
+          }
+        } else {
+          console.warn('[Billing Loader] ⚠️  Subscription not ACTIVE:', {
+            status: verifiedSubscription.status,
+            chargeId: chargeId,
+          });
+        }
+      } else {
+        console.error('[Billing Loader] ❌ Subscription not found for charge_id:', chargeId);
+      }
+
+      console.log('[Billing Loader] ========================================');
+    }
+
     // Detect if this is a NEW subscription (just completed)
-    console.log('[Billing Loader] Calling detectNewSubscription()...');
-    const justSubscribed = await detectNewSubscription(
-      session,
-      billingCheck,
-      returnedFromShopify
-    );
+    // Use subscriptionVerified flag instead of session-based detection
+    let justSubscribed = false;
+    if (subscriptionVerified) {
+      // If we just verified and saved, this is definitely a new subscription
+      justSubscribed = true;
+      console.log('[Billing Loader] ✅ New subscription detected via charge_id verification');
+    } else if (returnedFromShopify) {
+      // Fallback to old detection method if no charge_id
+      console.log('[Billing Loader] Calling detectNewSubscription() (fallback)...');
+      justSubscribed = await detectNewSubscription(
+        session,
+        billingCheck,
+        returnedFromShopify
+      );
+    }
 
     // Detect cancellation (returned from Shopify but no active payment)
-    const cancelled = returnedFromShopify && !billingCheck.hasActivePayment;
+    const cancelled = returnedFromShopify && !billingCheck.hasActivePayment && !subscriptionVerified;
 
     console.log('[Billing Loader] Success/Cancellation detection:', {
+      subscriptionVerified,
       justSubscribed,
       cancelled,
       newSubscriptionPlan: justSubscribed ? billingCheck.appSubscriptions[0]?.name : null,
