@@ -366,11 +366,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
                 }
                 remainingDurationInIntervals
                 value {
-                  ... on MoneyV2 {
-                    amount
-                    currencyCode
+                  ... on AppSubscriptionDiscountAmount {
+                    amount {
+                      amount
+                      currencyCode
+                    }
                   }
-                  ... on PricingPercentageValue {
+                  ... on AppSubscriptionDiscountPercentage {
                     percentage
                   }
                 }
