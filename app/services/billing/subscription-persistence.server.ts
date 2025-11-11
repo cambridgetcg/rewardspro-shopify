@@ -7,6 +7,7 @@
 
 import db from "../../db.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import { randomUUID } from "crypto";
 
 /**
  * Shopify AppSubscription type (from GraphQL)
@@ -118,6 +119,7 @@ export async function saveSubscription(
       shop,
     },
     create: {
+      id: randomUUID(), // Data API doesn't auto-generate UUIDs
       ...subscriptionData,
       activatedAt: subscription.status === 'ACTIVE' ? new Date() : null,
       returnUrlProcessed: true,
@@ -140,6 +142,7 @@ export async function saveSubscription(
   await db.shopSettings.upsert({
     where: { shop },
     create: {
+      id: randomUUID(), // Data API doesn't auto-generate UUIDs
       shop,
       storeName: shop, // Default to shop domain
       storeUrl: `https://${shop}`,
