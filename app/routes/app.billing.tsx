@@ -245,13 +245,42 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       console.log('[Billing Loader] ========================================');
     }
 
+    // FALLBACK: If no charge_id but we found an ACTIVE subscription via GraphQL,
+    // save it to database (handles case where user navigated back manually)
+    if (!subscriptionVerified && detailedSubscription && detailedSubscription.status === 'ACTIVE') {
+      console.log('[Billing Loader] ========================================');
+      console.log('[Billing Loader] 💾 FALLBACK: Saving active subscription found via GraphQL');
+      console.log('[Billing Loader] ========================================');
+
+      const { saveSubscription, getSubscriptionByShop } = await import("~/services/billing/subscription-persistence.server");
+
+      // Check if we already have this subscription in database
+      const existingSubscription = await getSubscriptionByShop(session.shop);
+
+      if (!existingSubscription || existingSubscription.shopifySubscriptionId !== detailedSubscription.id) {
+        console.log('[Billing Loader] New subscription detected (not in database), saving...');
+
+        try {
+          await saveSubscription(session.shop, detailedSubscription);
+          subscriptionVerified = true;
+          console.log('[Billing Loader] ✅ Subscription saved via fallback method');
+        } catch (saveError) {
+          console.error('[Billing Loader] ❌ Error saving subscription (fallback):', saveError);
+        }
+      } else {
+        console.log('[Billing Loader] Subscription already in database, skipping save');
+      }
+
+      console.log('[Billing Loader] ========================================');
+    }
+
     // Detect if this is a NEW subscription (just completed)
     // Use subscriptionVerified flag instead of session-based detection
     let justSubscribed = false;
     if (subscriptionVerified) {
       // If we just verified and saved, this is definitely a new subscription
       justSubscribed = true;
-      console.log('[Billing Loader] ✅ New subscription detected via charge_id verification');
+      console.log('[Billing Loader] ✅ New subscription detected via charge_id verification or fallback');
     } else if (returnedFromShopify) {
       // Fallback to old detection method if no charge_id
       console.log('[Billing Loader] Calling detectNewSubscription() (fallback)...');
