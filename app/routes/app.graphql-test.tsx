@@ -335,6 +335,92 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 }`,
+    "Get Subscription Status (Detailed)": `{
+  currentAppInstallation {
+    id
+    activeSubscriptions {
+      id
+      name
+      status
+      test
+      trialDays
+      createdAt
+      currentPeriodEnd
+      returnUrl
+      lineItems {
+        id
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price {
+                amount
+                currencyCode
+              }
+              discount {
+                durationLimitInIntervals
+                priceAfterDiscount {
+                  amount
+                  currencyCode
+                }
+                remainingDurationInIntervals
+                value {
+                  ... on MoneyV2 {
+                    amount
+                    currencyCode
+                  }
+                  ... on PricingPercentageValue {
+                    percentage
+                  }
+                }
+              }
+            }
+            ... on AppUsagePricing {
+              balanceUsed {
+                amount
+                currencyCode
+              }
+              cappedAmount {
+                amount
+                currencyCode
+              }
+              interval
+              terms
+            }
+          }
+        }
+      }
+    }
+    allSubscriptions(first: 10) {
+      edges {
+        node {
+          id
+          name
+          status
+          createdAt
+          currentPeriodEnd
+          test
+        }
+      }
+    }
+  }
+}
+
+# This comprehensive query retrieves:
+# - Active subscriptions with full details
+# - Pricing information (recurring and usage-based)
+# - Discount information (if any)
+# - Usage balance and capped amount
+# - Trial period details
+# - All subscription history (last 10)
+#
+# Use this to verify:
+# - Current subscription plan
+# - Billing status (ACTIVE, CANCELLED, etc.)
+# - Usage approaching cap
+# - Trial period remaining
+# - Discount/promotion details`,
     "Cancel Subscription": `mutation CancelSubscription($id: ID!) {
   appSubscriptionCancel(id: $id, prorate: false) {
     appSubscription {
