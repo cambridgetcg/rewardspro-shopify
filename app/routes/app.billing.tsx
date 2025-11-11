@@ -289,14 +289,39 @@ export default function BillingPage() {
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
-  // Handle redirect to Shopify charge approval page using App Bridge
+  // Handle redirect to Shopify charge approval page
   useEffect(() => {
-    if (actionData?.success && actionData?.confirmationUrl) {
-      console.log('[Billing Page] Redirecting to charge approval:', actionData.confirmationUrl);
+    console.log('[Billing Page] useEffect triggered, actionData:', actionData);
 
-      // Use window.open with _top to break out of iframe and redirect at top level
-      // This ensures the Shopify charge approval page loads in the main window, not in the iframe
-      window.open(actionData.confirmationUrl, '_top');
+    if (actionData?.success && actionData?.confirmationUrl) {
+      console.log('[Billing Page] Conditions met, redirecting to:', actionData.confirmationUrl);
+      console.log('[Billing Page] window.top exists:', !!window.top);
+      console.log('[Billing Page] window.top === window:', window.top === window);
+
+      try {
+        // Use top-level navigation to break out of iframe
+        // This ensures the Shopify charge approval page loads in the main window
+        if (window.top && window.top !== window) {
+          console.log('[Billing Page] Attempting top-level redirect (in iframe)');
+          window.top.location.href = actionData.confirmationUrl;
+        } else {
+          console.log('[Billing Page] Attempting standard redirect (not in iframe or top is same)');
+          window.location.href = actionData.confirmationUrl;
+        }
+        console.log('[Billing Page] Redirect command executed');
+      } catch (error) {
+        console.error('[Billing Page] Redirect failed:', error);
+        // If top-level redirect fails (blocked by browser), fallback to window.open
+        console.log('[Billing Page] Attempting window.open fallback');
+        window.open(actionData.confirmationUrl, '_top');
+      }
+    } else {
+      console.log('[Billing Page] Conditions not met:', {
+        hasActionData: !!actionData,
+        hasSuccess: actionData?.success,
+        hasUrl: !!actionData?.confirmationUrl,
+        actionDataKeys: actionData ? Object.keys(actionData) : []
+      });
     }
   }, [actionData]);
 
