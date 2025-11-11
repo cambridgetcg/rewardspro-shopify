@@ -401,6 +401,66 @@ model BillingSubscription {
   @@index([subscriptionStatus])
 }
 
+// ============================================
+// APP-LEVEL SUBSCRIPTION MODEL (Shopify App Billing)
+// ============================================
+
+model AppSubscription {
+  id                      String    @id @default(uuid())
+  shop                    String    @unique
+
+  // Shopify Subscription Info
+  shopifySubscriptionId   String?   @unique // Full GID: gid://shopify/AppSubscription/123
+  chargeId                String?   // Numeric ID from charge_id parameter
+
+  // Plan Details
+  planName                String    // "RewardsPro Pro", "RewardsPro Max", etc.
+  status                  String    // ACTIVE, CANCELLED, EXPIRED, PENDING
+  test                    Boolean   @default(false)
+
+  // Trial Period
+  trialDays               Int?
+  trialEndsAt             DateTime?
+
+  // Recurring Pricing
+  recurringAmount         Decimal?  @db.Decimal(10, 2)
+  recurringCurrency       String?   // USD, EUR, etc.
+  recurringInterval       String?   // EVERY_30_DAYS, ANNUAL
+
+  // Usage-Based Pricing
+  usageCap                Decimal?  @db.Decimal(10, 2)
+  usageCurrency           String?
+  usageTerms              String?   // Description of usage pricing
+  usageBalanceUsed        Decimal?  @db.Decimal(10, 2)  // Current usage balance
+
+  // Billing Periods
+  currentPeriodEnd        DateTime?
+  nextBillingDate         DateTime?
+
+  // Lifecycle Dates
+  activatedAt             DateTime? // When first activated
+  cancelledAt             DateTime? // When cancelled
+  cancellationReason      String?
+
+  // Webhook Tracking
+  lastWebhookUpdate       DateTime? // Last time webhook updated this
+  webhookUpdateCount      Int       @default(0)
+
+  // Return URL Tracking
+  returnUrlProcessed      Boolean   @default(false) // Has return URL been processed
+  returnUrlProcessedAt    DateTime?
+
+  // Metadata
+  metadata                Json?     // Additional subscription data
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([shop, status])
+  @@index([shopifySubscriptionId])
+  @@index([chargeId])
+  @@index([status, nextBillingDate])
+}
+
 model UsageRecord {
   id                   String              @id @default(uuid())
   shop                 String

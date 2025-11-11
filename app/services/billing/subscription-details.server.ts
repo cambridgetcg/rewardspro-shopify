@@ -250,3 +250,123 @@ export function getRemainingTrialDays(subscription: DetailedSubscription): numbe
 
   return Math.max(0, remainingDays);
 }
+
+/**
+ * Fetch subscription by charge_id (from return URL)
+ *
+ * This is used to verify subscription status immediately after approval.
+ * The charge_id is provided in the return URL query parameters.
+ *
+ * @param admin - Admin API context
+ * @param chargeId - Numeric charge ID from return URL or full GID
+ * @returns Subscription details or null
+ */
+export async function getSubscriptionByChargeId(
+  admin: AdminApiContext,
+  chargeId: string
+): Promise<DetailedSubscription | null> {
+  console.log('[Subscription Details] Fetching subscription by charge_id:', chargeId);
+
+  // Convert to GID if numeric ID provided
+  const subscriptionGid = chargeId.startsWith('gid://')
+    ? chargeId
+    : `gid://shopify/AppSubscription/${chargeId}`;
+
+  const query = `
+    query GetSubscriptionByChargeId($id: ID!) {
+      node(id: $id) {
+        ... on AppSubscription {
+          id
+          name
+          status
+          test
+          trialDays
+          createdAt
+          currentPeriodEnd
+          returnUrl
+          lineItems {
+            id
+            plan {
+              pricingDetails {
+                __typename
+                ... on AppRecurringPricing {
+                  interval
+                  price {
+                    amount
+                    currencyCode
+                  }
+                  discount {
+                    durationLimitInIntervals
+                    priceAfterDiscount {
+                      amount
+                      currencyCode
+                    }
+                    remainingDurationInIntervals
+                    value {
+                      ... on AppSubscriptionDiscountAmount {
+                        amount {
+                          amount
+                          currencyCode
+                        }
+                      }
+                      ... on AppSubscriptionDiscountPercentage {
+                        percentage
+                      }
+                    }
+                  }
+                }
+                ... on AppUsagePricing {
+                  balanceUsed {
+                    amount
+                    currencyCode
+                  }
+                  cappedAmount {
+                    amount
+                    currencyCode
+                  }
+                  interval
+                  terms
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await admin.graphql(query, {
+      variables: {
+        id: subscriptionGid,
+      },
+    });
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error('[Subscription Details] GraphQL errors:', data.errors);
+      return null;
+    }
+
+    const subscription = data.data?.node;
+
+    if (!subscription) {
+      console.warn('[Subscription Details] Subscription not found for charge_id:', chargeId);
+      return null;
+    }
+
+    console.log('[Subscription Details] ✅ Subscription fetched:', {
+      id: subscription.id,
+      name: subscription.name,
+      status: subscription.status,
+      test: subscription.test,
+    });
+
+    return subscription as DetailedSubscription;
+
+  } catch (error) {
+    console.error('[Subscription Details] Error fetching subscription by charge_id:', error);
+    return null;
+  }
+}
