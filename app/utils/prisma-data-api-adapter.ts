@@ -1176,6 +1176,7 @@ export function createDataAPIPrismaClient() {
           syncStatus: new DataAPIModelProxy("SyncStatus", txAuroraClient),
           billingAuditLog: new DataAPIModelProxy("BillingAuditLog", txAuroraClient),
           billingSubscription: new DataAPIModelProxy("BillingSubscription", txAuroraClient),
+          appSubscription: new DataAPIModelProxy("AppSubscription", txAuroraClient),
 
           // Marketing and Analytics models
           emailTemplate: new DataAPIModelProxy("EmailTemplate", txAuroraClient),
@@ -1289,6 +1290,7 @@ export function createDataAPIPrismaClient() {
     syncStatus: new DataAPIModelProxy("SyncStatus", client),
     billingAuditLog: new DataAPIModelProxy("BillingAuditLog", client),
     billingSubscription: new DataAPIModelProxy("BillingSubscription", client),
+    appSubscription: new DataAPIModelProxy("AppSubscription", client),
 
     // Marketing and Analytics models
     emailTemplate: new DataAPIModelProxy("EmailTemplate", client),
