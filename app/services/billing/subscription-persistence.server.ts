@@ -139,6 +139,7 @@ export async function saveSubscription(
   });
 
   // Update shop settings with current plan
+  // Note: currentPlanName column may not exist in production yet, so we'll omit it for now
   await db.shopSettings.upsert({
     where: { shop },
     create: {
@@ -146,12 +147,12 @@ export async function saveSubscription(
       shop,
       storeName: shop, // Default to shop domain
       storeUrl: `https://${shop}`,
-      currentPlanName: subscription.name,
+      // currentPlanName: subscription.name, // Commented out - column may not exist in production
       subscriptionStatus: subscription.status,
       subscriptionUpdatedAt: new Date(),
     },
     update: {
-      currentPlanName: subscription.name,
+      // currentPlanName: subscription.name, // Commented out - column may not exist in production
       subscriptionStatus: subscription.status,
       subscriptionUpdatedAt: new Date(),
     },
