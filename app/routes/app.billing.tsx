@@ -4,7 +4,7 @@
  */
 
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData, useNavigation } from "@remix-run/react";
 import {
   Page,
@@ -241,8 +241,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // But TypeScript needs a return statement
     return json({ success: true });
   } catch (error) {
-    // Handle errors (billing.request() throws redirects, not errors for success)
     console.error(`[Billing Action] Error:`, error);
+
+    // Check if this is a Response object with reauthorize URL (expected Shopify flow)
+    if (error instanceof Response) {
+      const reauthorizeUrl = error.headers.get('x-shopify-api-request-failure-reauthorize-url');
+
+      if (reauthorizeUrl) {
+        console.log(`[Billing Action] Redirecting to Shopify approval page:`, reauthorizeUrl);
+        // This is the expected flow - redirect to Shopify's charge confirmation page
+        throw redirect(reauthorizeUrl);
+      }
+
+      // If it's a Response but no reauthorize URL, return the error
+      const status = error.status;
+      const statusText = error.statusText;
+      return json({
+        success: false,
+        error: `Billing request failed: ${status} ${statusText}`
+      }, { status: status || 500 });
+    }
+
+    // Handle other errors (billing.request() throws redirects, not errors for success)
     return json({
       success: false,
       error: error instanceof Error ? error.message : "An unexpected error occurred"
