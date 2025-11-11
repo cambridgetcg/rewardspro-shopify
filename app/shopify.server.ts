@@ -64,17 +64,24 @@ const shopify = shopifyApp({
         }
       ],
     },
-    // Pro plan - $39/month
+    // Pro plan - $39/month + usage charges
     [PRO_PLAN]: {
       lineItems: [
         {
           amount: 39,
           currencyCode: 'USD',
           interval: BillingInterval.Every30Days,
+        },
+        {
+          amount: 200, // Usage cap
+          currencyCode: 'USD',
+          interval: BillingInterval.Usage,
+          terms: "$10 per 100 additional orders over 500 orders/month (max $200/month)"
         }
       ],
+      trialDays: 7,
     },
-    // Pro Annual - $336/year (28% discount - save $132/year)
+    // Pro Annual - $336/year (28% discount - save $132/year) + usage charges
     // Monthly equivalent: $28/month
     [PRO_ANNUAL_PLAN]: {
       lineItems: [
@@ -82,20 +89,34 @@ const shopify = shopifyApp({
           amount: 336,
           currencyCode: 'USD',
           interval: BillingInterval.Annual,
+        },
+        {
+          amount: 200, // Usage cap
+          currencyCode: 'USD',
+          interval: BillingInterval.Usage,
+          terms: "$10 per 100 additional orders over 500 orders/month (max $200/month)"
         }
       ],
+      trialDays: 7,
     },
-    // Max plan - $149/month
+    // Max plan - $149/month + usage charges
     [MAX_PLAN]: {
       lineItems: [
         {
           amount: 149,
           currencyCode: 'USD',
           interval: BillingInterval.Every30Days,
+        },
+        {
+          amount: 500, // Usage cap
+          currencyCode: 'USD',
+          interval: BillingInterval.Usage,
+          terms: "$5 per 100 additional orders over 2,000 orders/month (max $500/month)"
         }
       ],
+      trialDays: 7,
     },
-    // Max Annual - $1,296/year (27% discount - save $492/year)
+    // Max Annual - $1,296/year (27% discount - save $492/year) + usage charges
     // Monthly equivalent: $108/month
     [MAX_ANNUAL_PLAN]: {
       lineItems: [
@@ -103,10 +124,17 @@ const shopify = shopifyApp({
           amount: 1296,
           currencyCode: 'USD',
           interval: BillingInterval.Annual,
+        },
+        {
+          amount: 500, // Usage cap
+          currencyCode: 'USD',
+          interval: BillingInterval.Usage,
+          terms: "$5 per 100 additional orders over 2,000 orders/month (max $500/month)"
         }
       ],
+      trialDays: 7,
     },
-    // Ultra plan - $499/month (unlimited everything)
+    // Ultra plan - $499/month (unlimited everything - no usage charges)
     [ULTRA_PLAN]: {
       lineItems: [
         {
@@ -115,9 +143,10 @@ const shopify = shopifyApp({
           interval: BillingInterval.Every30Days,
         }
       ],
+      trialDays: 14,
     },
     // Ultra Annual - $4,296/year (28% discount - save $1,692/year)
-    // Monthly equivalent: $358/month
+    // Monthly equivalent: $358/month (unlimited everything - no usage charges)
     [ULTRA_ANNUAL_PLAN]: {
       lineItems: [
         {
@@ -126,6 +155,7 @@ const shopify = shopifyApp({
           interval: BillingInterval.Annual,
         }
       ],
+      trialDays: 14,
     },
     // Enterprise plan - Custom pricing (placeholder - actual pricing negotiated)
     [ENTERPRISE_PLAN]: {
