@@ -5,7 +5,7 @@
  * Provides CRUD operations and webhook-based updates for subscription status tracking.
  */
 
-import db from "~/db.server";
+import { db } from "~/db.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 /**
