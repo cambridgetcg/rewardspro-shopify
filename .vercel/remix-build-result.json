@@ -11,6 +11,7 @@
     },
     "routeIdToServerBundleId": {
       "routes/api.marketing.recommendations.$id.apply": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/webhooks.subscriptions.approaching-cap": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.tier-subscription.cancelled": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.dismiss-customer-account-block": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.tier-subscription.billing": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -38,11 +39,13 @@
       "routes/api.cron.usage-billing": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.storefront.loyalty": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.orders.create": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.test-billing-mode": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.webhook-register": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.orders.paid": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.shop.update": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks.compliance": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.billing.usage": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.test-data-api": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.cron.metrics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.set-currency": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.order-count": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -78,7 +81,6 @@
       "routes/app.settings.store-metrics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings.automation": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.billing": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/app.billing.callback": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app._index": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.locked": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.orders": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0"
@@ -95,6 +97,15 @@
         "parentId": "root",
         "file": "app/routes/api.marketing.recommendations.$id.apply.ts",
         "path": "api/marketing/recommendations/:id/apply",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/webhooks.subscriptions.approaching-cap": {
+        "id": "routes/webhooks.subscriptions.approaching-cap",
+        "parentId": "root",
+        "file": "app/routes/webhooks.subscriptions.approaching-cap.tsx",
+        "path": "webhooks/subscriptions/approaching-cap",
         "config": {
           "runtime": "nodejs"
         }
@@ -342,6 +353,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/api.test-billing-mode": {
+        "id": "routes/api.test-billing-mode",
+        "parentId": "root",
+        "file": "app/routes/api.test-billing-mode.tsx",
+        "path": "api/test-billing-mode",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/api.webhook-register": {
         "id": "routes/api.webhook-register",
         "parentId": "root",
@@ -383,6 +403,15 @@
         "parentId": "root",
         "file": "app/routes/api.billing.usage.tsx",
         "path": "api/billing/usage",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.test-data-api": {
+        "id": "routes/api.test-data-api",
+        "parentId": "root",
+        "file": "app/routes/api.test-data-api.tsx",
+        "path": "api/test-data-api",
         "config": {
           "runtime": "nodejs"
         }
@@ -694,13 +723,6 @@
           "runtime": "nodejs"
         }
       },
-      "routes/app.billing.callback": {
-        "id": "routes/app.billing.callback",
-        "parentId": "routes/app.billing",
-        "file": "app/routes/app.billing.callback.tsx",
-        "path": "callback",
-        "config": {}
-      },
       "routes/app._index": {
         "id": "routes/app._index",
         "parentId": "routes/app",
@@ -756,6 +778,12 @@
         "parentId": "root",
         "file": "routes/api.marketing.recommendations.$id.apply.ts",
         "path": "api/marketing/recommendations/:id/apply"
+      },
+      "routes/webhooks.subscriptions.approaching-cap": {
+        "id": "routes/webhooks.subscriptions.approaching-cap",
+        "parentId": "root",
+        "file": "routes/webhooks.subscriptions.approaching-cap.tsx",
+        "path": "webhooks/subscriptions/approaching-cap"
       },
       "routes/webhooks.tier-subscription.cancelled": {
         "id": "routes/webhooks.tier-subscription.cancelled",
@@ -919,6 +947,12 @@
         "file": "routes/webhooks.orders.create.tsx",
         "path": "webhooks/orders/create"
       },
+      "routes/api.test-billing-mode": {
+        "id": "routes/api.test-billing-mode",
+        "parentId": "root",
+        "file": "routes/api.test-billing-mode.tsx",
+        "path": "api/test-billing-mode"
+      },
       "routes/api.webhook-register": {
         "id": "routes/api.webhook-register",
         "parentId": "root",
@@ -948,6 +982,12 @@
         "parentId": "root",
         "file": "routes/api.billing.usage.tsx",
         "path": "api/billing/usage"
+      },
+      "routes/api.test-data-api": {
+        "id": "routes/api.test-data-api",
+        "parentId": "root",
+        "file": "routes/api.test-data-api.tsx",
+        "path": "api/test-data-api"
       },
       "routes/api.cron.metrics": {
         "id": "routes/api.cron.metrics",
@@ -1165,12 +1205,6 @@
         "parentId": "routes/app",
         "file": "routes/app.billing.tsx",
         "path": "billing"
-      },
-      "routes/app.billing.callback": {
-        "id": "routes/app.billing.callback",
-        "parentId": "routes/app.billing",
-        "file": "routes/app.billing.callback.tsx",
-        "path": "callback"
       },
       "routes/app._index": {
         "id": "routes/app._index",
