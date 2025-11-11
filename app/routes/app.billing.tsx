@@ -23,7 +23,9 @@ import {
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { Redirect } from "@shopify/app-bridge/actions";
 import {
   getAllPlans,
 } from "~/services/billing/plan-subscription.server";
@@ -241,16 +243,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // But TypeScript needs a return statement
     return json({ success: true });
   } catch (error) {
-    console.error(`[Billing Action] Error:`, error);
+    console.log(`[Billing Action] Caught response from billing.request():`, error);
 
     // Check if this is a Response object with reauthorize URL (expected Shopify flow)
     if (error instanceof Response) {
       const reauthorizeUrl = error.headers.get('x-shopify-api-request-failure-reauthorize-url');
 
       if (reauthorizeUrl) {
-        console.log(`[Billing Action] Redirecting to Shopify approval page:`, reauthorizeUrl);
-        // This is the expected flow - redirect to Shopify's charge confirmation page
-        throw redirect(reauthorizeUrl);
+        console.log(`[Billing Action] Got approval URL from Shopify:`, reauthorizeUrl);
+
+        // Return the URL to the client instead of server-side redirect
+        // The client will use App Bridge to break out of iframe and redirect at top level
+        return json({
+          success: true,
+          confirmationUrl: reauthorizeUrl,
+        });
       }
 
       // If it's a Response but no reauthorize URL, return the error
@@ -263,6 +270,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // Handle other errors (billing.request() throws redirects, not errors for success)
+    console.error(`[Billing Action] Unexpected error:`, error);
     return json({
       success: false,
       error: error instanceof Error ? error.message : "An unexpected error occurred"
@@ -280,8 +288,23 @@ export default function BillingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const app = useAppBridge();
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+
+  // Handle redirect to Shopify charge approval page using App Bridge
+  useEffect(() => {
+    if (actionData?.success && actionData?.confirmationUrl) {
+      console.log('[Billing Page] Redirecting to charge approval:', actionData.confirmationUrl);
+
+      // Use App Bridge to redirect - this breaks out of iframe and redirects at top level
+      const redirect = Redirect.create(app);
+      redirect.dispatch(Redirect.Action.REMOTE, {
+        url: actionData.confirmationUrl,
+        newContext: false,
+      });
+    }
+  }, [actionData, app]);
 
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
