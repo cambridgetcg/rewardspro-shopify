@@ -368,10 +368,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Use billing.request() - this will automatically redirect to Shopify's confirmation page
     // and then return the user back to the returnUrl after approval
     // We include success=true to signal return from Shopify, but verify with billing.check()
+    // Include shop parameter so authentication works when Shopify redirects back
     await billing.request({
       plan: planConstant,
       isTest: process.env.NODE_ENV === 'development' || session.shop.includes('.myshopify.com'),
-      returnUrl: `${process.env.SHOPIFY_APP_URL}/app/billing?success=true`,
+      returnUrl: `${process.env.SHOPIFY_APP_URL}/app/billing?success=true&shop=${session.shop}`,
     });
 
     // billing.request() throws a redirect, so this code won't be reached
