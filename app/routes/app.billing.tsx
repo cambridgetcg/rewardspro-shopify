@@ -22,20 +22,20 @@ import {
   ButtonGroup,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
+import { authenticate } from "../shopify.server";
+import { useState } from "react";
 import {
-  authenticate,
+  getAllPlans,
+} from "~/services/billing/plan-subscription.server";
+import { detectNewSubscription } from "~/utils/billing-success-detection.server";
+import {
   PRO_PLAN,
   PRO_ANNUAL_PLAN,
   MAX_PLAN,
   MAX_ANNUAL_PLAN,
   ULTRA_PLAN,
   ULTRA_ANNUAL_PLAN,
-} from "../shopify.server";
-import { useState } from "react";
-import {
-  getAllPlans,
-} from "~/services/billing/plan-subscription.server";
-import { detectNewSubscription } from "~/utils/billing-success-detection.server";
+} from "~/constants/plans";
 
 // Map plan IDs to Shopify plan constants
 function getPlanConstant(planId: string): string {

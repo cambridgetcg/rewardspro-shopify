@@ -9,7 +9,7 @@
 
 import { redirect } from "@remix-run/node";
 
-// Import plan constants from shopify.server.ts
+// Import plan constants from shared constants file
 import {
   PRO_PLAN,
   PRO_ANNUAL_PLAN,
@@ -17,7 +17,7 @@ import {
   MAX_ANNUAL_PLAN,
   ULTRA_PLAN,
   ULTRA_ANNUAL_PLAN,
-} from "../shopify.server";
+} from "~/constants/plans";
 
 // Type for the billing object from authenticate.admin()
 type BillingContext = {
