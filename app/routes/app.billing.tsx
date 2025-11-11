@@ -24,8 +24,6 @@ import {
 import { CheckCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { useState, useEffect } from "react";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { Redirect } from "@shopify/app-bridge/actions";
 import {
   getAllPlans,
 } from "~/services/billing/plan-subscription.server";
@@ -288,7 +286,6 @@ export default function BillingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
-  const app = useAppBridge();
 
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
@@ -297,14 +294,11 @@ export default function BillingPage() {
     if (actionData?.success && actionData?.confirmationUrl) {
       console.log('[Billing Page] Redirecting to charge approval:', actionData.confirmationUrl);
 
-      // Use App Bridge to redirect - this breaks out of iframe and redirects at top level
-      const redirect = Redirect.create(app);
-      redirect.dispatch(Redirect.Action.REMOTE, {
-        url: actionData.confirmationUrl,
-        newContext: false,
-      });
+      // Use window.open with _top to break out of iframe and redirect at top level
+      // This ensures the Shopify charge approval page loads in the main window, not in the iframe
+      window.open(actionData.confirmationUrl, '_top');
     }
-  }, [actionData, app]);
+  }, [actionData]);
 
   const handleSubscribe = (planId: string) => {
     const formData = new FormData();
