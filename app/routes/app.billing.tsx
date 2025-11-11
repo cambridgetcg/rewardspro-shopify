@@ -29,15 +29,6 @@ import {
 } from "~/services/billing/plan-subscription.server";
 import { detectNewSubscription } from "~/utils/billing-success-detection.server";
 import {
-  getSubscriptionDetails,
-  getUsageLineItem,
-  getRecurringLineItem,
-  calculateUsagePercentage,
-  isInTrialPeriod,
-  getRemainingTrialDays,
-  type DetailedSubscription,
-} from "~/services/billing/subscription-details.server";
-import {
   PRO_PLAN,
   PRO_ANNUAL_PLAN,
   MAX_PLAN,
@@ -97,6 +88,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
 
     // Fetch detailed subscription information via GraphQL
+    const {
+      getSubscriptionDetails,
+      getUsageLineItem,
+      getRecurringLineItem,
+      calculateUsagePercentage,
+      isInTrialPeriod,
+      getRemainingTrialDays,
+    } = await import("~/services/billing/subscription-details.server");
+
     const subscriptionDetails = await getSubscriptionDetails(admin);
     const detailedSubscription = subscriptionDetails?.currentAppInstallation.activeSubscriptions[0] || null;
 
@@ -106,6 +106,54 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       trialDays: detailedSubscription?.trialDays,
       lineItemCount: detailedSubscription?.lineItems?.length,
     });
+
+    // Calculate subscription details server-side
+    let subscriptionInfo = null;
+    if (detailedSubscription) {
+      const usageLineItem = getUsageLineItem(detailedSubscription);
+      const recurringLineItem = getRecurringLineItem(detailedSubscription);
+      const usagePercentage = calculateUsagePercentage(usageLineItem);
+      const inTrialPeriod = isInTrialPeriod(detailedSubscription);
+      const remainingTrialDays = getRemainingTrialDays(detailedSubscription);
+
+      subscriptionInfo = {
+        id: detailedSubscription.id,
+        name: detailedSubscription.name,
+        status: detailedSubscription.status,
+        test: detailedSubscription.test,
+        trialDays: detailedSubscription.trialDays,
+        createdAt: detailedSubscription.createdAt,
+        currentPeriodEnd: detailedSubscription.currentPeriodEnd,
+        inTrialPeriod,
+        remainingTrialDays,
+        usagePercentage,
+        recurringCharge: recurringLineItem ? {
+          interval: recurringLineItem.plan.pricingDetails.__typename === 'AppRecurringPricing'
+            ? recurringLineItem.plan.pricingDetails.interval
+            : null,
+          amount: recurringLineItem.plan.pricingDetails.__typename === 'AppRecurringPricing'
+            ? recurringLineItem.plan.pricingDetails.price.amount
+            : null,
+          currencyCode: recurringLineItem.plan.pricingDetails.__typename === 'AppRecurringPricing'
+            ? recurringLineItem.plan.pricingDetails.price.currencyCode
+            : null,
+          discount: recurringLineItem.plan.pricingDetails.__typename === 'AppRecurringPricing'
+            ? recurringLineItem.plan.pricingDetails.discount
+            : null,
+        } : null,
+        usageCharge: usageLineItem ? {
+          balanceUsed: usageLineItem.plan.pricingDetails.__typename === 'AppUsagePricing'
+            ? usageLineItem.plan.pricingDetails.balanceUsed
+            : null,
+          cappedAmount: usageLineItem.plan.pricingDetails.__typename === 'AppUsagePricing'
+            ? usageLineItem.plan.pricingDetails.cappedAmount
+            : null,
+          terms: usageLineItem.plan.pricingDetails.__typename === 'AppUsagePricing'
+            ? usageLineItem.plan.pricingDetails.terms
+            : null,
+        } : null,
+      };
+    }
 
     // Get URL params to detect return from Shopify
     const url = new URL(request.url);
@@ -135,7 +183,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       hasActivePayment: billingCheck.hasActivePayment,
       appSubscriptions: billingCheck.appSubscriptions,
       oneTimePurchases: billingCheck.oneTimePurchases,
-      detailedSubscription,
+      subscriptionInfo,
       justSubscribed,
       cancelled,
       newSubscriptionPlan: justSubscribed ? billingCheck.appSubscriptions[0]?.name : null,
@@ -226,13 +274,8 @@ export default function BillingPage() {
   const currentPlan = currentSubscription?.name;
   const isCurrentPlanActive = data.hasActivePayment;
 
-  // Get detailed subscription data
-  const detailedSubscription = data.detailedSubscription;
-  const usageLineItem = detailedSubscription ? getUsageLineItem(detailedSubscription) : null;
-  const recurringLineItem = detailedSubscription ? getRecurringLineItem(detailedSubscription) : null;
-  const usagePercentage = calculateUsagePercentage(usageLineItem);
-  const inTrialPeriod = detailedSubscription ? isInTrialPeriod(detailedSubscription) : false;
-  const remainingTrialDays = detailedSubscription ? getRemainingTrialDays(detailedSubscription) : 0;
+  // Get detailed subscription data (pre-calculated in loader)
+  const subscriptionInfo = data.subscriptionInfo;
 
   // Define plan UI configurations with both monthly and annual pricing
   const planCards = [
@@ -340,7 +383,7 @@ export default function BillingPage() {
             )}
 
             {/* Current Plan Info */}
-            {currentPlan && detailedSubscription && (
+            {currentPlan && subscriptionInfo && (
               <Card>
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="start">
@@ -354,7 +397,7 @@ export default function BillingPage() {
                     </BlockStack>
                     <BlockStack gap="200" inlineAlign="end">
                       <Badge tone="success">Active</Badge>
-                      {detailedSubscription.test && (
+                      {subscriptionInfo.test && (
                         <Badge tone="info">Test Mode</Badge>
                       )}
                     </BlockStack>
@@ -363,7 +406,7 @@ export default function BillingPage() {
                   <Divider />
 
                   {/* Trial Period Information */}
-                  {inTrialPeriod && (
+                  {subscriptionInfo.inTrialPeriod && (
                     <Box background="bg-surface-success" padding="400" borderRadius="200">
                       <BlockStack gap="200">
                         <InlineStack gap="200" blockAlign="center">
@@ -373,11 +416,11 @@ export default function BillingPage() {
                           </Text>
                         </InlineStack>
                         <Text as="p" tone="subdued">
-                          {remainingTrialDays} {remainingTrialDays === 1 ? 'day' : 'days'} remaining in your {detailedSubscription.trialDays}-day trial
+                          {subscriptionInfo.remainingTrialDays} {subscriptionInfo.remainingTrialDays === 1 ? 'day' : 'days'} remaining in your {subscriptionInfo.trialDays}-day trial
                         </Text>
-                        {detailedSubscription.currentPeriodEnd && (
+                        {subscriptionInfo.currentPeriodEnd && (
                           <Text as="p" variant="bodySm" tone="subdued">
-                            Trial ends: {new Date(detailedSubscription.currentPeriodEnd).toLocaleDateString()}
+                            Trial ends: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString()}
                           </Text>
                         )}
                       </BlockStack>
@@ -385,29 +428,29 @@ export default function BillingPage() {
                   )}
 
                   {/* Recurring Pricing */}
-                  {recurringLineItem && recurringLineItem.plan.pricingDetails.__typename === 'AppRecurringPricing' && (
+                  {subscriptionInfo.recurringCharge && subscriptionInfo.recurringCharge.amount && (
                     <BlockStack gap="200">
                       <Text as="p" variant="headingSm">
                         Recurring Charge
                       </Text>
                       <InlineStack align="space-between">
                         <Text as="p" tone="subdued">
-                          {recurringLineItem.plan.pricingDetails.interval === 'EVERY_30_DAYS' ? 'Monthly' : 'Annual'} subscription
+                          {subscriptionInfo.recurringCharge.interval === 'EVERY_30_DAYS' ? 'Monthly' : 'Annual'} subscription
                         </Text>
                         <Text as="p" variant="headingMd">
-                          ${parseFloat(recurringLineItem.plan.pricingDetails.price.amount).toFixed(2)} {recurringLineItem.plan.pricingDetails.price.currencyCode}
+                          ${parseFloat(subscriptionInfo.recurringCharge.amount).toFixed(2)} {subscriptionInfo.recurringCharge.currencyCode}
                         </Text>
                       </InlineStack>
-                      {recurringLineItem.plan.pricingDetails.discount && (
+                      {subscriptionInfo.recurringCharge.discount && (
                         <Text as="p" variant="bodySm" tone="success">
-                          💰 Discount applied: {recurringLineItem.plan.pricingDetails.discount.remainingDurationInIntervals} billing cycles remaining
+                          💰 Discount applied: {subscriptionInfo.recurringCharge.discount.remainingDurationInIntervals} billing cycles remaining
                         </Text>
                       )}
                     </BlockStack>
                   )}
 
                   {/* Usage Pricing */}
-                  {usageLineItem && usageLineItem.plan.pricingDetails.__typename === 'AppUsagePricing' && (
+                  {subscriptionInfo.usageCharge && subscriptionInfo.usageCharge.terms && (
                     <>
                       <Divider />
                       <BlockStack gap="300">
@@ -415,43 +458,45 @@ export default function BillingPage() {
                           Usage-Based Charges
                         </Text>
                         <Text as="p" variant="bodySm" tone="subdued">
-                          {usageLineItem.plan.pricingDetails.terms}
+                          {subscriptionInfo.usageCharge.terms}
                         </Text>
 
                         {/* Usage Progress Bar */}
-                        <BlockStack gap="200">
-                          <InlineStack align="space-between">
-                            <Text as="p" tone="subdued">
-                              Current usage
-                            </Text>
-                            <Text as="p" variant="bodyMd">
-                              ${parseFloat(usageLineItem.plan.pricingDetails.balanceUsed.amount).toFixed(2)} / ${parseFloat(usageLineItem.plan.pricingDetails.cappedAmount.amount).toFixed(2)}
-                            </Text>
-                          </InlineStack>
-                          <Box
-                            background="bg-surface-secondary"
-                            padding="0"
-                            borderRadius="100"
-                            minHeight="8px"
-                          >
+                        {subscriptionInfo.usageCharge.balanceUsed && subscriptionInfo.usageCharge.cappedAmount && (
+                          <BlockStack gap="200">
+                            <InlineStack align="space-between">
+                              <Text as="p" tone="subdued">
+                                Current usage
+                              </Text>
+                              <Text as="p" variant="bodyMd">
+                                ${parseFloat(subscriptionInfo.usageCharge.balanceUsed.amount).toFixed(2)} / ${parseFloat(subscriptionInfo.usageCharge.cappedAmount.amount).toFixed(2)}
+                              </Text>
+                            </InlineStack>
                             <Box
-                              background={usagePercentage > 80 ? "bg-fill-critical" : usagePercentage > 50 ? "bg-fill-warning" : "bg-fill-success"}
+                              background="bg-surface-secondary"
                               padding="0"
                               borderRadius="100"
                               minHeight="8px"
-                              style={{ width: `${usagePercentage}%` }}
-                            />
-                          </Box>
-                          <Text as="p" variant="bodySm" tone={usagePercentage > 80 ? "critical" : "subdued"}>
-                            {usagePercentage}% of usage cap reached
-                          </Text>
-                        </BlockStack>
+                            >
+                              <Box
+                                background={subscriptionInfo.usagePercentage > 80 ? "bg-fill-critical" : subscriptionInfo.usagePercentage > 50 ? "bg-fill-warning" : "bg-fill-success"}
+                                padding="0"
+                                borderRadius="100"
+                                minHeight="8px"
+                                style={{ width: `${subscriptionInfo.usagePercentage}%` }}
+                              />
+                            </Box>
+                            <Text as="p" variant="bodySm" tone={subscriptionInfo.usagePercentage > 80 ? "critical" : "subdued"}>
+                              {subscriptionInfo.usagePercentage}% of usage cap reached
+                            </Text>
+                          </BlockStack>
+                        )}
                       </BlockStack>
                     </>
                   )}
 
                   {/* Subscription Period */}
-                  {detailedSubscription.currentPeriodEnd && !inTrialPeriod && (
+                  {subscriptionInfo.currentPeriodEnd && !subscriptionInfo.inTrialPeriod && (
                     <>
                       <Divider />
                       <InlineStack align="space-between">
@@ -459,7 +504,7 @@ export default function BillingPage() {
                           Current period ends
                         </Text>
                         <Text as="p">
-                          {new Date(detailedSubscription.currentPeriodEnd).toLocaleDateString()}
+                          {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString()}
                         </Text>
                       </InlineStack>
                     </>
@@ -467,14 +512,14 @@ export default function BillingPage() {
 
                   {/* Subscription ID (for support) */}
                   <Text as="p" variant="bodySm" tone="subdued">
-                    Subscription ID: {detailedSubscription.id.split('/').pop()}
+                    Subscription ID: {subscriptionInfo.id.split('/').pop()}
                   </Text>
                 </BlockStack>
               </Card>
             )}
 
             {/* Fallback for basic subscription info if detailed data not available */}
-            {currentPlan && !detailedSubscription && (
+            {currentPlan && !subscriptionInfo && (
               <Card>
                 <BlockStack gap="400">
                   <InlineStack align="space-between">
