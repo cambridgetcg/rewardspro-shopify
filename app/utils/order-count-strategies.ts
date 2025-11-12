@@ -400,13 +400,15 @@ export async function incrementMonthlyOrderCount(
     });
 
     if (existing) {
-      // Increment existing record using ID (Aurora Data API compatible)
+      // Calculate new count manually (Aurora Data API doesn't support { increment: 1 })
+      const newCount = existing.orderCount + 1;
+
       await db.monthlyOrderUsage.update({
         where: {
           id: existing.id
         },
         data: {
-          orderCount: { increment: 1 },
+          orderCount: newCount,
           // Optionally update plan info if provided
           ...(planLimit !== undefined && { planLimit }),
           ...(planName !== undefined && { planName }),
@@ -416,7 +418,7 @@ export async function incrementMonthlyOrderCount(
 
       console.log(`[IncrementOrderCount] ✅ Incremented count for ${shop}`, {
         previousCount: existing.orderCount,
-        newCount: existing.orderCount + 1,
+        newCount: newCount,
         planLimit: planLimit ?? existing.planLimit,
         planName: planName ?? existing.planName
       });
