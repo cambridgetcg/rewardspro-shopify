@@ -12,6 +12,7 @@ import {
   Card,
   BlockStack,
   InlineStack,
+  InlineGrid,
   Text,
   Button,
   Banner,
@@ -20,10 +21,12 @@ import {
   Divider,
   Icon,
   ButtonGroup,
+  ProgressBar,
 } from "@shopify/polaris";
 import { CheckCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import { useState, useEffect } from "react";
+import db from "../db.server";
 import {
   getAllPlans,
 } from "~/services/billing/plan-subscription.server";
@@ -304,6 +307,43 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Get all available plans for UI
     const plans = getAllPlans();
 
+    // Fetch usage metrics for dashboard-style card
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    let usageMetrics = null;
+    try {
+      const monthlyUsage = await db.monthlyOrderUsage.findFirst({
+        where: {
+          shop: session.shop,
+          year: year,
+          month: month
+        }
+      });
+
+      if (monthlyUsage) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const dayOfMonth = now.getDate();
+        const daysRemaining = daysInMonth - dayOfMonth;
+        const averageDailyOrders = dayOfMonth > 0 ? Math.round(monthlyUsage.orderCount / dayOfMonth) : 0;
+        const usagePercentage = monthlyUsage.planLimit > 0
+          ? Math.min((monthlyUsage.orderCount / monthlyUsage.planLimit) * 100, 100)
+          : 0;
+
+        usageMetrics = {
+          ordersUsed: monthlyUsage.orderCount,
+          ordersLimit: monthlyUsage.planLimit,
+          usagePercentage,
+          daysRemaining,
+          averageDailyOrders
+        };
+      }
+    } catch (error) {
+      console.error('[Billing Loader] Error fetching usage metrics:', error);
+      // Continue without usage metrics
+    }
+
     const loaderData = {
       hasActivePayment: billingCheck.hasActivePayment,
       appSubscriptions: billingCheck.appSubscriptions,
@@ -314,6 +354,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       newSubscriptionPlan: justSubscribed ? billingCheck.appSubscriptions[0]?.name : null,
       plans,
       shop: session.shop,
+      usageMetrics,
     };
 
     console.log('[Billing Loader] Returning loader data:', {
@@ -594,53 +635,130 @@ export default function BillingPage() {
               </Banner>
             )}
 
-            {/* Current Plan Info - Simplified */}
+            {/* Current Plan Info - Dashboard Style (Variation C) */}
             {currentPlan && subscriptionInfo && (
               <Card>
-                <BlockStack gap="300">
-                  {/* Plan Header */}
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text as="h2" variant="headingLg">
-                      {currentPlan.replace('RewardsPro', 'Rewards')}
-                    </Text>
-                    <InlineStack gap="200">
-                      <Badge tone="success">Active</Badge>
-                      {subscriptionInfo.test && <Badge tone="info">Test</Badge>}
-                    </InlineStack>
-                  </InlineStack>
+                <BlockStack gap="400">
+                  {/* Status Header */}
+                  <Box
+                    padding="400"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text variant="headingMd" as="h3" fontWeight="semibold">
+                          {currentPlan.replace('RewardsPro', 'Rewards')}
+                        </Text>
+                        <InlineStack gap="200">
+                          <Badge tone="success">ACTIVE</Badge>
+                          {subscriptionInfo.test && <Badge tone="info">TEST</Badge>}
+                        </InlineStack>
+                      </InlineStack>
 
-                  {/* Pricing - Compact */}
-                  <InlineStack gap="400" wrap={false}>
-                    {/* Recurring Price */}
-                    {subscriptionInfo.recurringCharge?.amount && (
-                      <BlockStack gap="100">
-                        <Text as="p" tone="subdued" variant="bodySm">
-                          {subscriptionInfo.recurringCharge.interval === 'EVERY_30_DAYS' ? 'Monthly' : 'Annual'}
-                        </Text>
-                        <Text as="p" variant="headingMd">
-                          ${parseFloat(subscriptionInfo.recurringCharge.amount).toFixed(0)}/{subscriptionInfo.recurringCharge.interval === 'EVERY_30_DAYS' ? 'mo' : 'yr'}
-                        </Text>
+                      <InlineGrid columns={2} gap="400">
+                        <BlockStack gap="050">
+                          <Text variant="bodySm" tone="subdued">
+                            Plan Rate
+                          </Text>
+                          <Text variant="headingLg" as="p">
+                            ${subscriptionInfo.recurringCharge?.amount ? parseFloat(subscriptionInfo.recurringCharge.amount).toFixed(0) : '0'}
+                          </Text>
+                        </BlockStack>
+
+                        <BlockStack gap="050" inlineAlign="end">
+                          <Text variant="bodySm" tone="subdued">
+                            Billing
+                          </Text>
+                          <Text variant="headingLg" as="p">
+                            {subscriptionInfo.recurringCharge?.interval === 'EVERY_30_DAYS' ? 'Monthly' : 'Annual'}
+                          </Text>
+                        </BlockStack>
+                      </InlineGrid>
+                    </BlockStack>
+                  </Box>
+
+                  {/* Usage Monitor */}
+                  {data.usageMetrics && (
+                    <Box
+                      padding="400"
+                      background="bg-surface"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="300">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodySm" fontWeight="semibold">
+                            Order Usage
+                          </Text>
+                          <Text variant="bodySm" tone="subdued">
+                            {data.usageMetrics.usagePercentage.toFixed(1)}%
+                          </Text>
+                        </InlineStack>
+
+                        <ProgressBar
+                          progress={data.usageMetrics.usagePercentage}
+                          tone={data.usageMetrics.usagePercentage > 90 ? 'critical' : data.usageMetrics.usagePercentage > 75 ? 'warning' : 'success'}
+                        />
+
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="headingLg" as="p">
+                            {data.usageMetrics.ordersUsed.toLocaleString()}
+                          </Text>
+                          <Text variant="bodySm" tone="subdued">
+                            of {data.usageMetrics.ordersLimit.toLocaleString()}
+                          </Text>
+                        </InlineStack>
                       </BlockStack>
-                    )}
+                    </Box>
+                  )}
 
-                    {/* Usage Cap */}
-                    {subscriptionInfo.usageCharge?.cappedAmount && (
-                      <BlockStack gap="100">
-                        <Text as="p" tone="subdued" variant="bodySm">
-                          Usage cap
-                        </Text>
-                        <Text as="p" variant="headingMd">
-                          ${parseFloat(subscriptionInfo.usageCharge.cappedAmount.amount).toFixed(0)}/{subscriptionInfo.recurringCharge?.interval === 'EVERY_30_DAYS' ? 'mo' : 'yr'}
-                        </Text>
+                  {/* Billing Cycle Info */}
+                  {data.usageMetrics && (
+                    <Box
+                      padding="400"
+                      background="bg-surface-secondary"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="200">
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">
+                            Current Period
+                          </Text>
+                          <Text variant="bodyMd" fontWeight="medium">
+                            {data.usageMetrics.daysRemaining} days remaining
+                          </Text>
+                        </InlineStack>
+
+                        <Divider />
+
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">
+                            Daily average
+                          </Text>
+                          <Text variant="bodyMd" fontWeight="medium">
+                            {data.usageMetrics.averageDailyOrders} orders/day
+                          </Text>
+                        </InlineStack>
                       </BlockStack>
-                    )}
-                  </InlineStack>
+                    </Box>
+                  )}
 
-                  {/* Next Billing Date */}
+                  {/* Next Billing */}
                   {subscriptionInfo.currentPeriodEnd && (
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Next billing: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </Text>
+                    <Box
+                      padding="300"
+                      background="bg-surface"
+                      borderRadius="200"
+                    >
+                      <BlockStack gap="100">
+                        <Text variant="bodySm" fontWeight="semibold">
+                          Next Billing Event
+                        </Text>
+                        <Text variant="bodySm" tone="subdued">
+                          {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} • ${subscriptionInfo.recurringCharge?.amount ? parseFloat(subscriptionInfo.recurringCharge.amount).toFixed(2) : '0.00'}
+                        </Text>
+                      </BlockStack>
+                    </Box>
                   )}
                 </BlockStack>
               </Card>
