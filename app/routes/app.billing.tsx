@@ -574,9 +574,6 @@ export default function BillingPage() {
                     You're now subscribed to <strong>{data.newSubscriptionPlan}</strong>.
                     {currentSubscription?.test && ' (Test Mode)'}
                   </Text>
-                  <Text as="p" tone="subdued">
-                    Your trial period has started. You won't be charged until the trial ends.
-                  </Text>
                 </BlockStack>
               </Banner>
             )}
@@ -612,17 +609,6 @@ export default function BillingPage() {
                     </InlineStack>
                   </InlineStack>
 
-                  {/* Trial Period - Condensed */}
-                  {subscriptionInfo.inTrialPeriod && (
-                    <InlineStack gap="200" blockAlign="center">
-                      <Icon source={CheckCircleIcon} tone="success" />
-                      <Text as="p">
-                        <Text as="span" fontWeight="semibold">Free trial:</Text>{' '}
-                        {subscriptionInfo.remainingTrialDays} {subscriptionInfo.remainingTrialDays === 1 ? 'day' : 'days'} remaining
-                      </Text>
-                    </InlineStack>
-                  )}
-
                   {/* Pricing - Compact */}
                   <InlineStack gap="400" wrap={false}>
                     {/* Recurring Price */}
@@ -653,7 +639,7 @@ export default function BillingPage() {
                   {/* Next Billing Date */}
                   {subscriptionInfo.currentPeriodEnd && (
                     <Text as="p" variant="bodySm" tone="subdued">
-                      {subscriptionInfo.inTrialPeriod ? 'Billing starts' : 'Next billing'}: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      Next billing: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </Text>
                   )}
                 </BlockStack>
