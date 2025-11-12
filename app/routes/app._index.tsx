@@ -355,6 +355,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const updateData: any = {};
     updateData[feature] = enabled;
 
+    // Log the feature toggle change
+    console.log(`[Feature Manager] Shop "${shop}" ${enabled ? 'enabled' : 'disabled'} feature: ${feature}`);
+
+    // Special logging for Automatic Cashback Processing
+    if (feature === 'autoCashbackProcessingEnabled') {
+      console.log(`[Feature Manager] ⚠️  Automatic Cashback Processing is now ${enabled ? 'ENABLED' : 'DISABLED'} for ${shop}`);
+      console.log(`[Feature Manager] Future orders will ${enabled ? 'automatically earn' : 'NOT automatically earn'} cashback rewards`);
+    }
+
     await db.shopSettings.update({
       where: { shop },
       data: updateData,
