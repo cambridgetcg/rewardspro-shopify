@@ -597,138 +597,65 @@ export default function BillingPage() {
               </Banner>
             )}
 
-            {/* Current Plan Info */}
+            {/* Current Plan Info - Simplified */}
             {currentPlan && subscriptionInfo && (
               <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="start">
-                    <BlockStack gap="200">
-                      <Text as="h2" variant="headingMd">
-                        Current Plan
-                      </Text>
-                      <Text as="p" variant="bodyLg">
-                        {currentPlan.replace('RewardsPro', 'Rewards')}
-                      </Text>
-                    </BlockStack>
-                    <BlockStack gap="200" inlineAlign="end">
+                <BlockStack gap="300">
+                  {/* Plan Header */}
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingLg">
+                      {currentPlan.replace('RewardsPro', 'Rewards')}
+                    </Text>
+                    <InlineStack gap="200">
                       <Badge tone="success">Active</Badge>
-                      {subscriptionInfo.test && (
-                        <Badge tone="info">Test Mode</Badge>
-                      )}
-                    </BlockStack>
+                      {subscriptionInfo.test && <Badge tone="info">Test</Badge>}
+                    </InlineStack>
                   </InlineStack>
 
-                  <Divider />
-
-                  {/* Trial Period Information */}
+                  {/* Trial Period - Condensed */}
                   {subscriptionInfo.inTrialPeriod && (
-                    <Box background="bg-surface-success" padding="400" borderRadius="200">
-                      <BlockStack gap="200">
-                        <InlineStack gap="200" blockAlign="center">
-                          <Icon source={CheckCircleIcon} tone="success" />
-                          <Text as="p" variant="headingSm" tone="success">
-                            Free Trial Active
-                          </Text>
-                        </InlineStack>
-                        <Text as="p" tone="subdued">
-                          {subscriptionInfo.remainingTrialDays} {subscriptionInfo.remainingTrialDays === 1 ? 'day' : 'days'} remaining in your {subscriptionInfo.trialDays}-day trial
-                        </Text>
-                        {subscriptionInfo.currentPeriodEnd && (
-                          <Text as="p" variant="bodySm" tone="subdued">
-                            Trial ends: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString()}
-                          </Text>
-                        )}
-                      </BlockStack>
-                    </Box>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Icon source={CheckCircleIcon} tone="success" />
+                      <Text as="p">
+                        <Text as="span" fontWeight="semibold">Free trial:</Text>{' '}
+                        {subscriptionInfo.remainingTrialDays} {subscriptionInfo.remainingTrialDays === 1 ? 'day' : 'days'} remaining
+                      </Text>
+                    </InlineStack>
                   )}
 
-                  {/* Recurring Pricing */}
-                  {subscriptionInfo.recurringCharge && subscriptionInfo.recurringCharge.amount && (
-                    <BlockStack gap="200">
-                      <Text as="p" variant="headingSm">
-                        Recurring Charge
-                      </Text>
-                      <InlineStack align="space-between">
-                        <Text as="p" tone="subdued">
-                          {subscriptionInfo.recurringCharge.interval === 'EVERY_30_DAYS' ? 'Monthly' : 'Annual'} subscription
+                  {/* Pricing - Compact */}
+                  <InlineStack gap="400" wrap={false}>
+                    {/* Recurring Price */}
+                    {subscriptionInfo.recurringCharge?.amount && (
+                      <BlockStack gap="100">
+                        <Text as="p" tone="subdued" variant="bodySm">
+                          {subscriptionInfo.recurringCharge.interval === 'EVERY_30_DAYS' ? 'Monthly' : 'Annual'}
                         </Text>
                         <Text as="p" variant="headingMd">
-                          ${parseFloat(subscriptionInfo.recurringCharge.amount).toFixed(2)} {subscriptionInfo.recurringCharge.currencyCode}
+                          ${parseFloat(subscriptionInfo.recurringCharge.amount).toFixed(0)}/{subscriptionInfo.recurringCharge.interval === 'EVERY_30_DAYS' ? 'mo' : 'yr'}
                         </Text>
-                      </InlineStack>
-                      {subscriptionInfo.recurringCharge.discount && (
-                        <Text as="p" variant="bodySm" tone="success">
-                          💰 Discount applied: {subscriptionInfo.recurringCharge.discount.remainingDurationInIntervals} billing cycles remaining
-                        </Text>
-                      )}
-                    </BlockStack>
-                  )}
-
-                  {/* Usage Pricing */}
-                  {subscriptionInfo.usageCharge && subscriptionInfo.usageCharge.terms && (
-                    <>
-                      <Divider />
-                      <BlockStack gap="300">
-                        <Text as="p" variant="headingSm">
-                          Usage-Based Charges
-                        </Text>
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          {subscriptionInfo.usageCharge.terms}
-                        </Text>
-
-                        {/* Usage Progress Bar */}
-                        {subscriptionInfo.usageCharge.balanceUsed && subscriptionInfo.usageCharge.cappedAmount && (
-                          <BlockStack gap="200">
-                            <InlineStack align="space-between">
-                              <Text as="p" tone="subdued">
-                                Current usage
-                              </Text>
-                              <Text as="p" variant="bodyMd">
-                                ${parseFloat(subscriptionInfo.usageCharge.balanceUsed.amount).toFixed(2)} / ${parseFloat(subscriptionInfo.usageCharge.cappedAmount.amount).toFixed(2)}
-                              </Text>
-                            </InlineStack>
-                            <Box
-                              background="bg-surface-secondary"
-                              padding="0"
-                              borderRadius="100"
-                              minHeight="8px"
-                            >
-                              <Box
-                                background={subscriptionInfo.usagePercentage > 80 ? "bg-fill-critical" : subscriptionInfo.usagePercentage > 50 ? "bg-fill-warning" : "bg-fill-success"}
-                                padding="0"
-                                borderRadius="100"
-                                minHeight="8px"
-                                style={{ width: `${subscriptionInfo.usagePercentage}%` }}
-                              />
-                            </Box>
-                            <Text as="p" variant="bodySm" tone={subscriptionInfo.usagePercentage > 80 ? "critical" : "subdued"}>
-                              {subscriptionInfo.usagePercentage}% of usage cap reached
-                            </Text>
-                          </BlockStack>
-                        )}
                       </BlockStack>
-                    </>
-                  )}
+                    )}
 
-                  {/* Subscription Period */}
-                  {subscriptionInfo.currentPeriodEnd && !subscriptionInfo.inTrialPeriod && (
-                    <>
-                      <Divider />
-                      <InlineStack align="space-between">
-                        <Text as="p" tone="subdued">
-                          Current period ends
+                    {/* Usage Cap */}
+                    {subscriptionInfo.usageCharge?.cappedAmount && (
+                      <BlockStack gap="100">
+                        <Text as="p" tone="subdued" variant="bodySm">
+                          Usage cap
                         </Text>
-                        <Text as="p">
-                          {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString()}
+                        <Text as="p" variant="headingMd">
+                          ${parseFloat(subscriptionInfo.usageCharge.cappedAmount.amount).toFixed(0)}/{subscriptionInfo.recurringCharge?.interval === 'EVERY_30_DAYS' ? 'mo' : 'yr'}
                         </Text>
-                      </InlineStack>
-                    </>
-                  )}
+                      </BlockStack>
+                    )}
+                  </InlineStack>
 
-                  {/* Subscription ID (for support) */}
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Subscription ID: {subscriptionInfo.id.split('/').pop()}
-                  </Text>
+                  {/* Next Billing Date */}
+                  {subscriptionInfo.currentPeriodEnd && (
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {subscriptionInfo.inTrialPeriod ? 'Billing starts' : 'Next billing'}: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </Text>
+                  )}
                 </BlockStack>
               </Card>
             )}
