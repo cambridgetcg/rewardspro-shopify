@@ -741,6 +741,17 @@ async function processCashback(tx: any, params: {
 }) {
   const { shop, order, admin } = params;
 
+  // Check if automatic cashback processing is enabled
+  const shopSettings = await tx.shopSettings.findUnique({
+    where: { shop },
+    select: { autoCashbackProcessingEnabled: true }
+  });
+
+  if (!shopSettings?.autoCashbackProcessingEnabled) {
+    console.log('[OrderPaid] Automatic cashback processing is disabled for this shop - skipping cashback');
+    return;
+  }
+
   if (!order.customer?.id) {
     console.log('[OrderPaid] No customer ID, skipping cashback');
     return;

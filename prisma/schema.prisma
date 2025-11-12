@@ -118,7 +118,7 @@ model ShopSettings {
 
   // Feature Toggles (enable/disable specific features)
   advancedAnalyticsEnabled      Boolean       @default(true)   // Advanced analytics features
-  autoCashbackProcessingEnabled Boolean       @default(true)   // Automatic cashback processing
+  autoCashbackProcessingEnabled Boolean       @default(false)  // Automatic cashback processing
   emailMarketingEnabled         Boolean       @default(false)  // Email marketing campaigns
   tierProductsEnabled           Boolean       @default(true)   // Tier products module
 
