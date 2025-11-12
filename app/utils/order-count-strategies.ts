@@ -354,5 +354,93 @@ export async function countOrdersWithFallback(
   return { count: 0, strategy: "none" };
 }
 
+/**
+ * Increment monthly order count for real-time usage tracking
+ * Called from orders.create webhook to track all orders
+ *
+ * @param shop - Shop domain
+ * @param orderCreatedAt - When the order was created in Shopify (from webhook payload)
+ * @param planLimit - Optional plan limit to set (defaults to existing or 100)
+ * @param planName - Optional plan name to set (defaults to existing or "RewardsPro Free")
+ */
+export async function incrementMonthlyOrderCount(
+  shop: string,
+  orderCreatedAt: string | Date,
+  planLimit?: number,
+  planName?: string
+): Promise<void> {
+  try {
+    // Parse the order creation date
+    const orderDate = new Date(orderCreatedAt);
+    const year = orderDate.getFullYear();
+    const month = orderDate.getMonth() + 1; // 1-12
+
+    console.log(`[IncrementOrderCount] Processing order for ${shop}`, {
+      orderDate: orderDate.toISOString(),
+      year,
+      month,
+      targetPeriod: `${year}-${month.toString().padStart(2, '0')}`
+    });
+
+    // Get existing record to preserve plan info
+    const existing = await db.monthlyOrderUsage.findUnique({
+      where: {
+        shop_year_month: { shop, year, month }
+      }
+    });
+
+    if (existing) {
+      // Increment existing record
+      await db.monthlyOrderUsage.update({
+        where: {
+          shop_year_month: { shop, year, month }
+        },
+        data: {
+          orderCount: { increment: 1 },
+          // Optionally update plan info if provided
+          ...(planLimit !== undefined && { planLimit }),
+          ...(planName !== undefined && { planName }),
+          updatedAt: new Date()
+        }
+      });
+
+      console.log(`[IncrementOrderCount] ✅ Incremented count for ${shop}`, {
+        previousCount: existing.orderCount,
+        newCount: existing.orderCount + 1,
+        planLimit: planLimit ?? existing.planLimit,
+        planName: planName ?? existing.planName
+      });
+    } else {
+      // Create new record starting at 1
+      await db.monthlyOrderUsage.create({
+        data: {
+          id: crypto.randomUUID(),
+          shop,
+          year,
+          month,
+          orderCount: 1,
+          planLimit: planLimit ?? 100, // Default to Free plan
+          planName: planName ?? "RewardsPro Free",
+          isLocked: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      });
+
+      console.log(`[IncrementOrderCount] ✅ Created new usage record for ${shop}`, {
+        year,
+        month,
+        orderCount: 1,
+        planLimit: planLimit ?? 100,
+        planName: planName ?? "RewardsPro Free"
+      });
+    }
+
+  } catch (error) {
+    console.error(`[IncrementOrderCount] ❌ Failed to increment count for ${shop}:`, error);
+    // Don't throw - this is non-critical tracking that shouldn't fail webhooks
+  }
+}
+
 // Helper for crypto
 import * as crypto from 'crypto';
