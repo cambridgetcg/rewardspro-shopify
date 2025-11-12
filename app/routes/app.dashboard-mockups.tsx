@@ -4,7 +4,6 @@ import { useLoaderData } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import {
   Page,
-  Layout,
   Card,
   Text,
   BlockStack,
@@ -266,10 +265,8 @@ export default function DashboardMockups() {
     <Frame>
       {toastMarkup}
       <Page title="Feature Manager Layout Options" subtitle="Shopify Design Philosophy Aligned">
-        <Layout>
         {/* Option P: Compact Professional List */}
-        <Layout.Section variant="oneThird">
-          <Card>
+        <Card>
             <BlockStack gap="400">
               <Box paddingBlockEnd="200">
                 <BlockStack gap="100">
@@ -418,11 +415,9 @@ export default function DashboardMockups() {
               </Text>
             </BlockStack>
           </Card>
-        </Layout.Section>
 
         {/* Option Q: Impact-Based Cards */}
-        <Layout.Section variant="oneThird">
-          <Card>
+        <Card>
             <BlockStack gap="400">
               <Box paddingBlockEnd="200">
                 <BlockStack gap="100">
@@ -581,11 +576,9 @@ export default function DashboardMockups() {
               </BlockStack>
             </BlockStack>
           </Card>
-        </Layout.Section>
 
         {/* Option R: Data Table Style */}
-        <Layout.Section variant="oneThird">
-          <Card>
+        <Card>
             <BlockStack gap="400">
               <Box paddingBlockEnd="200">
                 <BlockStack gap="100">
@@ -786,9 +779,7 @@ export default function DashboardMockups() {
               </InlineStack>
             </BlockStack>
           </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
+      </Page>
     </Frame>
   );
 }
