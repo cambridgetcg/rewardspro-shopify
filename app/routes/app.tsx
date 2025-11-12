@@ -86,14 +86,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           const now = new Date();
           const year = now.getFullYear();
           const month = now.getMonth() + 1;
-          
-          const monthlyUsage = await db.monthlyOrderUsage.findUnique({
+
+          // Note: Using findFirst instead of findUnique for Aurora Data API compatibility
+          const monthlyUsage = await db.monthlyOrderUsage.findFirst({
             where: {
-              shop_year_month: {
-                shop: session.shop,
-                year,
-                month
-              }
+              shop: session.shop,
+              year: year,
+              month: month
             }
           });
           

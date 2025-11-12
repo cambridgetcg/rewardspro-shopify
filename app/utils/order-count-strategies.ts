@@ -163,13 +163,12 @@ export async function getOrCreateMonthlyCount(
 ): Promise<number> {
   try {
     // Check if we have a cached count
-    const cached = await db.monthlyOrderUsage.findUnique({
+    // Note: Using findFirst instead of findUnique for Aurora Data API compatibility
+    const cached = await db.monthlyOrderUsage.findFirst({
       where: {
-        shop_year_month: {
-          shop,
-          year,
-          month
-        }
+        shop: shop,
+        year: year,
+        month: month
       }
     });
 
@@ -195,30 +194,38 @@ export async function getOrCreateMonthlyCount(
     }).length;
 
     // Cache the result
-    await db.monthlyOrderUsage.upsert({
+    // Note: Using findFirst + create/update instead of upsert for Aurora Data API compatibility
+    const existing = await db.monthlyOrderUsage.findFirst({
       where: {
-        shop_year_month: {
-          shop,
-          year,
-          month
-        }
-      },
-      create: {
-        id: crypto.randomUUID(),
-        shop,
-        year,
-        month,
-        orderCount: count,
-        planLimit: 1000,
-        planName: "Current Plan",
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      update: {
-        orderCount: count,
-        updatedAt: new Date()
+        shop: shop,
+        year: year,
+        month: month
       }
     });
+
+    if (existing) {
+      await db.monthlyOrderUsage.update({
+        where: { id: existing.id },
+        data: {
+          orderCount: count,
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      await db.monthlyOrderUsage.create({
+        data: {
+          id: crypto.randomUUID(),
+          shop,
+          year,
+          month,
+          orderCount: count,
+          planLimit: 1000,
+          planName: "Current Plan",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      });
+    }
 
     return count;
   } catch (error) {
@@ -383,17 +390,20 @@ export async function incrementMonthlyOrderCount(
     });
 
     // Get existing record to preserve plan info
-    const existing = await db.monthlyOrderUsage.findUnique({
+    // Note: Using findFirst instead of findUnique to avoid composite key issues with Aurora Data API
+    const existing = await db.monthlyOrderUsage.findFirst({
       where: {
-        shop_year_month: { shop, year, month }
+        shop: shop,
+        year: year,
+        month: month
       }
     });
 
     if (existing) {
-      // Increment existing record
+      // Increment existing record using ID (Aurora Data API compatible)
       await db.monthlyOrderUsage.update({
         where: {
-          shop_year_month: { shop, year, month }
+          id: existing.id
         },
         data: {
           orderCount: { increment: 1 },

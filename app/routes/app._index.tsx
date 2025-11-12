@@ -181,9 +181,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     let orderCount = 0;
     try {
       // Try to get from cache first
-      const cachedUsage = await db.monthlyOrderUsage.findUnique({
+      // Note: Using findFirst instead of findUnique for Aurora Data API compatibility
+      const cachedUsage = await db.monthlyOrderUsage.findFirst({
         where: {
-          shop_year_month: { shop, year, month },
+          shop: shop,
+          year: year,
+          month: month,
         },
       });
 
