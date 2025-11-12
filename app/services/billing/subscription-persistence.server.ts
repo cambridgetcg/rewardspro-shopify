@@ -10,6 +10,23 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { randomUUID } from "crypto";
 
 /**
+ * Map AppSubscription plan names to BillingSubscription planType
+ * for backwards compatibility with Dashboard and Settings pages
+ */
+function mapPlanNameToPlanType(planName: string): string {
+  // Remove "RewardsPro" prefix and get base plan name
+  const basePlan = planName.replace('RewardsPro ', '').toLowerCase();
+
+  if (basePlan.includes('free')) return 'free';
+  if (basePlan.includes('pro')) return 'pro';
+  if (basePlan.includes('max')) return 'max';
+  if (basePlan.includes('ultra')) return 'ultra';
+
+  // Default to free if unknown
+  return 'free';
+}
+
+/**
  * Shopify AppSubscription type (from GraphQL)
  */
 export interface ShopifyAppSubscription {
@@ -165,6 +182,68 @@ export async function saveSubscription(
 
   console.log('[Subscription Persistence] ℹ️  Skipping ShopSettings update (columns not in production DB)');
 
+  // SYNC: Update BillingSubscription table for backwards compatibility
+  // Dashboard and Settings still read from this table
+  try {
+    console.log('[Subscription Persistence] Syncing to BillingSubscription table...');
+
+    const planType = mapPlanNameToPlanType(subscription.name);
+
+    // Find usage line item for capped amount
+    const usageLineItem = subscription.lineItems.find(
+      item => item.plan.pricingDetails.__typename === 'AppUsagePricing'
+    );
+    const usageCappedAmount = usageLineItem?.plan.pricingDetails.__typename === 'AppUsagePricing'
+      ? parseFloat(usageLineItem.plan.pricingDetails.cappedAmount?.amount || '0')
+      : null;
+
+    // Find recurring line item ID
+    const recurringLineItem = subscription.lineItems.find(
+      item => item.plan.pricingDetails.__typename === 'AppRecurringPricing'
+    );
+
+    await db.billingSubscription.upsert({
+      where: { shop },
+      create: {
+        id: randomUUID(),
+        shop,
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodEnd: subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null,
+        recurringLineItemId: recurringLineItem?.id || null,
+        usageLineItemId: usageLineItem?.id || null,
+        usageCappedAmount: usageCappedAmount,
+        planType: planType,
+        trialEndsAt: trialEndsAt,
+        billingVersion: 'graphql',
+        currentPeriodOrders: 0,
+        currentPeriodUsageFee: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      update: {
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+        currentPeriodEnd: subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null,
+        recurringLineItemId: recurringLineItem?.id || null,
+        usageLineItemId: usageLineItem?.id || null,
+        usageCappedAmount: usageCappedAmount,
+        planType: planType,
+        trialEndsAt: trialEndsAt,
+        updatedAt: new Date(),
+      },
+    });
+
+    console.log('[Subscription Persistence] ✅ BillingSubscription synced:', {
+      shop,
+      planType,
+      subscriptionStatus: subscription.status,
+    });
+  } catch (error) {
+    console.error('[Subscription Persistence] ❌ Failed to sync BillingSubscription:', error);
+    // Don't throw - this is a backwards compatibility sync, not critical
+  }
+
   return saved;
 }
 
@@ -262,6 +341,20 @@ export async function cancelSubscription(
   });
   */
 
+  // SYNC: Update BillingSubscription table
+  try {
+    await db.billingSubscription.update({
+      where: { shop },
+      data: {
+        subscriptionStatus: 'CANCELLED',
+        updatedAt: new Date(),
+      },
+    });
+    console.log('[Subscription Persistence] ✅ BillingSubscription synced (cancelled)');
+  } catch (error) {
+    console.error('[Subscription Persistence] ❌ Failed to sync BillingSubscription cancellation:', error);
+  }
+
   return updated;
 }
 
@@ -333,6 +426,30 @@ export async function updateSubscriptionFromWebhook(
     },
   });
   */
+
+  // SYNC: Update BillingSubscription table
+  try {
+    const billingUpdateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (webhookData.status) {
+      billingUpdateData.subscriptionStatus = webhookData.status;
+    }
+
+    if (webhookData.currentPeriodEnd) {
+      billingUpdateData.currentPeriodEnd = new Date(webhookData.currentPeriodEnd);
+    }
+
+    await db.billingSubscription.update({
+      where: { shop },
+      data: billingUpdateData,
+    });
+
+    console.log('[Subscription Persistence] ✅ BillingSubscription synced (webhook)');
+  } catch (error) {
+    console.error('[Subscription Persistence] ❌ Failed to sync BillingSubscription from webhook:', error);
+  }
 
   return updated;
 }
