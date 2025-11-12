@@ -661,57 +661,6 @@ export default function Dashboard() {
                   </BlockStack>
                 </Card>
 
-                {/* Feature Manager Component */}
-                <Card>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="start">
-                      <Box
-                        padding="200"
-                        background="bg-surface-secondary"
-                        borderRadius="200"
-                      >
-                        <Icon source={SettingsIcon} tone="base" />
-                      </Box>
-                      <Badge tone={activeFeaturesCount === 4 ? 'success' : activeFeaturesCount >= 2 ? 'info' : 'warning'}>
-                        {activeFeaturesCount}/4 Active
-                      </Badge>
-                    </InlineStack>
-
-                    <Text variant="headingSm" as="h3" fontWeight="semibold">
-                      Feature Manager
-                    </Text>
-
-                    <s-stack gap="small-200">
-                      <s-switch
-                        id="advanced-analytics-toggle"
-                        label="Advanced Analytics"
-                        checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
-                      />
-                      <s-switch
-                        id="auto-cashback-toggle"
-                        label="Automatic Cashback Processing"
-                        checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
-                      />
-                      <s-switch
-                        id="email-marketing-toggle"
-                        label="Email Marketing Campaigns"
-                        checked={data.shopSettings?.emailMarketingEnabled ?? false}
-                      />
-                      <s-switch
-                        id="tier-products-toggle"
-                        label="Tier Products Module"
-                        checked={data.shopSettings?.tierProductsEnabled ?? true}
-                      />
-                    </s-stack>
-
-                    <Divider />
-
-                    <Text variant="bodySm" tone="subdued">
-                      Enable or disable features for your store
-                    </Text>
-                  </BlockStack>
-                </Card>
-
                 {/* Data Sync Component */}
                 <Card>
                   <BlockStack gap="300">
@@ -862,6 +811,52 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </Layout.Section>
+
+        {/* Feature Manager */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between" blockAlign="center">
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={SettingsIcon} tone="base" />
+                  <Text variant="headingMd" as="h2">Feature Manager</Text>
+                </InlineStack>
+                <Badge tone={activeFeaturesCount === 4 ? 'success' : activeFeaturesCount >= 2 ? 'info' : 'warning'}>
+                  {activeFeaturesCount}/4 Active
+                </Badge>
+              </InlineStack>
+
+              <Text variant="bodyMd" tone="subdued" as="p">
+                Enable or disable specific features for your store. Changes take effect immediately.
+              </Text>
+
+              <Divider />
+
+              <s-stack gap="small-200">
+                <s-switch
+                  id="advanced-analytics-toggle"
+                  label="Advanced Analytics"
+                  checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
+                />
+                <s-switch
+                  id="auto-cashback-toggle"
+                  label="Automatic Cashback Processing"
+                  checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
+                />
+                <s-switch
+                  id="email-marketing-toggle"
+                  label="Email Marketing Campaigns"
+                  checked={data.shopSettings?.emailMarketingEnabled ?? false}
+                />
+                <s-switch
+                  id="tier-products-toggle"
+                  label="Tier Products Module"
+                  checked={data.shopSettings?.tierProductsEnabled ?? true}
+                />
+              </s-stack>
+            </BlockStack>
+          </Card>
         </Layout.Section>
 
         {/* OLD SYSTEM STATUS - COMMENTED OUT FOR REVIEW
