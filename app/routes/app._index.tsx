@@ -49,10 +49,10 @@ import {
   RefreshIcon,
   CheckCircleIcon,
   AlertCircleIcon,
+  CreditCardIcon,
 } from "~/utils/polaris-icons";
 import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
-import { SystemMonitorPlanCard } from "~/components/Billing";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
 
 // ============================================
@@ -488,30 +488,8 @@ export default function Dashboard() {
     <Frame>
       <Page title="Dashboard">
       <Layout>
-        {/* Two-Column Layout */}
-        <Layout.Section variant="oneThird">
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              {/* Plan Details Card */}
-              <SystemMonitorPlanCard
-                activeSubscription={data.activeSubscription}
-                currentPlan={data.currentPlan}
-                monthlyOrderUsage={{
-                  orderCount: data.monthlyOrderUsage?.orderCount || 0,
-                  planLimit: data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded,
-                  projectedOrders: data.monthlyOrderUsage?.projectedOrders || 0,
-                  currentMonth: data.currentMonth
-                }}
-                showUpgradeButton={true}
-                showOverageBanner={false}
-                onUpgrade={() => navigate("/app/billing")}
-              />
-            </div>
-          </div>
-        </Layout.Section>
-
-        {/* System Status - Mission Control Style */}
-        <Layout.Section variant="twoThirds">
+        {/* System Status - Full Width */}
+        <Layout.Section>
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -820,6 +798,59 @@ export default function Dashboard() {
 
                     <Text variant="bodySm" tone="subdued">
                       Order webhook processing and error tracking
+                    </Text>
+                  </BlockStack>
+                </Card>
+
+                {/* Subscription Component */}
+                <Card>
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="start">
+                      <Box
+                        padding="200"
+                        background="bg-surface-secondary"
+                        borderRadius="200"
+                      >
+                        <Icon source={CreditCardIcon} tone="base" />
+                      </Box>
+                      <Badge tone="success">Active</Badge>
+                    </InlineStack>
+
+                    <Text variant="headingSm" as="h3" fontWeight="semibold">
+                      {data.activeSubscription?.name ? data.activeSubscription.name.replace('RewardsPro', 'Rewards') : 'Rewards Free'}
+                    </Text>
+
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Orders Used:</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.monthlyOrderUsage?.orderCount || 0} / {data.monthlyOrderUsage?.planLimit || MANAGED_PLANS["RewardsPro Free"].ordersIncluded}
+                        </Text>
+                      </InlineStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Usage:</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.monthlyOrderUsage ? Math.round((data.monthlyOrderUsage.orderCount / data.monthlyOrderUsage.planLimit) * 100) : 0}%
+                        </Text>
+                      </InlineStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Cycle:</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.daysRemaining || 0}d remaining
+                        </Text>
+                      </InlineStack>
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodySm" tone="subdued">Status:</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.activeSubscription?.status || 'Free'}
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <Text variant="bodySm" tone="subdued">
+                      Subscription plan and monthly order usage
                     </Text>
                   </BlockStack>
                 </Card>
