@@ -192,8 +192,6 @@ export default function App() {
           <Link to="/app/billing">Billing</Link>
           <Link to="/app/graphql-test">GraphQL Test</Link>
           <Link to="/app/proxy-test">🔬 Proxy Test</Link>
-          <Link to="/app/dashboard-mockups">🎨 Dashboard Mockups</Link>
-          <Link to="/app/billing-mockups">🎨 Billing Mockups</Link>
         </NavMenu>
         <Outlet />
         
