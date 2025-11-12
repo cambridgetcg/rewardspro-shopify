@@ -483,10 +483,11 @@ export default function BillingPage() {
     submit(formData, { method: "post" });
   };
 
-  // Get current plan from billing.check() data
+  // Get current plan - prefer subscriptionInfo (GraphQL) over billing.check()
+  // billing.check() can be slow to update after subscription approval
   const currentSubscription = data.appSubscriptions[0];
-  const currentPlan = currentSubscription?.name;
-  const isCurrentPlanActive = data.hasActivePayment;
+  const currentPlan = data.subscriptionInfo?.name || currentSubscription?.name;
+  const isCurrentPlanActive = data.subscriptionInfo?.status === 'ACTIVE' || data.hasActivePayment;
 
   // Get detailed subscription data (pre-calculated in loader)
   const subscriptionInfo = data.subscriptionInfo;
