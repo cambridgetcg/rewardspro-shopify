@@ -144,6 +144,18 @@ export const MANAGED_PLANS: Record<string, ManagedPlan> = {
   }
 };
 
+/**
+ * Get the order limit for a given plan name
+ * @param planName - Plan name (e.g., "RewardsPro Pro", "RewardsPro Free")
+ * @returns Order limit for the plan, defaults to 100 (Free plan)
+ */
+export function getPlanOrderLimit(planName: string | null | undefined): number {
+  if (!planName) return 100; // Default to Free plan limit
+
+  const plan = MANAGED_PLANS[planName];
+  return plan?.ordersIncluded ?? 100; // Default to Free plan if not found
+}
+
 export const PLAN_COMPARISON = [
   {
     feature: "Customers",

@@ -22,6 +22,7 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { v4 as uuidv4 } from 'uuid';
 import { incrementMonthlyOrderCount } from "~/utils/order-count-strategies";
+import { getPlanOrderLimit } from "~/constants/billing.constants";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -76,7 +77,18 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Increment monthly order count for ALL orders (including guest orders)
     try {
-      await incrementMonthlyOrderCount(shop, order.created_at);
+      // Fetch the shop's current subscription to get the correct plan limit
+      const subscription = await db.appSubscription.findUnique({
+        where: { shop },
+        select: { planName: true }
+      });
+
+      const planLimit = getPlanOrderLimit(subscription?.planName);
+      const planName = subscription?.planName || "RewardsPro Free";
+
+      console.log(`[OrdersCreateWebhook] Using plan limit for ${shop}:`, { planName, planLimit });
+
+      await incrementMonthlyOrderCount(shop, order.created_at, planLimit, planName);
       console.log(`[OrdersCreateWebhook] ✅ Monthly order count incremented for ${shop}`);
     } catch (error) {
       console.error(`[OrdersCreateWebhook] ⚠️ Failed to increment monthly count (non-critical):`, error);
