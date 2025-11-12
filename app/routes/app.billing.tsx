@@ -31,6 +31,7 @@ import {
   getAllPlans,
 } from "~/services/billing/plan-subscription.server";
 import { detectNewSubscription } from "~/utils/billing-success-detection.server";
+import { getPlanOrderLimit } from "~/constants/billing.constants";
 import {
   PRO_PLAN,
   PRO_ANNUAL_PLAN,
@@ -323,17 +324,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
 
       if (monthlyUsage) {
+        // Get the LIVE plan limit from the current subscription
+        // This ensures we always show the correct limit even if MonthlyOrderUsage hasn't been updated yet
+        const currentPlanName = subscriptionInfo?.name || monthlyUsage.planName;
+        const actualPlanLimit = getPlanOrderLimit(currentPlanName);
+
         const daysInMonth = new Date(year, month, 0).getDate();
         const dayOfMonth = now.getDate();
         const daysRemaining = daysInMonth - dayOfMonth;
         const averageDailyOrders = dayOfMonth > 0 ? Math.round(monthlyUsage.orderCount / dayOfMonth) : 0;
-        const usagePercentage = monthlyUsage.planLimit > 0
-          ? Math.min((monthlyUsage.orderCount / monthlyUsage.planLimit) * 100, 100)
+        const usagePercentage = actualPlanLimit > 0
+          ? Math.min((monthlyUsage.orderCount / actualPlanLimit) * 100, 100)
           : 0;
+
+        console.log('[Billing Loader] Usage metrics calculated:', {
+          ordersUsed: monthlyUsage.orderCount,
+          cachedLimit: monthlyUsage.planLimit,
+          actualLimit: actualPlanLimit,
+          planName: currentPlanName,
+          usagePercentage: usagePercentage.toFixed(1)
+        });
 
         usageMetrics = {
           ordersUsed: monthlyUsage.orderCount,
-          ordersLimit: monthlyUsage.planLimit,
+          ordersLimit: actualPlanLimit, // Use live plan limit, not cached
           usagePercentage,
           daysRemaining,
           averageDailyOrders
