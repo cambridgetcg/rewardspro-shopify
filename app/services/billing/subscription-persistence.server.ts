@@ -138,27 +138,32 @@ export async function saveSubscription(
     usageCap: saved.usageCap,
   });
 
-  // Update shop settings with current plan
-  // Note: currentPlanName column may not exist in production yet, so we'll omit it for now
+  // TODO: Update shop settings with current plan
+  // Skipping for now - production database missing columns:
+  // - currentPlanName
+  // - subscriptionStatus
+  // - subscriptionUpdatedAt
+  // Need to run migrations on production database to add these columns
+  /*
   await db.shopSettings.upsert({
     where: { shop },
     create: {
-      id: randomUUID(), // Data API doesn't auto-generate UUIDs
+      id: randomUUID(),
       shop,
-      storeName: shop, // Default to shop domain
+      storeName: shop,
       storeUrl: `https://${shop}`,
-      // currentPlanName: subscription.name, // Commented out - column may not exist in production
       subscriptionStatus: subscription.status,
       subscriptionUpdatedAt: new Date(),
     },
     update: {
-      // currentPlanName: subscription.name, // Commented out - column may not exist in production
       subscriptionStatus: subscription.status,
       subscriptionUpdatedAt: new Date(),
     },
   });
-
   console.log('[Subscription Persistence] ✅ Shop settings updated');
+  */
+
+  console.log('[Subscription Persistence] ℹ️  Skipping ShopSettings update (columns not in production DB)');
 
   return saved;
 }
@@ -245,7 +250,9 @@ export async function cancelSubscription(
 
   console.log('[Subscription Persistence] ✅ Subscription cancelled');
 
-  // Update shop settings
+  // TODO: Update shop settings
+  // Skipping - production database missing columns (subscriptionStatus, subscriptionUpdatedAt)
+  /*
   await db.shopSettings.update({
     where: { shop },
     data: {
@@ -253,6 +260,7 @@ export async function cancelSubscription(
       subscriptionUpdatedAt: new Date(),
     },
   });
+  */
 
   return updated;
 }
@@ -314,7 +322,9 @@ export async function updateSubscriptionFromWebhook(
 
   console.log('[Subscription Persistence] ✅ Subscription updated from webhook');
 
-  // Update shop settings
+  // TODO: Update shop settings
+  // Skipping - production database missing columns (subscriptionStatus, subscriptionUpdatedAt)
+  /*
   await db.shopSettings.update({
     where: { shop },
     data: {
@@ -322,6 +332,7 @@ export async function updateSubscriptionFromWebhook(
       subscriptionUpdatedAt: new Date(),
     },
   });
+  */
 
   return updated;
 }
