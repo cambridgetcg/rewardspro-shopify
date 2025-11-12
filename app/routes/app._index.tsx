@@ -3,26 +3,6 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useEffect } from "react";
 
-// Declare s-switch and s-stack web components for TypeScript
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      's-switch': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        id?: string;
-        label?: string;
-        details?: string;
-        checked?: boolean;
-        disabled?: boolean;
-        name?: string;
-        value?: string;
-      }, HTMLElement>;
-      's-stack': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & {
-        gap?: string;
-      }, HTMLElement>;
-    }
-  }
-}
-
 import {
   Page,
   Layout,
@@ -39,6 +19,7 @@ import {
   Divider,
   ProgressBar,
   Banner,
+  Checkbox,
 } from "@shopify/polaris";
 import {
   StatusActiveIcon,
@@ -404,46 +385,6 @@ export default function Dashboard() {
 
     fetcher.submit(formData, { method: "post" });
   }, [fetcher]);
-
-  // Attach event listeners to s-switch web components
-  useEffect(() => {
-    const analyticsToggle = document.getElementById('advanced-analytics-toggle');
-    const cashbackToggle = document.getElementById('auto-cashback-toggle');
-    const marketingToggle = document.getElementById('email-marketing-toggle');
-    const tierProductsToggle = document.getElementById('tier-products-toggle');
-
-    const handleAnalyticsChange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      handleToggleFeature('advancedAnalyticsEnabled', target.checked);
-    };
-
-    const handleCashbackChange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      handleToggleFeature('autoCashbackProcessingEnabled', target.checked);
-    };
-
-    const handleMarketingChange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      handleToggleFeature('emailMarketingEnabled', target.checked);
-    };
-
-    const handleTierProductsChange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      handleToggleFeature('tierProductsEnabled', target.checked);
-    };
-
-    analyticsToggle?.addEventListener('change', handleAnalyticsChange);
-    cashbackToggle?.addEventListener('change', handleCashbackChange);
-    marketingToggle?.addEventListener('change', handleMarketingChange);
-    tierProductsToggle?.addEventListener('change', handleTierProductsChange);
-
-    return () => {
-      analyticsToggle?.removeEventListener('change', handleAnalyticsChange);
-      cashbackToggle?.removeEventListener('change', handleCashbackChange);
-      marketingToggle?.removeEventListener('change', handleMarketingChange);
-      tierProductsToggle?.removeEventListener('change', handleTierProductsChange);
-    };
-  }, [handleToggleFeature]);
 
   // Show toast message when feature toggle completes
   useEffect(() => {
@@ -833,28 +774,32 @@ export default function Dashboard() {
 
               <Divider />
 
-              <s-stack gap="small-200">
-                <s-switch
-                  id="advanced-analytics-toggle"
+              <BlockStack gap="300">
+                <Checkbox
                   label="Advanced Analytics"
                   checked={data.shopSettings?.advancedAnalyticsEnabled ?? true}
+                  onChange={(checked) => handleToggleFeature('advancedAnalyticsEnabled', checked)}
+                  helpText="Enable advanced analytics and reporting features"
                 />
-                <s-switch
-                  id="auto-cashback-toggle"
+                <Checkbox
                   label="Automatic Cashback Processing"
                   checked={data.shopSettings?.autoCashbackProcessingEnabled ?? true}
+                  onChange={(checked) => handleToggleFeature('autoCashbackProcessingEnabled', checked)}
+                  helpText="Automatically process cashback rewards for completed orders"
                 />
-                <s-switch
-                  id="email-marketing-toggle"
+                <Checkbox
                   label="Email Marketing Campaigns"
                   checked={data.shopSettings?.emailMarketingEnabled ?? false}
+                  onChange={(checked) => handleToggleFeature('emailMarketingEnabled', checked)}
+                  helpText="Enable email marketing and promotional campaigns"
                 />
-                <s-switch
-                  id="tier-products-toggle"
+                <Checkbox
                   label="Tier Products Module"
                   checked={data.shopSettings?.tierProductsEnabled ?? true}
+                  onChange={(checked) => handleToggleFeature('tierProductsEnabled', checked)}
+                  helpText="Enable tiered loyalty program with product benefits"
                 />
-              </s-stack>
+              </BlockStack>
             </BlockStack>
           </Card>
         </Layout.Section>
