@@ -135,9 +135,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const loaderStart = Date.now();
     console.log(`[Dashboard] Loading simplified data for shop: ${shop}`);
 
-    // Check active subscription with Shopify (if billing available)
+    // Fetch subscription via GraphQL (most accurate, same as billing page)
     let activeSubscription = null;
-    if (authResult.billing) {
+    let subscriptionName = null;
+
+    try {
+      const { getSubscriptionDetails } = await import("~/services/billing/subscription-details.server");
+      const subscriptionDetails = await getSubscriptionDetails(authResult.admin);
+      const graphqlSubscription = subscriptionDetails?.currentAppInstallation.activeSubscriptions[0];
+
+      if (graphqlSubscription && graphqlSubscription.status === 'ACTIVE') {
+        subscriptionName = graphqlSubscription.name;
+        console.log('[Dashboard] GraphQL subscription found:', subscriptionName);
+      }
+    } catch (error) {
+      console.error("[Dashboard] Error fetching GraphQL subscription:", error);
+    }
+
+    // Fallback to billing.check() if GraphQL fails
+    if (!subscriptionName && authResult.billing) {
       try {
         const { hasActivePayment, appSubscriptions } = await authResult.billing.check({
           plans: [FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN],
@@ -146,6 +162,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
         if (hasActivePayment && appSubscriptions?.length > 0) {
           activeSubscription = appSubscriptions[0];
+          subscriptionName = activeSubscription.name;
+          console.log('[Dashboard] billing.check() subscription found:', subscriptionName);
         }
       } catch (error) {
         console.error("[Dashboard] Error checking subscription:", error);
@@ -212,16 +230,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       orderCount = 0;
     }
 
-    // Determine plan and limits
+    // Determine plan and limits (prefer GraphQL subscription name)
     let planLimit = MANAGED_PLANS["RewardsPro Free"].ordersIncluded;
     let planName = 'RewardsPro Free';
 
-    if (activeSubscription?.name) {
-      const planConfig = MANAGED_PLANS[activeSubscription.name];
+    if (subscriptionName) {
+      const planConfig = MANAGED_PLANS[subscriptionName];
       if (planConfig) {
         planLimit = planConfig.ordersIncluded;
-        planName = activeSubscription.name;
+        planName = subscriptionName;
+        console.log('[Dashboard] Using plan:', planName, 'with limit:', planLimit);
+      } else {
+        console.warn('[Dashboard] Plan not found in MANAGED_PLANS:', subscriptionName);
       }
+    } else {
+      console.log('[Dashboard] No active subscription found, using Free plan');
     }
 
     const projectedOrders = calculateProjectedOrders(orderCount, daysRemaining);
@@ -306,7 +329,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         status: webhookStatus
       },
       currentPlan: serializedPlan,
-      activeSubscription,
+      // Use GraphQL subscription name (most accurate) instead of stale billing.check() data
+      activeSubscription: subscriptionName ? {
+        name: subscriptionName,
+        status: 'ACTIVE'
+      } : activeSubscription,
       monthlyOrderUsage,
       currentMonth,
       daysRemaining,
