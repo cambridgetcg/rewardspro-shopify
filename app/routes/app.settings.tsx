@@ -330,7 +330,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: {
           shop,
           orderId: { not: null },
-          entryType: 'CASHBACK_EARNED'
+          type: 'CASHBACK_EARNED'
         }
       });
 
