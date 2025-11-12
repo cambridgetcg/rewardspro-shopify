@@ -190,116 +190,54 @@ export function SystemMonitorPlanCard({
             </BlockStack>
           </Box>
 
-          {/* System Metrics Table */}
+          {/* Billing Cycle Info */}
           <Box
             padding="400"
             background="bg-surface-secondary"
             borderRadius="200"
           >
-            <BlockStack gap="300">
-              <Text variant="bodySm" fontWeight="semibold">
-                System Metrics
-              </Text>
+            <BlockStack gap="200">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="bodySm" tone="subdued">
+                  Current Period
+                </Text>
+                <Text variant="bodyMd" fontWeight="medium">
+                  {daysRemaining} days remaining
+                </Text>
+              </InlineStack>
 
-              <BlockStack gap="200">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodySm" tone="subdued">
-                    Cycle Remaining
-                  </Text>
-                  <Text variant="bodyMd" fontWeight="medium">
-                    {daysRemaining}d / {daysInCycle}d
-                  </Text>
-                </InlineStack>
-
-                <Divider />
-
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodySm" tone="subdued">
-                    Days to Limit
-                  </Text>
-                  <InlineStack gap="200" blockAlign="center">
+              {remainingOrders > 0 && daysToLimit !== Infinity && daysToLimit < daysRemaining && (
+                <>
+                  <Divider />
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="bodySm" tone="subdued">
+                      Estimated to reach limit
+                    </Text>
                     <Text variant="bodyMd" fontWeight="medium" tone={
                       daysToLimitTone === 'critical' ? 'critical' :
                       daysToLimitTone === 'warning' ? 'caution' : undefined
                     }>
                       {daysToLimitDisplay}
                     </Text>
-                    {remainingOrders > 0 && daysToLimit !== Infinity && (
-                      <Text variant="bodySm" tone="subdued">
-                        ({remainingOrders} buffer)
-                      </Text>
-                    )}
                   </InlineStack>
-                </InlineStack>
+                </>
+              )}
 
-                <Divider />
-
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodySm" tone="subdued">
-                    Daily Throughput
-                  </Text>
-                  <Text variant="bodyMd" fontWeight="medium">
-                    {averageDailyOrders.toFixed(1)} avg
-                  </Text>
-                </InlineStack>
-
-                <Divider />
-
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodySm" tone="subdued">
-                    Peak Load
-                  </Text>
-                  <Text variant="bodyMd" fontWeight="medium">
-                    {peakDailyOrders} orders
-                  </Text>
-                </InlineStack>
-
-                <Divider />
-
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodySm" tone="subdued">
-                    Projected Load
-                  </Text>
-                  <Text variant="bodyMd" fontWeight="medium">
-                    {monthlyOrderUsage?.projectedOrders.toLocaleString() || 0}
-                  </Text>
-                </InlineStack>
-              </BlockStack>
+              {monthlyOrderUsage && monthlyOrderUsage.projectedOrders > monthlyOrderUsage.planLimit && (
+                <>
+                  <Divider />
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text variant="bodySm" tone="subdued">
+                      Projected overage
+                    </Text>
+                    <Text variant="bodyMd" fontWeight="medium" tone="critical">
+                      {(monthlyOrderUsage.projectedOrders - monthlyOrderUsage.planLimit).toLocaleString()} orders
+                    </Text>
+                  </InlineStack>
+                </>
+              )}
             </BlockStack>
           </Box>
-
-          {/* Performance Indicators */}
-          <InlineGrid columns={2} gap="300">
-            <Box
-              padding="300"
-              background="bg-surface"
-              borderRadius="200"
-            >
-              <BlockStack gap="100">
-                <Text variant="bodySm" tone="subdued">
-                  Unit Cost
-                </Text>
-                <Text variant="headingMd" as="p">
-                  ${(planDetails.price / (monthlyOrderUsage?.orderCount || 1)).toFixed(3)}
-                </Text>
-              </BlockStack>
-            </Box>
-
-            <Box
-              padding="300"
-              background="bg-surface"
-              borderRadius="200"
-            >
-              <BlockStack gap="100">
-                <Text variant="bodySm" tone="subdued">
-                  Efficiency
-                </Text>
-                <Text variant="headingMd" as="p">
-                  {utilization.toFixed(1)}%
-                </Text>
-              </BlockStack>
-            </Box>
-          </InlineGrid>
 
           {/* Next Billing */}
           <Box
