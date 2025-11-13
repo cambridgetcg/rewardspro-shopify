@@ -80,11 +80,10 @@ import { formatCurrency } from "../utils/currency";
 import { AnalyticsRecommendationsService } from "~/services/analytics-recommendations.server";
 import {
   getOverviewMetricsWithComparison,
-  formatPercentageChange,
-  getBadgeTone,
   type OverviewMetrics,
   type MetricsComparison
 } from "~/services/analytics-metrics.server";
+import { formatPercentageChange, getBadgeTone } from "~/utils/analytics-formatters";
 
 // ============================================
 // TYPE DEFINITIONS
