@@ -186,10 +186,18 @@ interface AnalyticsData {
     storeCurrency: string;
     currencyDisplayType: string;
     averageProfitMargin: string | null;
-    averageCogsPercent: string | null;
     averageShippingCost: string | null;
+    averageTransactionFee: string | null;
+    averageReturnRate: string | null;
     metricsLastUpdated: string | null;
   } | null;
+
+  // Auto-calculated business metrics
+  autoCalculatedMetrics: {
+    customerLifetimeValue: number;
+    repeatPurchaseRate: number;
+    actualRetentionRate: number;
+  };
 
   // Marketing recommendations from analytics insights
   recommendations?: Array<{
@@ -264,6 +272,71 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       getProgramImpactMetrics(shop),
       getMonthlyImpactData(shop),
     ]);
+
+    // Calculate auto-metrics for business metrics configuration
+    const [ltv, repeatRate, retention] = await Promise.all([
+      // Customer Lifetime Value - average total spent
+      db.customer.aggregate({
+        where: { shop },
+        _avg: { totalSpent: true },
+      }),
+      // Repeat Purchase Rate - customers with more than 1 order
+      db.customer.findMany({
+        where: { shop },
+        select: {
+          _count: {
+            select: { orders: true }
+          }
+        }
+      }),
+      // Retention rate - customers who ordered last month and this month
+      (async () => {
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+        // Customers who ordered last month
+        const lastMonthCustomers = await db.order.findMany({
+          where: {
+            shop,
+            shopifyCreatedAt: {
+              gte: lastMonthStart,
+              lte: lastMonthEnd,
+            },
+            financialStatus: { in: ['PAID', 'PARTIALLY_PAID'] },
+          },
+          distinct: ['customerId'],
+          select: { customerId: true },
+        });
+
+        if (lastMonthCustomers.length === 0) return 0;
+
+        const lastMonthIds = new Set(lastMonthCustomers.map(o => o.customerId));
+
+        // Customers who ordered this month (from last month cohort)
+        const thisMonthRetained = await db.order.findMany({
+          where: {
+            shop,
+            customerId: { in: Array.from(lastMonthIds) },
+            shopifyCreatedAt: { gte: currentMonthStart },
+            financialStatus: { in: ['PAID', 'PARTIALLY_PAID'] },
+          },
+          distinct: ['customerId'],
+          select: { customerId: true },
+        });
+
+        return (thisMonthRetained.length / lastMonthCustomers.length) * 100;
+      })()
+    ]);
+
+    const customerLifetimeValue = Number(ltv._avg.totalSpent || 0);
+    const totalCustomersForRepeat = repeatRate.length;
+    const customersWithRepeatOrders = repeatRate.filter(c => c._count.orders > 1).length;
+    const repeatPurchaseRate = totalCustomersForRepeat > 0
+      ? (customersWithRepeatOrders / totalCustomersForRepeat) * 100
+      : 0;
+    const actualRetentionRate = retention;
 
     // Calculate weighted averages from tier performance data
     const totalCustomers = tierPerformance.reduce((sum, tier) => sum + tier.members, 0);
@@ -386,10 +459,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
         averageProfitMargin: shopSettings.averageProfitMargin?.toString() || null,
-        averageCogsPercent: shopSettings.averageCogsPercent?.toString() || null,
         averageShippingCost: shopSettings.averageShippingCost?.toString() || null,
+        averageTransactionFee: shopSettings.averageTransactionFee?.toString() || null,
+        averageReturnRate: shopSettings.averageReturnRate?.toString() || null,
         metricsLastUpdated: shopSettings.metricsLastUpdated?.toISOString() || null,
       } : null,
+
+      // Auto-calculated business metrics
+      autoCalculatedMetrics: {
+        customerLifetimeValue,
+        repeatPurchaseRate,
+        actualRetentionRate,
+      },
 
       // Add marketing recommendations from analytics insights
       recommendations: recommendations.map(rec => ({
@@ -433,8 +514,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       where: { shop },
       data: {
         averageProfitMargin: parseDecimal(formData.get("averageProfitMargin") as string),
-        averageCogsPercent: parseDecimal(formData.get("averageCogsPercent") as string),
         averageShippingCost: parseDecimal(formData.get("averageShippingCost") as string),
+        averageTransactionFee: parseDecimal(formData.get("averageTransactionFee") as string),
+        averageReturnRate: parseDecimal(formData.get("averageReturnRate") as string),
         metricsLastUpdated: new Date(),
       },
     });
@@ -1186,14 +1268,20 @@ function InsightCard({ insight }: { insight: Insight }) {
 interface MarginRecalibrationFormProps {
   initialValues: {
     averageProfitMargin: string;
-    averageCogsPercent: string;
     averageShippingCost: string;
+    averageTransactionFee: string;
+    averageReturnRate: string;
   };
   currentAOV: number; // Real-time calculated from database
+  autoCalculatedMetrics: {
+    customerLifetimeValue: number;
+    repeatPurchaseRate: number;
+    actualRetentionRate: number;
+  };
   shopSettings: any; // Shop settings for currency formatting
 }
 
-function MarginRecalibrationForm({ initialValues, currentAOV, shopSettings }: MarginRecalibrationFormProps) {
+function MarginRecalibrationForm({ initialValues, currentAOV, autoCalculatedMetrics, shopSettings }: MarginRecalibrationFormProps) {
   const fetcher = useFetcher();
 
   // Format currency helper
@@ -1211,8 +1299,9 @@ function MarginRecalibrationForm({ initialValues, currentAOV, shopSettings }: Ma
     const formData = new FormData();
     formData.append("action", "save-metrics");
     formData.append("averageProfitMargin", formValues.averageProfitMargin);
-    formData.append("averageCogsPercent", formValues.averageCogsPercent);
     formData.append("averageShippingCost", formValues.averageShippingCost);
+    formData.append("averageTransactionFee", formValues.averageTransactionFee);
+    formData.append("averageReturnRate", formValues.averageReturnRate);
 
     fetcher.submit(formData, { method: "post" });
   }, [formValues, fetcher]);
@@ -1229,6 +1318,7 @@ function MarginRecalibrationForm({ initialValues, currentAOV, shopSettings }: Ma
       )}
 
       <FormLayout>
+        <Text variant="headingSm" as="h3">Revenue & Costs</Text>
         <FormLayout.Group>
           <TextField
             label="Average Profit Margin (%)"
@@ -1242,20 +1332,6 @@ function MarginRecalibrationForm({ initialValues, currentAOV, shopSettings }: Ma
             step="0.01"
           />
           <TextField
-            label="Average COGS Percent (%)"
-            type="number"
-            value={formValues.averageCogsPercent}
-            onChange={handleChange('averageCogsPercent')}
-            helpText="e.g., 55 for 55% of revenue"
-            autoComplete="off"
-            min="0"
-            max="100"
-            step="0.01"
-          />
-        </FormLayout.Group>
-
-        <FormLayout.Group>
-          <TextField
             label="Average Shipping Cost"
             type="number"
             value={formValues.averageShippingCost}
@@ -1265,12 +1341,73 @@ function MarginRecalibrationForm({ initialValues, currentAOV, shopSettings }: Ma
             min="0"
             step="0.01"
           />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
           <TextField
-            label="Average Order Value (Auto-calculated)"
+            label="Average Transaction Fee (%)"
+            type="number"
+            value={formValues.averageTransactionFee}
+            onChange={handleChange('averageTransactionFee')}
+            helpText="Payment processing fees (e.g., 2.9 for 2.9%)"
+            autoComplete="off"
+            min="0"
+            max="100"
+            step="0.01"
+          />
+          <TextField
+            label="Average Return/Refund Rate (%)"
+            type="number"
+            value={formValues.averageReturnRate}
+            onChange={handleChange('averageReturnRate')}
+            helpText="% of orders that get returned or refunded"
+            autoComplete="off"
+            min="0"
+            max="100"
+            step="0.01"
+          />
+        </FormLayout.Group>
+
+        <Divider />
+
+        <Text variant="headingSm" as="h3">Auto-Calculated Metrics</Text>
+        <FormLayout.Group>
+          <TextField
+            label="Average Order Value"
             type="text"
             value={formatAmount(currentAOV)}
             onChange={() => {}} // Read-only
             helpText="Automatically calculated from your actual order data"
+            autoComplete="off"
+            disabled
+          />
+          <TextField
+            label="Customer Lifetime Value"
+            type="text"
+            value={formatAmount(autoCalculatedMetrics.customerLifetimeValue)}
+            onChange={() => {}} // Read-only
+            helpText="Average total spending per customer"
+            autoComplete="off"
+            disabled
+          />
+        </FormLayout.Group>
+
+        <FormLayout.Group>
+          <TextField
+            label="Repeat Purchase Rate (%)"
+            type="text"
+            value={`${autoCalculatedMetrics.repeatPurchaseRate.toFixed(1)}%`}
+            onChange={() => {}} // Read-only
+            helpText="% of customers who made more than one purchase"
+            autoComplete="off"
+            disabled
+          />
+          <TextField
+            label="Actual Retention Rate (%)"
+            type="text"
+            value={`${autoCalculatedMetrics.actualRetentionRate.toFixed(1)}%`}
+            onChange={() => {}} // Read-only
+            helpText="Month-over-month customer retention rate"
             autoComplete="off"
             disabled
           />
@@ -2345,10 +2482,12 @@ export default function AnalyticsPage() {
                           <MarginRecalibrationForm
                             initialValues={{
                               averageProfitMargin: data.shopSettings?.averageProfitMargin || '',
-                              averageCogsPercent: data.shopSettings?.averageCogsPercent || '',
                               averageShippingCost: data.shopSettings?.averageShippingCost || '',
+                              averageTransactionFee: data.shopSettings?.averageTransactionFee || '',
+                              averageReturnRate: data.shopSettings?.averageReturnRate || '',
                             }}
                             currentAOV={data.overviewMetrics.avgOrderValue}
+                            autoCalculatedMetrics={data.autoCalculatedMetrics}
                             shopSettings={data.shopSettings}
                           />
                         </BlockStack>
@@ -2367,13 +2506,26 @@ export default function AnalyticsPage() {
                               <strong>Average Profit Margin:</strong> Your typical profit margin as a percentage (e.g., 45 for 45%)
                             </Text>
                             <Text variant="bodySm" as="p" tone="subdued">
-                              <strong>Average COGS Percent:</strong> Cost of goods sold as a percentage of revenue (e.g., 55 for 55%)
-                            </Text>
-                            <Text variant="bodySm" as="p" tone="subdued">
                               <strong>Average Shipping Cost:</strong> Typical shipping cost per order in your store currency
                             </Text>
                             <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Average Transaction Fee:</strong> Payment processing fees as a percentage (e.g., 2.9 for Shopify Payments standard rate)
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Average Return/Refund Rate:</strong> Percentage of orders that get returned or refunded - helps calculate true profitability
+                            </Text>
+                            <Divider />
+                            <Text variant="bodySm" as="p" tone="subdued">
                               <strong>Average Order Value:</strong> Automatically calculated from your actual order data
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Customer Lifetime Value:</strong> Average total amount spent per customer - tracks long-term value
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Repeat Purchase Rate:</strong> Percentage of customers who made more than one purchase - measures loyalty
+                            </Text>
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              <strong>Actual Retention Rate:</strong> Month-over-month customer retention - shows if customers keep coming back
                             </Text>
                           </BlockStack>
                         </BlockStack>
