@@ -129,6 +129,16 @@ async function fetchPeriodMetrics(
     where: { shop },
   });
 
+  // Data integrity check: activeCustomers should not exceed totalCustomers
+  const activeCustomersCount = activeCustomers.length;
+  if (activeCustomersCount > totalCustomersCount) {
+    console.warn(
+      `[Analytics] Data inconsistency detected:`,
+      `Active customers (${activeCustomersCount}) > Total customers (${totalCustomersCount})`,
+      `This indicates Customer table may not be fully synced or there are orphaned Order records.`
+    );
+  }
+
   // Calculate metrics
   const totalRevenue = Number(orderAggregation._sum.netAmount || 0);
   const cashbackIssued = Number(orderAggregation._sum.cashbackAmount || 0);

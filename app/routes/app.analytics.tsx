@@ -1509,7 +1509,7 @@ export default function AnalyticsPage() {
                           <Box padding="400">
                             <BlockStack gap="200">
                               <Text variant="bodySm" tone="subdued" as="p">
-                                Active Customers
+                                Active Customers (This Month)
                               </Text>
                               <Text variant="headingLg" as="h3">
                                 {data.overviewMetrics.activeCustomers.toLocaleString()}
@@ -1531,7 +1531,7 @@ export default function AnalyticsPage() {
                           <Box padding="400">
                             <BlockStack gap="200">
                               <Text variant="bodySm" tone="subdued" as="p">
-                                Total Customers
+                                Customer Base (All-Time)
                               </Text>
                               <Text variant="headingLg" as="h3">
                                 {data.overviewMetrics.totalCustomers.toLocaleString()}
