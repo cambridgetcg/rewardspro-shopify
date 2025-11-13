@@ -188,8 +188,6 @@ interface AnalyticsData {
     averageProfitMargin: string | null;
     averageCogsPercent: string | null;
     averageShippingCost: string | null;
-    averageOrderValue: string | null;
-    targetRoiPercent: string | null;
     metricsLastUpdated: string | null;
   } | null;
 
@@ -390,8 +388,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         averageProfitMargin: shopSettings.averageProfitMargin?.toString() || null,
         averageCogsPercent: shopSettings.averageCogsPercent?.toString() || null,
         averageShippingCost: shopSettings.averageShippingCost?.toString() || null,
-        averageOrderValue: shopSettings.averageOrderValue?.toString() || null,
-        targetRoiPercent: shopSettings.targetRoiPercent?.toString() || null,
         metricsLastUpdated: shopSettings.metricsLastUpdated?.toISOString() || null,
       } : null,
 
@@ -439,8 +435,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         averageProfitMargin: parseDecimal(formData.get("averageProfitMargin") as string),
         averageCogsPercent: parseDecimal(formData.get("averageCogsPercent") as string),
         averageShippingCost: parseDecimal(formData.get("averageShippingCost") as string),
-        averageOrderValue: parseDecimal(formData.get("averageOrderValue") as string),
-        targetRoiPercent: parseDecimal(formData.get("targetRoiPercent") as string),
         metricsLastUpdated: new Date(),
       },
     });
@@ -1194,12 +1188,11 @@ interface MarginRecalibrationFormProps {
     averageProfitMargin: string;
     averageCogsPercent: string;
     averageShippingCost: string;
-    averageOrderValue: string;
-    targetRoiPercent: string;
   };
+  currentAOV: number; // Real-time calculated from database
 }
 
-function MarginRecalibrationForm({ initialValues }: MarginRecalibrationFormProps) {
+function MarginRecalibrationForm({ initialValues, currentAOV }: MarginRecalibrationFormProps) {
   const fetcher = useFetcher();
 
   const [formValues, setFormValues] = useState(initialValues);
@@ -1214,8 +1207,6 @@ function MarginRecalibrationForm({ initialValues }: MarginRecalibrationFormProps
     formData.append("averageProfitMargin", formValues.averageProfitMargin);
     formData.append("averageCogsPercent", formValues.averageCogsPercent);
     formData.append("averageShippingCost", formValues.averageShippingCost);
-    formData.append("averageOrderValue", formValues.averageOrderValue);
-    formData.append("targetRoiPercent", formValues.targetRoiPercent);
 
     fetcher.submit(formData, { method: "post" });
   }, [formValues, fetcher]);
@@ -1269,27 +1260,15 @@ function MarginRecalibrationForm({ initialValues }: MarginRecalibrationFormProps
             step="0.01"
           />
           <TextField
-            label="Average Order Value"
-            type="number"
-            value={formValues.averageOrderValue}
-            onChange={handleChange('averageOrderValue')}
-            helpText="Historical average order value"
+            label="Average Order Value (Auto-calculated)"
+            type="text"
+            value={formatAmount(currentAOV)}
+            onChange={() => {}} // Read-only
+            helpText="Automatically calculated from your actual order data"
             autoComplete="off"
-            min="0"
-            step="0.01"
+            disabled
           />
         </FormLayout.Group>
-
-        <TextField
-          label="Target ROI Percent (%)"
-          type="number"
-          value={formValues.targetRoiPercent}
-          onChange={handleChange('targetRoiPercent')}
-          helpText="e.g., 300 for 3x return on investment"
-          autoComplete="off"
-          min="0"
-          step="0.01"
-        />
       </FormLayout>
 
       <InlineStack align="end">
@@ -2362,9 +2341,8 @@ export default function AnalyticsPage() {
                               averageProfitMargin: data.shopSettings?.averageProfitMargin || '',
                               averageCogsPercent: data.shopSettings?.averageCogsPercent || '',
                               averageShippingCost: data.shopSettings?.averageShippingCost || '',
-                              averageOrderValue: data.shopSettings?.averageOrderValue || '',
-                              targetRoiPercent: data.shopSettings?.targetRoiPercent || '',
                             }}
+                            currentAOV={data.overviewMetrics.avgOrderValue}
                           />
                         </BlockStack>
                       </Box>
@@ -2388,10 +2366,7 @@ export default function AnalyticsPage() {
                               <strong>Average Shipping Cost:</strong> Typical shipping cost per order in your store currency
                             </Text>
                             <Text variant="bodySm" as="p" tone="subdued">
-                              <strong>Average Order Value:</strong> Historical average order value for baseline calculations
-                            </Text>
-                            <Text variant="bodySm" as="p" tone="subdued">
-                              <strong>Target ROI Percent:</strong> Your target return on investment for the loyalty program (e.g., 300 for 3x)
+                              <strong>Average Order Value:</strong> Automatically calculated from your actual order data
                             </Text>
                           </BlockStack>
                         </BlockStack>
