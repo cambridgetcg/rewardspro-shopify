@@ -1190,10 +1190,16 @@ interface MarginRecalibrationFormProps {
     averageShippingCost: string;
   };
   currentAOV: number; // Real-time calculated from database
+  shopSettings: any; // Shop settings for currency formatting
 }
 
-function MarginRecalibrationForm({ initialValues, currentAOV }: MarginRecalibrationFormProps) {
+function MarginRecalibrationForm({ initialValues, currentAOV, shopSettings }: MarginRecalibrationFormProps) {
   const fetcher = useFetcher();
+
+  // Format currency helper
+  const formatAmount = useCallback((amount: number) => {
+    return formatCurrency(amount, shopSettings);
+  }, [shopSettings]);
 
   const [formValues, setFormValues] = useState(initialValues);
 
@@ -2343,6 +2349,7 @@ export default function AnalyticsPage() {
                               averageShippingCost: data.shopSettings?.averageShippingCost || '',
                             }}
                             currentAOV={data.overviewMetrics.avgOrderValue}
+                            shopSettings={data.shopSettings}
                           />
                         </BlockStack>
                       </Box>
