@@ -35,6 +35,7 @@ import {
 import { authenticate, FREE_PLAN, PRO_PLAN, MAX_PLAN, ULTRA_PLAN } from "../shopify.server";
 import db from "../db.server";
 import { MANAGED_PLANS } from "~/constants/billing.constants";
+import { measureQuery, getDatabaseHealth, formatResponseTime } from "~/utils/database-health.server";
 
 // ============================================
 // HELPER FUNCTIONS
@@ -61,6 +62,24 @@ const calculateProjectedOrders = (currentOrders: number, daysRemaining: number):
   return Math.ceil(dailyRate * totalDaysInMonth);
 };
 
+const formatTimeAgo = (dateString: string | null): string => {
+  if (!dateString) return 'Never';
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+};
+
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
@@ -84,6 +103,33 @@ interface DashboardData {
     errorsLastHour: number;
     successRate: number;
     status: 'healthy' | 'degraded' | 'critical';
+  };
+  databaseHealth: {
+    responseTime: number;
+    status: 'connected' | 'degraded' | 'disconnected';
+    uptime: number;
+    lastCheck: string;
+  };
+  loyaltyEngine: {
+    tierCount: number;
+    status: 'operational' | 'needs_setup' | 'degraded';
+    automationEnabled: boolean;
+    currency: string;
+    cashbackEnabled: boolean;
+  };
+  dataSyncHealth: {
+    status: 'operational' | 'syncing' | 'degraded' | 'failed';
+    customerSync: {
+      status: 'completed' | 'running' | 'failed' | 'never_run';
+      lastSyncAt: string | null;
+      recordsProcessed: number;
+    };
+    orderSync: {
+      status: 'idle' | 'running' | 'failed' | 'completed';
+      lastSyncAt: string | null;
+      recordsProcessed: number;
+    };
+    webhookHealth: 'healthy' | 'degraded' | 'critical';
   };
   // Billing data
   currentPlan: any | null;
@@ -152,23 +198,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // Fetch only essential data in parallel
-    const [shopSettings, billingSubscription] = await Promise.all([
-      // Shop settings for feature manager and currency
-      db.shopSettings.findUnique({
-        where: { shop },
-        select: {
-          storeCurrency: true,
-          advancedAnalyticsEnabled: true,
-          autoCashbackProcessingEnabled: true,
-          emailMarketingEnabled: true,
-          tierProductsEnabled: true,
-        }
-      }),
+    // Wrap shopSettings query with health monitoring
+    const [shopSettings, billingSubscription, tierCount, syncStatusRecords] = await Promise.all([
+      // Shop settings for feature manager and currency (with health monitoring)
+      measureQuery(() =>
+        db.shopSettings.findUnique({
+          where: { shop },
+          select: {
+            storeCurrency: true,
+            advancedAnalyticsEnabled: true,
+            autoCashbackProcessingEnabled: true,
+            emailMarketingEnabled: true,
+            tierProductsEnabled: true,
+            customersInitialSynced: true,
+            customersSyncInProgress: true,
+          }
+        })
+      ),
 
       // Billing subscription from database for plan details
       db.billingSubscription.findUnique({
         where: { shop },
       }).catch(() => null),
+
+      // Tier count for loyalty engine status
+      db.tier.count({
+        where: { shop }
+      }).catch(() => 0),
+
+      // Sync status for data sync health
+      db.syncStatus.findMany({
+        where: { shop },
+        orderBy: { lastSyncAt: 'desc' }
+      }).catch(() => []),
     ]);
 
     // Simple direct order count for current month
@@ -293,6 +355,57 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       webhookStatus = 'degraded';
     }
 
+    // Get database health metrics
+    const dbHealth = getDatabaseHealth();
+
+    // Calculate Loyalty Engine status
+    const cashbackEnabled = shopSettings?.autoCashbackProcessingEnabled ?? false;
+    const hasCurrency = !!shopSettings?.storeCurrency;
+    const hasTiers = tierCount > 0;
+
+    let loyaltyStatus: 'operational' | 'needs_setup' | 'degraded' = 'operational';
+    if (!hasTiers || !hasCurrency) {
+      loyaltyStatus = 'needs_setup';
+    } else if (!cashbackEnabled) {
+      loyaltyStatus = 'degraded';
+    }
+
+    // Calculate Data Sync Health
+    const customerSyncRecord = syncStatusRecords.find(r => r.syncType === 'customers');
+    const orderSyncRecord = syncStatusRecords.find(r => r.syncType === 'orders');
+
+    // Determine customer sync status
+    let customerSyncStatus: 'completed' | 'running' | 'failed' | 'never_run' = 'never_run';
+    if (shopSettings?.customersSyncInProgress) {
+      customerSyncStatus = 'running';
+    } else if (!shopSettings?.customersInitialSynced) {
+      customerSyncStatus = 'never_run';
+    } else if (customerSyncRecord?.status === 'FAILED') {
+      customerSyncStatus = 'failed';
+    } else {
+      customerSyncStatus = 'completed';
+    }
+
+    // Determine order sync status
+    let orderSyncStatus: 'idle' | 'running' | 'failed' | 'completed' = 'idle';
+    if (orderSyncRecord?.status === 'RUNNING') {
+      orderSyncStatus = 'running';
+    } else if (orderSyncRecord?.status === 'FAILED') {
+      orderSyncStatus = 'failed';
+    } else if (orderSyncRecord?.status === 'COMPLETED') {
+      orderSyncStatus = 'completed';
+    }
+
+    // Overall data sync health
+    let dataSyncStatus: 'operational' | 'syncing' | 'degraded' | 'failed' = 'operational';
+    if (customerSyncStatus === 'failed' || orderSyncStatus === 'failed') {
+      dataSyncStatus = 'failed';
+    } else if (customerSyncStatus === 'running' || orderSyncStatus === 'running') {
+      dataSyncStatus = 'syncing';
+    } else if (webhookStatus === 'critical') {
+      dataSyncStatus = 'degraded';
+    }
+
     // Simplified dashboard data
     const dashboardData: DashboardData = {
       shop,
@@ -311,6 +424,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         errorsLastHour: webhookErrorsLastHour,
         successRate: Math.round(successRate * 10) / 10,
         status: webhookStatus
+      },
+      databaseHealth: {
+        responseTime: dbHealth.responseTime,
+        status: dbHealth.status,
+        uptime: dbHealth.uptime,
+        lastCheck: dbHealth.lastCheck.toISOString(),
+      },
+      loyaltyEngine: {
+        tierCount,
+        status: loyaltyStatus,
+        automationEnabled: false, // Note: tierRecalculationEnabled is always false in shopSettings
+        currency: shopSettings?.storeCurrency || 'Not Set',
+        cashbackEnabled,
+      },
+      dataSyncHealth: {
+        status: dataSyncStatus,
+        customerSync: {
+          status: customerSyncStatus,
+          lastSyncAt: customerSyncRecord?.lastSyncAt?.toISOString() || null,
+          recordsProcessed: customerSyncRecord?.recordsProcessed || 0,
+        },
+        orderSync: {
+          status: orderSyncStatus,
+          lastSyncAt: orderSyncRecord?.lastSyncAt?.toISOString() || null,
+          recordsProcessed: orderSyncRecord?.recordsProcessed || 0,
+        },
+        webhookHealth: webhookStatus,
       },
       currentPlan: serializedPlan,
       // Use GraphQL subscription name (most accurate) instead of stale billing.check() data
@@ -352,6 +492,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const feature = formData.get("feature") as string;
     const enabled = formData.get("enabled") === "true";
 
+    // Fetch current value before update
+    const currentSettings = await db.shopSettings.findUnique({
+      where: { shop },
+      select: { [feature]: true }
+    });
+
+    const previousValue = currentSettings?.[feature];
+
     const updateData: any = {};
     updateData[feature] = enabled;
 
@@ -361,6 +509,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Special logging for Automatic Cashback Processing
     if (feature === 'autoCashbackProcessingEnabled') {
       console.log(`[Feature Manager] ⚠️  Automatic Cashback Processing is now ${enabled ? 'ENABLED' : 'DISABLED'} for ${shop}`);
+      console.log(`[Feature Manager] Database change: autoCashbackProcessingEnabled ${previousValue} → ${enabled}`);
       console.log(`[Feature Manager] Future orders will ${enabled ? 'automatically earn' : 'NOT automatically earn'} cashback rewards`);
     }
 
@@ -368,6 +517,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       where: { shop },
       data: updateData,
     });
+
+    // Verify the update
+    const updatedSettings = await db.shopSettings.findUnique({
+      where: { shop },
+      select: { [feature]: true }
+    });
+
+    console.log(`[Feature Manager] ✓ Database updated successfully: ${feature} = ${updatedSettings?.[feature]}`);
 
     return json({ success: true, feature, enabled });
   }
@@ -541,7 +698,13 @@ export default function Dashboard() {
                       >
                         <Icon source={DatabaseIcon} tone="base" />
                       </Box>
-                      <Badge tone="success">Operational</Badge>
+                      <Badge tone={
+                        data.databaseHealth.status === 'connected' ? 'success' :
+                        data.databaseHealth.status === 'degraded' ? 'warning' : 'critical'
+                      }>
+                        {data.databaseHealth.status === 'connected' ? 'Operational' :
+                         data.databaseHealth.status === 'degraded' ? 'Degraded' : 'Disconnected'}
+                      </Badge>
                     </InlineStack>
 
                     <Text variant="headingSm" as="h3" fontWeight="semibold">
@@ -551,15 +714,27 @@ export default function Dashboard() {
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Response:</Text>
-                        <Text variant="bodySm" fontWeight="medium">~10ms</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.databaseHealth.responseTime === 0
+                            ? 'Measuring...'
+                            : data.databaseHealth.responseTime < 1000
+                              ? `${Math.round(data.databaseHealth.responseTime)}ms`
+                              : `${(data.databaseHealth.responseTime / 1000).toFixed(2)}s`
+                          }
+                        </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Uptime:</Text>
-                        <Text variant="bodySm" fontWeight="medium">100%</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.databaseHealth.uptime}%
+                        </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Status:</Text>
-                        <Text variant="bodySm" fontWeight="medium">Connected</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.databaseHealth.status === 'connected' ? 'Connected' :
+                           data.databaseHealth.status === 'degraded' ? 'Slow' : 'Disconnected'}
+                        </Text>
                       </InlineStack>
                     </BlockStack>
 
@@ -633,7 +808,13 @@ export default function Dashboard() {
                       >
                         <Icon source={ChartVerticalIcon} tone="base" />
                       </Box>
-                      <Badge tone="success">Operational</Badge>
+                      <Badge tone={
+                        data.loyaltyEngine.status === 'operational' ? 'success' :
+                        data.loyaltyEngine.status === 'degraded' ? 'warning' : 'attention'
+                      }>
+                        {data.loyaltyEngine.status === 'operational' ? 'Operational' :
+                         data.loyaltyEngine.status === 'degraded' ? 'Degraded' : 'Needs Setup'}
+                      </Badge>
                     </InlineStack>
 
                     <Text variant="headingSm" as="h3" fontWeight="semibold">
@@ -643,18 +824,22 @@ export default function Dashboard() {
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Tiers:</Text>
-                        <Text variant="bodySm" fontWeight="medium">Configured</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.loyaltyEngine.tierCount > 0
+                            ? `${data.loyaltyEngine.tierCount} Tier${data.loyaltyEngine.tierCount !== 1 ? 's' : ''}`
+                            : 'Not Configured'}
+                        </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Automation:</Text>
+                        <Text variant="bodySm" tone="subdued">Cashback:</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {data.shopSettings?.tierRecalculationEnabled ? 'Enabled' : 'Disabled'}
+                          {data.loyaltyEngine.cashbackEnabled ? 'Enabled' : 'Disabled'}
                         </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Currency:</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {data.shopSettings?.storeCurrency || 'Not Set'}
+                          {data.loyaltyEngine.currency}
                         </Text>
                       </InlineStack>
                     </BlockStack>
@@ -678,7 +863,15 @@ export default function Dashboard() {
                       >
                         <Icon source={RefreshIcon} tone="base" />
                       </Box>
-                      <Badge tone="success">Operational</Badge>
+                      <Badge tone={
+                        data.dataSyncHealth.status === 'operational' ? 'success' :
+                        data.dataSyncHealth.status === 'syncing' ? 'info' :
+                        data.dataSyncHealth.status === 'degraded' ? 'warning' : 'critical'
+                      }>
+                        {data.dataSyncHealth.status === 'operational' ? 'Operational' :
+                         data.dataSyncHealth.status === 'syncing' ? 'Syncing' :
+                         data.dataSyncHealth.status === 'degraded' ? 'Degraded' : 'Failed'}
+                      </Badge>
                     </InlineStack>
 
                     <Text variant="headingSm" as="h3" fontWeight="semibold">
@@ -688,15 +881,26 @@ export default function Dashboard() {
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Database:</Text>
-                        <Text variant="bodySm" fontWeight="medium">Active</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.databaseHealth.status === 'connected' ? 'Connected' :
+                           data.databaseHealth.status === 'degraded' ? 'Slow' : 'Disconnected'}
+                        </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Customers:</Text>
-                        <Text variant="bodySm" fontWeight="medium">Ready</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.dataSyncHealth.customerSync.status === 'running' ? 'Syncing...' :
+                           data.dataSyncHealth.customerSync.status === 'failed' ? 'Failed' :
+                           data.dataSyncHealth.customerSync.status === 'never_run' ? 'Not Synced' :
+                           formatTimeAgo(data.dataSyncHealth.customerSync.lastSyncAt)}
+                        </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Webhooks:</Text>
-                        <Text variant="bodySm" fontWeight="medium">Listening</Text>
+                        <Text variant="bodySm" fontWeight="medium">
+                          {data.dataSyncHealth.webhookHealth === 'healthy' ? 'Healthy' :
+                           data.dataSyncHealth.webhookHealth === 'degraded' ? 'Degraded' : 'Critical'}
+                        </Text>
                       </InlineStack>
                     </BlockStack>
 
