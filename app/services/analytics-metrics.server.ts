@@ -129,8 +129,13 @@ async function fetchPeriodMetrics(
     where: { shop },
   });
 
-  // Data integrity check: activeCustomers should not exceed totalCustomers
+  // Calculate metrics
+  const totalRevenue = Number(orderAggregation._sum.netAmount || 0);
+  const cashbackIssued = Number(orderAggregation._sum.cashbackAmount || 0);
   const activeCustomersCount = activeCustomers.length;
+  const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
+
+  // Data integrity check: activeCustomers should not exceed totalCustomers
   if (activeCustomersCount > totalCustomersCount) {
     console.warn(
       `[Analytics] Data inconsistency detected:`,
@@ -138,12 +143,6 @@ async function fetchPeriodMetrics(
       `This indicates Customer table may not be fully synced or there are orphaned Order records.`
     );
   }
-
-  // Calculate metrics
-  const totalRevenue = Number(orderAggregation._sum.netAmount || 0);
-  const cashbackIssued = Number(orderAggregation._sum.cashbackAmount || 0);
-  const activeCustomersCount = activeCustomers.length;
-  const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0;
 
   return {
     totalRevenue,
