@@ -1503,50 +1503,6 @@ export default function AnalyticsPage() {
                             </BlockStack>
                           </Box>
                         </Card>
-
-                        {/* Active Customers */}
-                        <Card>
-                          <Box padding="400">
-                            <BlockStack gap="200">
-                              <Text variant="bodySm" tone="subdued" as="p">
-                                Active Customers (This Month)
-                              </Text>
-                              <Text variant="headingLg" as="h3">
-                                {data.overviewMetrics.activeCustomers.toLocaleString()}
-                              </Text>
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone={getBadgeTone('customers', data.metricsChanges.activeCustomersChange)}>
-                                  {formatPercentageChange(data.metricsChanges.activeCustomersChange)}
-                                </Badge>
-                                <Text variant="bodySm" tone="subdued" as="span">
-                                  vs last month
-                                </Text>
-                              </InlineStack>
-                            </BlockStack>
-                          </Box>
-                        </Card>
-
-                        {/* Total Customers */}
-                        <Card>
-                          <Box padding="400">
-                            <BlockStack gap="200">
-                              <Text variant="bodySm" tone="subdued" as="p">
-                                Customer Base (All-Time)
-                              </Text>
-                              <Text variant="headingLg" as="h3">
-                                {data.overviewMetrics.totalCustomers.toLocaleString()}
-                              </Text>
-                              <InlineStack gap="200" blockAlign="center">
-                                <Badge tone={getBadgeTone('customers', data.metricsChanges.totalCustomersChange)}>
-                                  {formatPercentageChange(data.metricsChanges.totalCustomersChange)}
-                                </Badge>
-                                <Text variant="bodySm" tone="subdued" as="span">
-                                  vs last month
-                                </Text>
-                              </InlineStack>
-                            </BlockStack>
-                          </Box>
-                        </Card>
                       </div>
                     </BlockStack>
 
