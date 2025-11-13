@@ -83,6 +83,7 @@ import {
   type OverviewMetrics,
   type MetricsComparison
 } from "~/services/analytics-metrics.server";
+import { getTierPerformanceMetrics } from "~/services/tier-performance.server";
 import { formatPercentageChange, getBadgeTone } from "~/utils/analytics-formatters";
 
 // ============================================
@@ -248,61 +249,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Continue without recommendations if there's an error
     }
 
-    // Fetch REAL overview metrics with caching
-    const metricsComparison = await getOverviewMetricsWithComparison(shop);
+    // Fetch REAL overview metrics and tier performance with caching
+    const [metricsComparison, tierPerformance] = await Promise.all([
+      getOverviewMetricsWithComparison(shop),
+      getTierPerformanceMetrics(shop),
+    ]);
 
-    // PLACEHOLDER DATA for tier analytics - Will be replaced with real data fetching later
-    // Realistic data for a medium-sized shop with ~1000 members
+    // Calculate weighted averages from tier performance data
+    const totalCustomers = tierPerformance.reduce((sum, tier) => sum + tier.members, 0);
+    const weightedOrderFreq = totalCustomers > 0
+      ? tierPerformance.reduce((sum, tier) => sum + (tier.monthlyOrderFrequency * tier.members), 0) / totalCustomers
+      : 0;
+    const weightedGrossProfit = totalCustomers > 0
+      ? tierPerformance.reduce((sum, tier) => sum + (tier.grossProfitPerCustomerPerMonth * tier.members), 0) / totalCustomers
+      : 0;
+
     const analyticsData: AnalyticsData = {
       // REAL Overview metrics
       overviewMetrics: metricsComparison.current,
       previousMetrics: metricsComparison.previous,
       metricsChanges: metricsComparison.changes,
 
-      // Legacy metrics with placeholder values (weighted average across all tiers)
-      monthlyOrderFrequency: 2.83, // Average orders per customer per month
+      // Legacy metrics (weighted average across all tiers)
+      monthlyOrderFrequency: Math.round(weightedOrderFreq * 100) / 100,
       revenuePerOrder: metricsComparison.current.avgOrderValue, // Use real AOV
-      grossProfitPerCustomerPerMonth: 121.48, // Monthly gross profit per customer
+      grossProfitPerCustomerPerMonth: Math.round(weightedGrossProfit * 100) / 100,
 
-      // Tier performance with realistic mock data (current month)
-      // Distribution: ~1000 members across tiers (more in lower tiers, fewer in higher)
-      // Metrics show progression: higher tiers order more frequently with higher AOV
-      tierPerformance: tiers.map((tier, index) => {
-        // Realistic member distribution (decreases as tiers get higher)
-        const memberCounts = [453, 312, 178, 57]; // Total: 1000 members
-        // Realistic order frequency (increases with tier) - CURRENT month values
-        const orderFrequencies = [1.47, 2.64, 3.89, 5.28];
-        // Realistic revenue per order (increases with tier) - CURRENT month values
-        const revenuePerOrders = [87.23, 118.45, 176.82, 263.17];
-        // Realistic monthly gross profit per customer - CURRENT month values
-        const grossProfits = [38.47, 93.82, 206.34, 417.19];
-        // Average order values (increases with tier)
-        const avgOrderValues = [75.50, 112.80, 165.40, 245.90];
-        // Customer lifetime values (increases significantly with tier)
-        const lifetimeValues = [850, 1840, 3520, 6890];
-        // Retention rates (increases with tier) - percentage
-        const retentionRates = [68.5, 78.2, 86.7, 92.4];
-        // Total cashback earned per tier member
-        const cashbackEarned = [42.50, 156.80, 389.20, 847.60];
-
-        return {
-          id: tier.id,
-          name: tier.name,
-          members: memberCounts[index] || 50,
-          customerCount: memberCounts[index] || 50, // For Doughnut chart
-          cashbackPercent: tier.cashbackPercent,
-          monthlyOrderFrequency: orderFrequencies[index] || 2.0,
-          revenuePerOrder: revenuePerOrders[index] || 100,
-          grossProfitPerCustomerPerMonth: grossProfits[index] || 60,
-          // For Radar chart
-          averageOrderValue: avgOrderValues[index] || 100,
-          lifetimeValue: lifetimeValues[index] || 1000,
-          retentionRate: retentionRates[index] || 75,
-          totalCashbackEarned: cashbackEarned[index] || 100,
-        };
-      }),
+      // REAL Tier performance data
+      tierPerformance: tierPerformance,
 
       // Generate 12 months of historical data for time-series charts
+      // NOTE: Currently extrapolated from current month data - full historical tracking coming soon
       monthlyTierTrends: (() => {
         const months = [];
         const now = new Date();
@@ -312,41 +289,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const monthName = date.toLocaleDateString('en-US', { month: 'short' }); // Use 3-letter month names per Polaris guidelines
 
-          // Base values for each tier (12 months ago)
-          const baseOrderFreqs = [1.12, 2.08, 3.21, 4.67];
-          const baseRevenues = [79.45, 105.23, 151.34, 228.91];
-          const baseGrossProfits = [26.78, 65.71, 145.92, 320.84];
-
-          // Current values (from tierPerformance above)
-          const currentOrderFreqs = [1.47, 2.64, 3.89, 5.28];
-          const currentRevenues = [87.23, 118.45, 176.82, 263.17];
-          const currentGrossProfits = [38.47, 93.82, 206.34, 417.19];
-
           months.push({
             month: monthName,
-            tiers: tiers.map((tier, index) => {
+            tiers: tierPerformance.map((tierData) => {
               // Calculate growth progress (0 to 1) from oldest to newest
               const progress = (11 - i) / 11;
 
-              // Interpolate between base and current values with some randomness
+              // Extrapolate backwards from current values (assume 30% growth over 12 months)
+              const growthFactor = 0.7; // Start at 70% of current value 12 months ago
+              const interpolationFactor = growthFactor + (1 - growthFactor) * progress;
+
+              // Add slight randomness for realistic variation
               const randomFactor = 0.95 + (Math.random() * 0.1); // ±5% variance
 
-              const orderFreq = baseOrderFreqs[index] +
-                (currentOrderFreqs[index] - baseOrderFreqs[index]) * progress * randomFactor;
-
-              const revenue = baseRevenues[index] +
-                (currentRevenues[index] - baseRevenues[index]) * progress * randomFactor;
-
-              const grossProfit = baseGrossProfits[index] +
-                (currentGrossProfits[index] - baseGrossProfits[index]) * progress * randomFactor;
+              const orderFreq = tierData.monthlyOrderFrequency * interpolationFactor * randomFactor;
+              const revenue = tierData.revenuePerOrder * interpolationFactor * randomFactor;
+              const grossProfit = tierData.grossProfitPerCustomerPerMonth * interpolationFactor * randomFactor;
 
               // Calculate total revenue for this tier in this month
               // Revenue = customers * order frequency * revenue per order
-              const memberCounts = [453, 312, 178, 57];
-              const tierRevenue = memberCounts[index] * orderFreq * revenue;
+              const tierRevenue = tierData.members * orderFreq * revenue;
 
               return {
-                tierName: tier.name,
+                tierName: tierData.name,
                 orderFrequency: Math.round(orderFreq * 100) / 100,
                 revenuePerOrder: Math.round(revenue * 100) / 100,
                 grossProfit: Math.round(grossProfit * 100) / 100,
