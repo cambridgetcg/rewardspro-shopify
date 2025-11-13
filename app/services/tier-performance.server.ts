@@ -58,7 +58,7 @@ function getPreviousPeriod(): { year: number; month: number } {
  */
 async function calculateRetentionRate(
   shop: string,
-  tierId: string,
+  tierCustomerIds: string[],
   currentMonthRange: { start: Date; end: Date },
   previousMonthRange: { start: Date; end: Date }
 ): Promise<number> {
@@ -66,15 +66,13 @@ async function calculateRetentionRate(
   const previousMonthCustomers = await db.order.findMany({
     where: {
       shop,
+      customerId: { in: tierCustomerIds },
       shopifyCreatedAt: {
         gte: previousMonthRange.start,
         lte: previousMonthRange.end,
       },
       financialStatus: {
         in: ['PAID', 'PARTIALLY_PAID'],
-      },
-      customer: {
-        currentTierId: tierId,
       },
     },
     distinct: ['customerId'],
@@ -93,18 +91,15 @@ async function calculateRetentionRate(
   const currentMonthCustomers = await db.order.findMany({
     where: {
       shop,
+      customerId: {
+        in: Array.from(previousCustomerIds), // Only check if they were in previous month
+      },
       shopifyCreatedAt: {
         gte: currentMonthRange.start,
         lte: currentMonthRange.end,
       },
       financialStatus: {
         in: ['PAID', 'PARTIALLY_PAID'],
-      },
-      customerId: {
-        in: Array.from(previousCustomerIds), // Only check if they were in previous month
-      },
-      customer: {
-        currentTierId: tierId,
       },
     },
     distinct: ['customerId'],
@@ -165,27 +160,50 @@ async function fetchTierPerformanceMetrics(
   // Build metrics for each tier
   const tierMetrics = await Promise.all(
     tiers.map(async (tier) => {
-      // 1. Members (Customer Count)
-      const customerCount = await db.customer.count({
+      // 1. Get all customers in this tier
+      const tierCustomers = await db.customer.findMany({
         where: {
           shop,
           currentTierId: tier.id,
         },
+        select: {
+          id: true,
+        },
       });
+
+      const customerCount = tierCustomers.length;
+      const tierCustomerIds = tierCustomers.map(c => c.id);
+
+      // If no customers in this tier, return empty metrics
+      if (tierCustomerIds.length === 0) {
+        console.log(`[Tier Performance] ${tier.name}: No customers`);
+        return {
+          id: tier.id,
+          name: tier.name,
+          members: 0,
+          customerCount: 0,
+          cashbackPercent: tier.cashbackPercent,
+          monthlyOrderFrequency: 0,
+          revenuePerOrder: 0,
+          grossProfitPerCustomerPerMonth: 0,
+          averageOrderValue: 0,
+          lifetimeValue: 0,
+          retentionRate: 0,
+          totalCashbackEarned: 0,
+        };
+      }
 
       // 2-6, 8. Order metrics for current month
       const orderAggregation = await db.order.aggregate({
         where: {
           shop,
+          customerId: { in: tierCustomerIds },
           shopifyCreatedAt: {
             gte: currentMonthRange.start,
             lte: currentMonthRange.end,
           },
           financialStatus: {
             in: ['PAID', 'PARTIALLY_PAID', 'PARTIALLY_REFUNDED'],
-          },
-          customer: {
-            currentTierId: tier.id,
           },
         },
         _sum: {
@@ -201,15 +219,13 @@ async function fetchTierPerformanceMetrics(
       const activeCustomers = await db.order.findMany({
         where: {
           shop,
+          customerId: { in: tierCustomerIds },
           shopifyCreatedAt: {
             gte: currentMonthRange.start,
             lte: currentMonthRange.end,
           },
           financialStatus: {
             in: ['PAID', 'PARTIALLY_PAID'],
-          },
-          customer: {
-            currentTierId: tier.id,
           },
         },
         distinct: ['customerId'],
@@ -239,7 +255,7 @@ async function fetchTierPerformanceMetrics(
       const lifetimeValueAgg = await db.customer.aggregate({
         where: {
           shop,
-          currentTierId: tier.id,
+          id: { in: tierCustomerIds },
         },
         _avg: {
           totalSpent: true,
@@ -252,7 +268,7 @@ async function fetchTierPerformanceMetrics(
       try {
         retentionRate = await calculateRetentionRate(
           shop,
-          tier.id,
+          tierCustomerIds,
           currentMonthRange,
           previousMonthRange
         );

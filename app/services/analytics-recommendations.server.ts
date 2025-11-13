@@ -77,11 +77,7 @@ export class AnalyticsRecommendationsService {
 
     return await db.analyticsRecommendation.findMany({
       where,
-      orderBy: [
-        { priority: 'desc' },
-        { predictedRevenue: 'desc' },
-        { createdAt: 'desc' }
-      ],
+      orderBy: { priority: 'desc' }, // Aurora Data API doesn't support array orderBy
       take: options?.limit || 10
     });
   }
