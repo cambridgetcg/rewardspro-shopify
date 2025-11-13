@@ -84,6 +84,12 @@ import {
   type MetricsComparison
 } from "~/services/analytics-metrics.server";
 import { getTierPerformanceMetrics } from "~/services/tier-performance.server";
+import {
+  getProgramImpactMetrics,
+  getMonthlyImpactData,
+  type ProgramImpactMetrics,
+  type MonthlyImpactData
+} from "~/services/program-impact.server";
 import { formatPercentageChange, getBadgeTone } from "~/utils/analytics-formatters";
 
 // ============================================
@@ -129,6 +135,10 @@ interface AnalyticsData {
       revenue: number; // For Stacked Area chart
     }[];
   }[];
+
+  // Program Impact - REAL DATA
+  programImpact: ProgramImpactMetrics;
+  monthlyImpactData: MonthlyImpactData[];
 
   // Placeholder for future implementation
   trends: {
@@ -249,10 +259,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Continue without recommendations if there's an error
     }
 
-    // Fetch REAL overview metrics and tier performance with caching
-    const [metricsComparison, tierPerformance] = await Promise.all([
+    // Fetch REAL overview metrics, tier performance, and program impact with caching
+    const [metricsComparison, tierPerformance, programImpact, monthlyImpactData] = await Promise.all([
       getOverviewMetricsWithComparison(shop),
       getTierPerformanceMetrics(shop),
+      getProgramImpactMetrics(shop),
+      getMonthlyImpactData(shop),
     ]);
 
     // Calculate weighted averages from tier performance data
@@ -323,6 +335,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
         return months;
       })(),
+
+      // REAL Program Impact data
+      programImpact: programImpact,
+      monthlyImpactData: monthlyImpactData,
 
       // Placeholder trend data (empty for now)
       trends: {
@@ -1532,47 +1548,58 @@ export default function AnalyticsPage() {
                               {/* Chart.js Radar Chart */}
                               <div style={{ height: '400px', padding: '20px 0', display: 'flex', justifyContent: 'center' }}>
                                 <Radar
-                                  data={{
-                                    labels: [
-                                      'Order Frequency',
-                                      'Avg Order Value',
-                                      'Customer LTV',
-                                      'Retention Rate',
-                                      'Revenue/Order',
-                                      'Cashback Earned'
-                                    ],
-                                    datasets: data.tierPerformance.map((tier, tierIndex) => {
-                                      const colors = [
-                                        { border: '#5C6AC4', bg: 'rgba(92, 106, 196, 0.2)' },
-                                        { border: '#006FBB', bg: 'rgba(0, 111, 187, 0.2)' },
-                                        { border: '#00848E', bg: 'rgba(0, 132, 142, 0.2)' },
-                                        { border: '#47C1BF', bg: 'rgba(71, 193, 191, 0.2)' },
-                                      ];
-                                      const color = colors[tierIndex] || colors[0];
+                                  data={(() => {
+                                    // Calculate dynamic max values from actual data (with 20% buffer for readability)
+                                    const maxOrderFreq = Math.max(...data.tierPerformance.map(t => t.monthlyOrderFrequency), 1) * 1.2;
+                                    const maxAOV = Math.max(...data.tierPerformance.map(t => t.averageOrderValue), 1) * 1.2;
+                                    const maxLTV = Math.max(...data.tierPerformance.map(t => t.lifetimeValue), 1) * 1.2;
+                                    const maxRevenue = Math.max(...data.tierPerformance.map(t => t.revenuePerOrder), 1) * 1.2;
+                                    const maxCashback = Math.max(...data.tierPerformance.map(t => t.totalCashbackEarned), 1) * 1.2;
 
-                                      // Normalize values to 0-100 scale for radar chart
-                                      const normalizeValue = (value: number, max: number) => (value / max) * 100;
+                                    return {
+                                      labels: [
+                                        'Order Frequency',
+                                        'Avg Order Value',
+                                        'Customer LTV',
+                                        'Retention Rate',
+                                        'Revenue/Order',
+                                        'Cashback Earned'
+                                      ],
+                                      datasets: data.tierPerformance.map((tier, tierIndex) => {
+                                        const colors = [
+                                          { border: '#5C6AC4', bg: 'rgba(92, 106, 196, 0.2)' },
+                                          { border: '#006FBB', bg: 'rgba(0, 111, 187, 0.2)' },
+                                          { border: '#00848E', bg: 'rgba(0, 132, 142, 0.2)' },
+                                          { border: '#47C1BF', bg: 'rgba(71, 193, 191, 0.2)' },
+                                        ];
+                                        const color = colors[tierIndex] || colors[0];
 
-                                      return {
-                                        label: tier.name,
-                                        data: [
-                                          normalizeValue(tier.monthlyOrderFrequency, 6), // Order Frequency (max 6)
-                                          normalizeValue(tier.averageOrderValue, 300), // AOV (max $300)
-                                          normalizeValue(tier.lifetimeValue, 5000), // LTV (max $5000)
-                                          tier.retentionRate, // Already percentage (0-100)
-                                          normalizeValue(tier.revenuePerOrder, 300), // Revenue/Order (max $300)
-                                          normalizeValue(tier.totalCashbackEarned, 1000), // Cashback (max $1000)
-                                        ],
-                                        borderColor: color.border,
-                                        backgroundColor: color.bg,
-                                        borderWidth: 2,
-                                        pointBackgroundColor: color.border,
-                                        pointBorderColor: '#fff',
-                                        pointHoverBackgroundColor: '#fff',
-                                        pointHoverBorderColor: color.border,
-                                      };
-                                    }),
-                                  }}
+                                        // Normalize values to 0-100 scale using dynamic max values
+                                        const normalizeValue = (value: number, max: number) => {
+                                          return max > 0 ? Math.min((value / max) * 100, 100) : 0;
+                                        };
+
+                                        return {
+                                          label: tier.name,
+                                          data: [
+                                            normalizeValue(tier.monthlyOrderFrequency, maxOrderFreq),
+                                            normalizeValue(tier.averageOrderValue, maxAOV),
+                                            normalizeValue(tier.lifetimeValue, maxLTV),
+                                            tier.retentionRate > 0 ? Math.min(tier.retentionRate, 100) : 0, // Already percentage (0-100)
+                                            normalizeValue(tier.revenuePerOrder, maxRevenue),
+                                            normalizeValue(tier.totalCashbackEarned, maxCashback),
+                                          ],
+                                          borderColor: color.border,
+                                          backgroundColor: color.bg,
+                                          borderWidth: 2,
+                                          pointBackgroundColor: color.border,
+                                          pointBorderColor: '#fff',
+                                          pointHoverBackgroundColor: '#fff',
+                                          pointHoverBorderColor: color.border,
+                                        };
+                                      }),
+                                    };
+                                  })()}
                                   options={{
                                     responsive: true,
                                     maintainAspectRatio: false,
@@ -1604,7 +1631,38 @@ export default function AnalyticsPage() {
                                       tooltip: {
                                         callbacks: {
                                           label: function(context) {
-                                            return `${context.dataset.label}: ${context.parsed.r.toFixed(1)}%`;
+                                            const tierIndex = context.datasetIndex;
+                                            const metricIndex = context.dataIndex;
+                                            const tier = data.tierPerformance[tierIndex];
+
+                                            if (!tier) return '';
+
+                                            // Get the actual value based on metric index
+                                            let actualValue: string;
+                                            switch (metricIndex) {
+                                              case 0: // Order Frequency
+                                                actualValue = `${tier.monthlyOrderFrequency.toFixed(2)} orders/customer`;
+                                                break;
+                                              case 1: // Avg Order Value
+                                                actualValue = formatAmount(tier.averageOrderValue);
+                                                break;
+                                              case 2: // Customer LTV
+                                                actualValue = formatAmount(tier.lifetimeValue);
+                                                break;
+                                              case 3: // Retention Rate
+                                                actualValue = `${tier.retentionRate.toFixed(1)}%`;
+                                                break;
+                                              case 4: // Revenue/Order
+                                                actualValue = formatAmount(tier.revenuePerOrder);
+                                                break;
+                                              case 5: // Cashback Earned
+                                                actualValue = `${formatAmount(tier.totalCashbackEarned)}/customer`;
+                                                break;
+                                              default:
+                                                actualValue = context.parsed.r.toFixed(1) + '%';
+                                            }
+
+                                            return `${tier.name}: ${actualValue}`;
                                           }
                                         }
                                       }
@@ -1639,7 +1697,7 @@ export default function AnalyticsPage() {
                               </InlineStack>
 
                               <Text variant="bodySm" tone="subdued" as="p">
-                                Each axis normalized to 0-100% scale for comparison across different metrics
+                                Each axis shows relative performance across tiers. Values are automatically scaled to 0-100% based on your actual data for easy comparison.
                               </Text>
                             </BlockStack>
                           </Box>
@@ -1673,13 +1731,22 @@ export default function AnalyticsPage() {
                                 Current Reward Usage Rate
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                77.3%
+                                {data.programImpact.currentUsageRate.toFixed(1)}%
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="success">+6.8%</Badge>
-                                <Text variant="bodySm" tone="subdued" as="span">
-                                  vs last month
-                                </Text>
+                                {data.programImpact.usageRateChange !== 0 ? (
+                                  <>
+                                    <Badge tone={data.programImpact.usageRateChange > 0 ? 'success' : 'critical'}>
+                                      {data.programImpact.usageRateChange > 0 ? '+' : ''}
+                                      {data.programImpact.usageRateChange.toFixed(1)}%
+                                    </Badge>
+                                    <Text variant="bodySm" tone="subdued" as="span">
+                                      vs last month
+                                    </Text>
+                                  </>
+                                ) : (
+                                  <Badge tone="info">Current Period</Badge>
+                                )}
                               </InlineStack>
                             </BlockStack>
                           </Box>
@@ -1693,12 +1760,12 @@ export default function AnalyticsPage() {
                                 Total Influenced Sales
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                {formatAmount(585420)}
+                                {formatAmount(data.programImpact.totalInfluencedSales)}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
                                 <Badge tone="info">Cumulative</Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
-                                  since launch
+                                  all-time
                                 </Text>
                               </InlineStack>
                             </BlockStack>
@@ -1741,11 +1808,11 @@ export default function AnalyticsPage() {
                               <div style={{ height: '300px' }}>
                                 <Line
                                   data={{
-                                    labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+                                    labels: data.monthlyImpactData.map(m => m.month),
                                     datasets: [
                                       {
                                         label: 'Usage Rate',
-                                        data: [65.2, 72.4, 68.1, 75.3, 71.7, 78.5, 74.2, 69.8, 73.1, 76.4, 70.5, 77.3],
+                                        data: data.monthlyImpactData.map(m => m.usageRate),
                                         borderColor: '#8B5CF6',
                                         backgroundColor: 'rgba(139, 92, 246, 0.1)',
                                         fill: true,
@@ -1754,7 +1821,7 @@ export default function AnalyticsPage() {
                                       },
                                       {
                                         label: 'Cumulative Sales',
-                                        data: [25340, 68020, 124920, 194770, 272000, 354560, 421900, 474790, 511910, 538250, 558100, 585420],
+                                        data: data.monthlyImpactData.map(m => m.cumulativeSales),
                                         borderColor: '#22c55e',
                                         backgroundColor: 'rgba(34, 197, 94, 0.1)',
                                         fill: true,
