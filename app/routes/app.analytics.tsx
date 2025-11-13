@@ -274,20 +274,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ]);
 
     // Calculate auto-metrics for business metrics configuration
-    const [ltv, repeatRate, retention] = await Promise.all([
+    const [ltv, totalCustomersCount, allOrders, retention] = await Promise.all([
       // Customer Lifetime Value - average total spent
       db.customer.aggregate({
         where: { shop },
         _avg: { totalSpent: true },
       }),
-      // Repeat Purchase Rate - customers with more than 1 order
-      db.customer.findMany({
+      // Total customers count
+      db.customer.count({
         where: { shop },
-        select: {
-          _count: {
-            select: { orders: true }
-          }
-        }
+      }),
+      // All orders with customer IDs for repeat purchase calculation
+      db.order.findMany({
+        where: {
+          shop,
+          financialStatus: { in: ['PAID', 'PARTIALLY_PAID'] },
+        },
+        select: { customerId: true },
       }),
       // Retention rate - customers who ordered last month and this month
       (async () => {
@@ -331,10 +334,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ]);
 
     const customerLifetimeValue = Number(ltv._avg.totalSpent || 0);
-    const totalCustomersForRepeat = repeatRate.length;
-    const customersWithRepeatOrders = repeatRate.filter(c => c._count.orders > 1).length;
-    const repeatPurchaseRate = totalCustomersForRepeat > 0
-      ? (customersWithRepeatOrders / totalCustomersForRepeat) * 100
+
+    // Calculate repeat purchase rate from orders
+    const ordersByCustomer = new Map<string, number>();
+    allOrders.forEach(order => {
+      const count = ordersByCustomer.get(order.customerId) || 0;
+      ordersByCustomer.set(order.customerId, count + 1);
+    });
+
+    const customersWithRepeatOrders = Array.from(ordersByCustomer.values()).filter(count => count > 1).length;
+    const repeatPurchaseRate = totalCustomersCount > 0
+      ? (customersWithRepeatOrders / totalCustomersCount) * 100
       : 0;
     const actualRetentionRate = retention;
 
