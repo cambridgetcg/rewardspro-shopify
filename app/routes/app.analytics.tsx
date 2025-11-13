@@ -78,13 +78,25 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { formatCurrency } from "../utils/currency";
 import { AnalyticsRecommendationsService } from "~/services/analytics-recommendations.server";
+import {
+  getOverviewMetricsWithComparison,
+  formatPercentageChange,
+  getBadgeTone,
+  type OverviewMetrics,
+  type MetricsComparison
+} from "~/services/analytics-metrics.server";
 
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
 
 interface AnalyticsData {
-  // Overview metrics - NEW STRUCTURE
+  // Overview metrics - REAL DATA
+  overviewMetrics: OverviewMetrics;
+  previousMetrics: OverviewMetrics;
+  metricsChanges: MetricsComparison['changes'];
+
+  // Legacy metrics - NEW STRUCTURE (for tier analytics)
   monthlyOrderFrequency: number; // Orders per customer per month
   revenuePerOrder: number; // Average revenue per order
   grossProfitPerCustomerPerMonth: number; // Monthly gross profit per customer
@@ -237,12 +249,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // Continue without recommendations if there's an error
     }
 
-    // PLACEHOLDER DATA - Will be replaced with real data fetching later
+    // Fetch REAL overview metrics with caching
+    const metricsComparison = await getOverviewMetricsWithComparison(shop);
+
+    // PLACEHOLDER DATA for tier analytics - Will be replaced with real data fetching later
     // Realistic data for a medium-sized shop with ~1000 members
     const analyticsData: AnalyticsData = {
-      // Overview metrics with placeholder values (weighted average across all tiers)
+      // REAL Overview metrics
+      overviewMetrics: metricsComparison.current,
+      previousMetrics: metricsComparison.previous,
+      metricsChanges: metricsComparison.changes,
+
+      // Legacy metrics with placeholder values (weighted average across all tiers)
       monthlyOrderFrequency: 2.83, // Average orders per customer per month
-      revenuePerOrder: 142.75, // Average revenue per order
+      revenuePerOrder: metricsComparison.current.avgOrderValue, // Use real AOV
       grossProfitPerCustomerPerMonth: 121.48, // Monthly gross profit per customer
 
       // Tier performance with realistic mock data (current month)
@@ -1402,13 +1422,15 @@ export default function AnalyticsPage() {
                           <Box padding="400">
                             <BlockStack gap="200">
                               <Text variant="bodySm" tone="subdued" as="p">
-                                Monthly Revenue
+                                Total Revenue
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                {formatAmount(48750.00)}
+                                {formatAmount(data.overviewMetrics.totalRevenue)}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="success">+12.5%</Badge>
+                                <Badge tone={getBadgeTone('revenue', data.metricsChanges.revenueChange)}>
+                                  {formatPercentageChange(data.metricsChanges.revenueChange)}
+                                </Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
                                   vs last month
                                 </Text>
@@ -1425,10 +1447,12 @@ export default function AnalyticsPage() {
                                 Total Orders
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                342
+                                {data.overviewMetrics.totalOrders.toLocaleString()}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="success">+8.3%</Badge>
+                                <Badge tone={getBadgeTone('orders', data.metricsChanges.ordersChange)}>
+                                  {formatPercentageChange(data.metricsChanges.ordersChange)}
+                                </Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
                                   vs last month
                                 </Text>
@@ -1445,10 +1469,12 @@ export default function AnalyticsPage() {
                                 Average Order Value
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                {formatAmount(142.54)}
+                                {formatAmount(data.overviewMetrics.avgOrderValue)}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="success">+3.8%</Badge>
+                                <Badge tone={getBadgeTone('other', data.metricsChanges.avgOrderValueChange)}>
+                                  {formatPercentageChange(data.metricsChanges.avgOrderValueChange)}
+                                </Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
                                   vs last month
                                 </Text>
@@ -1457,20 +1483,22 @@ export default function AnalyticsPage() {
                           </Box>
                         </Card>
 
-                        {/* Gross Profit */}
+                        {/* Cashback Issued */}
                         <Card>
                           <Box padding="400">
                             <BlockStack gap="200">
                               <Text variant="bodySm" tone="subdued" as="p">
-                                Gross Profit
+                                Cashback Issued
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                {formatAmount(21937.50)}
+                                {formatAmount(data.overviewMetrics.cashbackIssued)}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="info">45.0%</Badge>
+                                <Badge tone={getBadgeTone('other', data.metricsChanges.cashbackChange)}>
+                                  {formatPercentageChange(data.metricsChanges.cashbackChange)}
+                                </Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
-                                  margin
+                                  vs last month
                                 </Text>
                               </InlineStack>
                             </BlockStack>
@@ -1485,10 +1513,12 @@ export default function AnalyticsPage() {
                                 Active Customers
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                856
+                                {data.overviewMetrics.activeCustomers.toLocaleString()}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="success">+15.2%</Badge>
+                                <Badge tone={getBadgeTone('customers', data.metricsChanges.activeCustomersChange)}>
+                                  {formatPercentageChange(data.metricsChanges.activeCustomersChange)}
+                                </Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
                                   vs last month
                                 </Text>
@@ -1497,18 +1527,20 @@ export default function AnalyticsPage() {
                           </Box>
                         </Card>
 
-                        {/* Conversion Rate */}
+                        {/* Total Customers */}
                         <Card>
                           <Box padding="400">
                             <BlockStack gap="200">
                               <Text variant="bodySm" tone="subdued" as="p">
-                                Conversion Rate
+                                Total Customers
                               </Text>
                               <Text variant="headingLg" as="h3">
-                                3.24%
+                                {data.overviewMetrics.totalCustomers.toLocaleString()}
                               </Text>
                               <InlineStack gap="200" blockAlign="center">
-                                <Badge tone="warning">-0.3%</Badge>
+                                <Badge tone={getBadgeTone('customers', data.metricsChanges.totalCustomersChange)}>
+                                  {formatPercentageChange(data.metricsChanges.totalCustomersChange)}
+                                </Badge>
                                 <Text variant="bodySm" tone="subdued" as="span">
                                   vs last month
                                 </Text>
