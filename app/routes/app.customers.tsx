@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, defer } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData, useSearchParams, Await } from "@remix-run/react";
-import { useState, useCallback, useMemo, useEffect, useRef, Suspense } from "react";
+import { useLoaderData, useSubmit, useNavigation, useFetcher, useActionData, useSearchParams } from "@remix-run/react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import * as crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -120,7 +120,7 @@ interface Customer {
 }
 
 interface LoaderData {
-  // Immediate data (page shell)
+  // Immediate data (page shell + customers - now fast!)
   tiers: Array<{
     id: string;
     name: string;
@@ -134,9 +134,7 @@ interface LoaderData {
     currencyDisplayType: string;
   } | null;
   currentPlan: string;
-
-  // Deferred data (streams in)
-  customersData: Promise<{
+  customersData: {
     customers: Customer[];
     pagination: {
       currentPage: number;
@@ -146,7 +144,9 @@ interface LoaderData {
       hasNextPage: boolean;
       hasPrevPage: boolean;
     };
-  }>;
+  };
+
+  // Deferred data (only stats - non-critical)
   statsData: Promise<{
     totalTiers: number;
     totalCustomers: number;
@@ -162,7 +162,7 @@ interface ToastState {
 }
 
 // ============================================
-// LOADER HELPER FUNCTIONS (Deferred)
+// LOADER HELPER FUNCTIONS
 // ============================================
 
 /**
@@ -433,9 +433,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }));
 
     // ============================================
-    // DEFERRED: Heavy queries (streams in later)
+    // CUSTOMERS: Load immediately (now fast with batched queries - only 3 queries!)
     // ============================================
-    const customersDataPromise = fetchCustomersData(
+    const customersData = await fetchCustomersData(
       shop,
       whereClause,
       page,
@@ -444,24 +444,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       sortDirection
     );
 
+    // ============================================
+    // STATS: Defer for non-critical data
+    // ============================================
     const statsDataPromise = calculateTierDistributionData(shop).then(data => ({
       totalTiers: tiers.length,
       totalCustomers: data.totalCustomers,
       tierDistribution: data.tierDistribution,
     }));
 
-    // Return immediately - deferred data streams later
+    // Return immediately - only stats are deferred
     return defer({
-      // Immediate data (shell)
+      // Immediate data (shell + customers)
       tiers: serializedTiers,
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
       } : null,
       currentPlan,
+      customersData: customersData, // Now loaded immediately!
 
-      // Deferred data (streams in)
-      customersData: customersDataPromise,
+      // Deferred data (non-critical stats)
       statsData: statsDataPromise,
     });
   } catch (error) {
@@ -2077,15 +2080,9 @@ export default function Customers() {
               <InlineStack align="space-between" blockAlign="center">
                 <InlineStack gap="300" blockAlign="center">
                   <Text variant="headingLg" as="h2">Customers</Text>
-                  <Suspense fallback={<Text variant="bodySm" tone="subdued" as="span">Loading...</Text>}>
-                    <Await resolve={data.customersData}>
-                      {(customersData) => (
-                        <Text variant="bodySm" tone="subdued" as="span">
-                          {getCustomerCountText(customersData)}
-                        </Text>
-                      )}
-                    </Await>
-                  </Suspense>
+                  <Text variant="bodySm" tone="subdued" as="span">
+                    {getCustomerCountText(data.customersData)}
+                  </Text>
               </InlineStack>
 
               <InlineStack gap="200" blockAlign="center">
@@ -2138,24 +2135,18 @@ export default function Customers() {
           </BlockStack>
         </Box>
 
-        {/* Customer Table - Deferred Loading */}
-        <Suspense fallback={<CustomersTableSkeleton />}>
-          <Await resolve={data.customersData}>
-            {(customersData) => (
-              <CustomersTableContent
-                customers={customersData.customers}
-                pagination={customersData.pagination}
-                shopSettings={data.shopSettings}
-                tiers={data.tiers}
-                isCalculating={isCalculating}
-                calculatingCustomerId={calculatingCustomerId}
-                handleViewCustomer={handleViewCustomer}
-                handleManualTierAssignment={handleManualTierAssignment}
-                handleCalculateSingle={handleCalculateSingle}
-              />
-            )}
-          </Await>
-        </Suspense>
+        {/* Customer Table - Now loads immediately! */}
+        <CustomersTableContent
+          customers={data.customersData.customers}
+          pagination={data.customersData.pagination}
+          shopSettings={data.shopSettings}
+          tiers={data.tiers}
+          isCalculating={isCalculating}
+          calculatingCustomerId={calculatingCustomerId}
+          handleViewCustomer={handleViewCustomer}
+          handleManualTierAssignment={handleManualTierAssignment}
+          handleCalculateSingle={handleCalculateSingle}
+        />
       </Card>
 
         {/* Customer Detail Modal */}
