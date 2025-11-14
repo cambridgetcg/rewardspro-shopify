@@ -120,7 +120,7 @@ interface Customer {
 }
 
 interface LoaderData {
-  // Immediate data (page shell + customers - now fast!)
+  // IMMEDIATE: Page shell + essential customers (renders instantly!)
   tiers: Array<{
     id: string;
     name: string;
@@ -146,7 +146,14 @@ interface LoaderData {
     };
   };
 
-  // Deferred data (only stats - non-critical)
+  // DEFERRED: Enhanced metadata & stats (streams in after render)
+  enhancedMetadata: Promise<{
+    enhancedData: Record<string, {
+      hasManualOverride: boolean;
+      lastTierChange: any;
+      membershipStatus: any;
+    }>;
+  }>;
   statsData: Promise<{
     totalTiers: number;
     totalCustomers: number;
@@ -166,32 +173,199 @@ interface ToastState {
 // ============================================
 
 /**
- * Fetch and format customers with membership status (OPTIMIZED - batched queries)
+ * PHASE 1: Fetch essential fields only for immediate UI render (FASTEST)
  */
-async function fetchCustomersData(
-  shop: string,
-  whereClause: any,
+async function fetchEssentialCustomersData(
+  customers: any[],
+  totalCount: number,
   page: number,
-  pageSize: number,
-  sortKey: string,
-  sortDirection: string
+  pageSize: number
 ) {
-  // Fetch customers and total count in parallel
-  const [customers, totalCount] = await Promise.all([
-    db.customer.findMany({
-      where: whereClause,
-      include: {
-        currentTier: true,
-      },
-      orderBy: { [sortKey]: sortDirection as 'asc' | 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    db.customer.count({
-      where: whereClause,
-    }),
-  ]);
+  // Return minimal data needed to render the customer table
+  const essentialCustomers = customers.map(customer => ({
+    id: customer.id,
+    shopifyCustomerId: customer.shopifyCustomerId,
+    email: customer.email,
+    storeCredit: parseFloat(customer.storeCredit.toString()),
+    currentTier: customer.currentTier ? {
+      id: customer.currentTier.id,
+      name: customer.currentTier.name,
+      cashbackPercent: customer.currentTier.cashbackPercent,
+      minSpend: customer.currentTier.minSpend,
+    } : null,
+    createdAt: customer.createdAt.toISOString(),
+    updatedAt: customer.updatedAt.toISOString(),
+    // Placeholders for data that will stream in
+    membershipStatus: {
+      isPurchased: false,
+      needsRenewal: false,
+      expiresAt: null as string | null,
+      daysRemaining: null as number | null,
+    },
+    hasManualOverride: false,
+    lastTierChange: null,
+  }));
 
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  return {
+    customers: essentialCustomers,
+    pagination: {
+      currentPage: page,
+      pageSize,
+      totalPages,
+      totalItems: totalCount,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+  };
+}
+
+/**
+ * PHASE 2: Fetch enhanced metadata (tier changes, overrides) - streams in after render
+ */
+async function fetchEnhancedCustomerMetadata(
+  customerIds: string[]
+) {
+  if (customerIds.length === 0) {
+    return { tierChanges: [], enhancedData: {} };
+  }
+
+  // Batch fetch all tier change logs for all customers in ONE query
+  const allTierChanges = await db.tierChangeLog.findMany({
+    where: {
+      customerId: { in: customerIds }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Group tier changes by customer ID for O(1) lookup
+  const tierChangesByCustomer = new Map<string, typeof allTierChanges>();
+  allTierChanges.forEach(change => {
+    if (!tierChangesByCustomer.has(change.customerId)) {
+      tierChangesByCustomer.set(change.customerId, []);
+    }
+    tierChangesByCustomer.get(change.customerId)!.push(change);
+  });
+
+  // Process enhanced data for each customer
+  const enhancedData: Record<string, any> = {};
+
+  customerIds.forEach(customerId => {
+    const customerTierChanges = tierChangesByCustomer.get(customerId) || [];
+
+    // Get last tier change
+    const lastTierChange = customerTierChanges.length > 0 ? {
+      triggerType: customerTierChanges[0].triggerType,
+      createdAt: customerTierChanges[0].createdAt.toISOString(),
+      note: customerTierChanges[0].note || undefined,
+    } : null;
+
+    // Check for manual override
+    const manualAdminChanges = customerTierChanges.filter(c => c.triggerType === 'MANUAL_ADMIN');
+    let hasManualOverrideStatus = false;
+
+    if (manualAdminChanges.length > 0) {
+      const latestManualChange = manualAdminChanges[0];
+      let metadata = latestManualChange.metadata as any;
+
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch (error) {
+          metadata = null;
+        }
+      }
+
+      if (metadata?.permanentOverride === true) {
+        const laterManualChanges = manualAdminChanges.filter(
+          c => c.createdAt > latestManualChange.createdAt
+        );
+
+        const hasRemoval = laterManualChanges.some(entry => {
+          if (entry.note && entry.note.includes('override removed')) return true;
+
+          let entryMetadata = entry.metadata as any;
+          if (typeof entryMetadata === 'string') {
+            try {
+              entryMetadata = JSON.parse(entryMetadata);
+            } catch (error) {
+              return false;
+            }
+          }
+
+          return entryMetadata?.permanentOverride === false;
+        });
+
+        hasManualOverrideStatus = !hasRemoval;
+      }
+    }
+
+    // Check membership status
+    const purchaseOrManualChanges = customerTierChanges.filter(
+      c => c.triggerType === 'PRODUCT_PURCHASE' || c.triggerType === 'MANUAL_ADMIN'
+    );
+
+    let membershipStatus = {
+      isPurchased: false,
+      needsRenewal: false,
+      expiresAt: null as string | null,
+      daysRemaining: null as number | null,
+    };
+
+    if (purchaseOrManualChanges.length > 0) {
+      const lastChange = purchaseOrManualChanges[0];
+      const isPurchased = lastChange.triggerType === 'PRODUCT_PURCHASE';
+
+      let metadata = lastChange.metadata as any;
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch (error) {
+          metadata = null;
+        }
+      }
+
+      if (metadata?.permanentOverride === true) {
+        membershipStatus = {
+          isPurchased,
+          needsRenewal: false,
+          expiresAt: null,
+          daysRemaining: null,
+        };
+      } else if (metadata?.expiresAt) {
+        const expiresAt = new Date(metadata.expiresAt);
+        const now = new Date();
+        const daysRemaining = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        membershipStatus = {
+          isPurchased,
+          needsRenewal: daysRemaining <= 30 && daysRemaining > 0,
+          expiresAt: expiresAt.toISOString(),
+          daysRemaining: daysRemaining > 0 ? daysRemaining : null,
+        };
+      }
+    }
+
+    enhancedData[customerId] = {
+      hasManualOverride: hasManualOverrideStatus,
+      lastTierChange,
+      membershipStatus,
+    };
+  });
+
+  return { enhancedData };
+}
+
+/**
+ * LEGACY: Format customers with tier changes (kept for backwards compatibility)
+ */
+async function fetchCustomersDataWithTierChanges(
+  customers: any[],
+  totalCount: number,
+  page: number,
+  pageSize: number
+) {
   // OPTIMIZATION: Batch fetch all tier change logs for all customers in ONE query
   const customerIds = customers.map(c => c.id);
 
@@ -406,9 +580,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     // ============================================
-    // IMMEDIATE: Fetch shell data (FAST - blocks render)
+    // OPTIMIZED: Parallel fetch of ALL initial data (6 queries in parallel!)
     // ============================================
-    const [tiers, shopSettings, billingSubscription] = await Promise.all([
+    const [tiers, shopSettings, billingSubscription, customers, totalCount] = await Promise.all([
+      // Shell data
       db.tier.findMany({
         where: { shop },
         orderBy: { minSpend: 'asc' },
@@ -418,6 +593,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }),
       db.billingSubscription.findUnique({
         where: { shop },
+      }),
+      // Customer data
+      db.customer.findMany({
+        where: whereClause,
+        include: {
+          currentTier: true,
+        },
+        orderBy: { [sortKey]: sortDirection as 'asc' | 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      db.customer.count({
+        where: whereClause,
       }),
     ]);
 
@@ -433,16 +621,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }));
 
     // ============================================
-    // CUSTOMERS: Load immediately (now fast with batched queries - only 3 queries!)
+    // PHASE 1: Return essential customer data IMMEDIATELY (fastest render!)
     // ============================================
-    const customersData = await fetchCustomersData(
-      shop,
-      whereClause,
+    const essentialCustomersData = fetchEssentialCustomersData(
+      customers,
+      totalCount,
       page,
-      pageSize,
-      sortKey,
-      sortDirection
+      pageSize
     );
+
+    // ============================================
+    // PHASE 2: Defer enhanced metadata (streams in after render)
+    // ============================================
+    const customerIds = customers.map(c => c.id);
+    const enhancedMetadataPromise = fetchEnhancedCustomerMetadata(customerIds);
 
     // ============================================
     // STATS: Defer for non-critical data
@@ -453,18 +645,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       tierDistribution: data.tierDistribution,
     }));
 
-    // Return immediately - only stats are deferred
+    // Return immediately - customers load instantly, metadata streams in
     return defer({
-      // Immediate data (shell + customers)
+      // IMMEDIATE: Shell + essential customer data (renders table instantly!)
       tiers: serializedTiers,
       shopSettings: shopSettings ? {
         storeCurrency: shopSettings.storeCurrency,
         currencyDisplayType: shopSettings.currencyDisplayType,
       } : null,
       currentPlan,
-      customersData: customersData, // Now loaded immediately!
+      customersData: essentialCustomersData, // Instant render!
 
-      // Deferred data (non-critical stats)
+      // DEFERRED: Enhanced metadata & stats (stream in progressively)
+      enhancedMetadata: enhancedMetadataPromise,
       statsData: statsDataPromise,
     });
   } catch (error) {
