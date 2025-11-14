@@ -166,7 +166,7 @@ interface ToastState {
 // ============================================
 
 /**
- * Fetch and format customers with membership status (HEAVY - deferred)
+ * Fetch and format customers with membership status (OPTIMIZED - batched queries)
  */
 async function fetchCustomersData(
   shop: string,
@@ -192,21 +192,123 @@ async function fetchCustomersData(
     }),
   ]);
 
-  // Format customers with membership status (N*3 queries)
-  const formattedCustomers = await Promise.all(customers.map(async customer => {
-    // Check tier membership status (purchased or manual)
-    const membershipStatus = await checkTierMembershipExpiry(customer.id);
+  // OPTIMIZATION: Batch fetch all tier change logs for all customers in ONE query
+  const customerIds = customers.map(c => c.id);
 
-    // Check if customer has manual override
-    const hasManualOverrideStatus = await hasManualOverride(customer.id);
+  const allTierChanges = customerIds.length > 0 ? await db.tierChangeLog.findMany({
+    where: {
+      customerId: { in: customerIds }
+    },
+    orderBy: { createdAt: 'desc' }
+  }) : [];
 
-    // Get tier history for last change
-    const tierHistory = await getTierHistory(customer.id, 1);
-    const lastTierChange = tierHistory.length > 0 ? {
-      triggerType: tierHistory[0].triggerType,
-      createdAt: tierHistory[0].createdAt.toISOString(),
-      note: tierHistory[0].note || undefined,
+  // Group tier changes by customer ID for O(1) lookup
+  const tierChangesByCustomer = new Map<string, typeof allTierChanges>();
+  allTierChanges.forEach(change => {
+    if (!tierChangesByCustomer.has(change.customerId)) {
+      tierChangesByCustomer.set(change.customerId, []);
+    }
+    tierChangesByCustomer.get(change.customerId)!.push(change);
+  });
+
+  // Format customers with membership status (now using batched data - no additional queries!)
+  const formattedCustomers = customers.map(customer => {
+    const customerTierChanges = tierChangesByCustomer.get(customer.id) || [];
+
+    // Get last tier change
+    const lastTierChange = customerTierChanges.length > 0 ? {
+      triggerType: customerTierChanges[0].triggerType,
+      createdAt: customerTierChanges[0].createdAt.toISOString(),
+      note: customerTierChanges[0].note || undefined,
     } : null;
+
+    // Check for manual override (inline logic from hasManualOverride)
+    const manualAdminChanges = customerTierChanges.filter(c => c.triggerType === 'MANUAL_ADMIN');
+    let hasManualOverrideStatus = false;
+
+    if (manualAdminChanges.length > 0) {
+      const latestManualChange = manualAdminChanges[0];
+      let metadata = latestManualChange.metadata as any;
+
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch (error) {
+          metadata = null;
+        }
+      }
+
+      if (metadata?.permanentOverride === true) {
+        // Check if there's been a removal after this
+        const laterManualChanges = manualAdminChanges.filter(
+          c => c.createdAt > latestManualChange.createdAt
+        );
+
+        const hasRemoval = laterManualChanges.some(entry => {
+          if (entry.note && entry.note.includes('override removed')) return true;
+
+          let entryMetadata = entry.metadata as any;
+          if (typeof entryMetadata === 'string') {
+            try {
+              entryMetadata = JSON.parse(entryMetadata);
+            } catch (error) {
+              return false;
+            }
+          }
+
+          return entryMetadata?.permanentOverride === false;
+        });
+
+        hasManualOverrideStatus = !hasRemoval;
+      }
+    }
+
+    // Check membership status (inline logic from checkTierMembershipExpiry)
+    const purchaseOrManualChanges = customerTierChanges.filter(
+      c => c.triggerType === 'PRODUCT_PURCHASE' || c.triggerType === 'MANUAL_ADMIN'
+    );
+
+    let membershipStatus = {
+      isPurchased: false,
+      needsRenewal: false,
+      expiresAt: null as string | null,
+      daysRemaining: null as number | null,
+    };
+
+    if (purchaseOrManualChanges.length > 0) {
+      const lastChange = purchaseOrManualChanges[0];
+      const isPurchased = lastChange.triggerType === 'PRODUCT_PURCHASE';
+
+      let metadata = lastChange.metadata as any;
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch (error) {
+          metadata = null;
+        }
+      }
+
+      // Permanent override never expires
+      if (metadata?.permanentOverride === true) {
+        membershipStatus = {
+          isPurchased,
+          needsRenewal: false,
+          expiresAt: null,
+          daysRemaining: null,
+        };
+      } else if (metadata?.expiresAt) {
+        const expiresAt = new Date(metadata.expiresAt);
+        const now = new Date();
+        const daysRemaining = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        membershipStatus = {
+          isPurchased,
+          needsRenewal: daysRemaining <= 30 && daysRemaining > 0,
+          expiresAt: expiresAt.toISOString(),
+          daysRemaining: daysRemaining > 0 ? daysRemaining : null,
+        };
+      }
+    }
 
     return {
       id: customer.id,
@@ -219,19 +321,13 @@ async function fetchCustomersData(
         cashbackPercent: customer.currentTier.cashbackPercent,
         minSpend: customer.currentTier.minSpend,
       } : null,
-      // Add membership status
-      membershipStatus: {
-        isPurchased: membershipStatus.isPurchased,
-        needsRenewal: membershipStatus.needsRenewal,
-        expiresAt: membershipStatus.expiresAt?.toISOString() || null,
-        daysRemaining: membershipStatus.daysRemaining,
-      },
+      membershipStatus,
       hasManualOverride: hasManualOverrideStatus,
       lastTierChange,
       createdAt: customer.createdAt.toISOString(),
       updatedAt: customer.updatedAt.toISOString(),
     };
-  }));
+  });
 
   const totalPages = Math.ceil(totalCount / pageSize);
 

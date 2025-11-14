@@ -1661,17 +1661,14 @@ export default function AnalyticsPage() {
 
                     <Divider />
 
-                    {/* Multi-Dimensional Tier Performance - Radar Chart */}
+                    {/* Tier Performance - Radar Chart */}
                     {data.tierPerformance.length > 0 && (
                       <BlockStack gap="400">
                         <Card>
                           <Box padding="400">
                             <BlockStack gap="400">
                               <BlockStack gap="200">
-                                <InlineStack align="space-between" blockAlign="center">
-                                  <Text variant="headingMd" as="h2">Multi-Dimensional Tier Performance</Text>
-                                  <Badge tone="info">Radar Chart</Badge>
-                                </InlineStack>
+                                <Text variant="headingMd" as="h2">Tier Performance</Text>
                                 <Text variant="bodySm" tone="subdued" as="p">
                                   Compare multiple performance dimensions across tiers simultaneously
                                 </Text>
