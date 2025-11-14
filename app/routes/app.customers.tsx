@@ -1717,7 +1717,7 @@ function CustomersTableContent({
         <>
           <Divider />
           <Box padding="400">
-            <InlineStack align="center">
+            <InlineStack align="center" gap="400">
               <Button
                 accessibilityLabel="Previous page"
                 onClick={handlePreviousPage}
