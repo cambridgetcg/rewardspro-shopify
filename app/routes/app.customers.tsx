@@ -1712,7 +1712,7 @@ function CustomersTableContent({
         )}
       </Box>
 
-      {/* Bottom pagination */}
+      {/* Bottom pagination - OPTION 1 (CURRENT): Compact centered with medium spacing */}
       {pagination && pagination.totalPages > 1 && (
         <>
           <Divider />
@@ -1739,6 +1739,96 @@ function CustomersTableContent({
           </Box>
         </>
       )}
+
+      {/* OPTION 2: More spacious with larger gap and emphasized text */}
+      {/* {pagination && pagination.totalPages > 1 && (
+        <>
+          <Divider />
+          <Box padding="400">
+            <InlineStack align="center" gap="600">
+              <Button
+                accessibilityLabel="Previous page"
+                onClick={handlePreviousPage}
+                disabled={!pagination.hasPrevPage}
+              >
+                Previous
+              </Button>
+              <Box paddingInline="400">
+                <Text variant="bodyMd" as="span" fontWeight="semibold">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </Text>
+              </Box>
+              <Button
+                accessibilityLabel="Next page"
+                onClick={handleNextPage}
+                disabled={!pagination.hasNextPage}
+              >
+                Next
+              </Button>
+            </InlineStack>
+          </Box>
+        </>
+      )} */}
+
+      {/* OPTION 3: Spread layout - Previous left, Page center, Next right */}
+      {/* {pagination && pagination.totalPages > 1 && (
+        <>
+          <Divider />
+          <Box padding="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <Button
+                accessibilityLabel="Previous page"
+                onClick={handlePreviousPage}
+                disabled={!pagination.hasPrevPage}
+              >
+                Previous
+              </Button>
+              <Text variant="bodySm" as="span" tone="subdued">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </Text>
+              <Button
+                accessibilityLabel="Next page"
+                onClick={handleNextPage}
+                disabled={!pagination.hasNextPage}
+              >
+                Next
+              </Button>
+            </InlineStack>
+          </Box>
+        </>
+      )} */}
+
+      {/* OPTION 4: Compact with Badge for current page */}
+      {/* {pagination && pagination.totalPages > 1 && (
+        <>
+          <Divider />
+          <Box padding="400">
+            <InlineStack align="center" gap="300">
+              <Button
+                accessibilityLabel="Previous page"
+                onClick={handlePreviousPage}
+                disabled={!pagination.hasPrevPage}
+                size="slim"
+              >
+                Previous
+              </Button>
+              <InlineStack gap="200" blockAlign="center">
+                <Text variant="bodySm" as="span" tone="subdued">Page</Text>
+                <Badge tone="info">{pagination.currentPage}</Badge>
+                <Text variant="bodySm" as="span" tone="subdued">of {pagination.totalPages}</Text>
+              </InlineStack>
+              <Button
+                accessibilityLabel="Next page"
+                onClick={handleNextPage}
+                disabled={!pagination.hasNextPage}
+                size="slim"
+              >
+                Next
+              </Button>
+            </InlineStack>
+          </Box>
+        </>
+      )} */}
     </>
   );
 }
