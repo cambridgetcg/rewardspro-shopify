@@ -1712,139 +1712,34 @@ function CustomersTableContent({
         )}
       </Box>
 
-      {/* OPTION 1: Badge with info tone and slim buttons */}
+      {/* Bottom pagination */}
       {pagination && pagination.totalPages > 1 && (
         <>
           <Divider />
           <Box padding="400">
-            <BlockStack gap="200">
-              <Text variant="bodySm" as="p" tone="subdued" alignment="center">OPTION 1: Blue badge, slim buttons</Text>
-              <InlineStack align="center" gap="300">
-                <Button
-                  accessibilityLabel="Previous page"
-                  onClick={handlePreviousPage}
-                  disabled={!pagination.hasPrevPage}
-                  size="slim"
-                >
-                  Previous
-                </Button>
-                <InlineStack gap="200" blockAlign="center">
-                  <Text variant="bodySm" as="span" tone="subdued">Page</Text>
-                  <Badge tone="info">{pagination.currentPage}</Badge>
-                  <Text variant="bodySm" as="span" tone="subdued">of {pagination.totalPages}</Text>
-                </InlineStack>
-                <Button
-                  accessibilityLabel="Next page"
-                  onClick={handleNextPage}
-                  disabled={!pagination.hasNextPage}
-                  size="slim"
-                >
-                  Next
-                </Button>
+            <InlineStack align="center" gap="300">
+              <Button
+                accessibilityLabel="Previous page"
+                onClick={handlePreviousPage}
+                disabled={!pagination.hasPrevPage}
+                size="slim"
+              >
+                Previous
+              </Button>
+              <InlineStack gap="200" blockAlign="center">
+                <Text variant="bodySm" as="span" tone="subdued">Page</Text>
+                <Badge tone="info">{pagination.currentPage}</Badge>
+                <Text variant="bodySm" as="span" tone="subdued">of {pagination.totalPages}</Text>
               </InlineStack>
-            </BlockStack>
-          </Box>
-        </>
-      )}
-
-      {/* OPTION 2: Badge with success tone and regular buttons */}
-      {pagination && pagination.totalPages > 1 && (
-        <>
-          <Divider />
-          <Box padding="400">
-            <BlockStack gap="200">
-              <Text variant="bodySm" as="p" tone="subdued" alignment="center">OPTION 2: Green badge, regular buttons</Text>
-              <InlineStack align="center" gap="400">
-                <Button
-                  accessibilityLabel="Previous page"
-                  onClick={handlePreviousPage}
-                  disabled={!pagination.hasPrevPage}
-                >
-                  Previous
-                </Button>
-                <InlineStack gap="200" blockAlign="center">
-                  <Text variant="bodySm" as="span" tone="subdued">Page</Text>
-                  <Badge tone="success">{pagination.currentPage}</Badge>
-                  <Text variant="bodySm" as="span" tone="subdued">of {pagination.totalPages}</Text>
-                </InlineStack>
-                <Button
-                  accessibilityLabel="Next page"
-                  onClick={handleNextPage}
-                  disabled={!pagination.hasNextPage}
-                >
-                  Next
-                </Button>
-              </InlineStack>
-            </BlockStack>
-          </Box>
-        </>
-      )}
-
-      {/* OPTION 3: Badge only for page number, no "of X" text */}
-      {pagination && pagination.totalPages > 1 && (
-        <>
-          <Divider />
-          <Box padding="400">
-            <BlockStack gap="200">
-              <Text variant="bodySm" as="p" tone="subdued" alignment="center">OPTION 3: Minimal with badge, compact spacing</Text>
-              <InlineStack align="center" gap="400">
-                <Button
-                  accessibilityLabel="Previous page"
-                  onClick={handlePreviousPage}
-                  disabled={!pagination.hasPrevPage}
-                  size="slim"
-                >
-                  Previous
-                </Button>
-                <InlineStack gap="100" blockAlign="center">
-                  <Badge tone="attention">{pagination.currentPage}</Badge>
-                  <Text variant="bodySm" as="span" tone="subdued">/ {pagination.totalPages}</Text>
-                </InlineStack>
-                <Button
-                  accessibilityLabel="Next page"
-                  onClick={handleNextPage}
-                  disabled={!pagination.hasNextPage}
-                  size="slim"
-                >
-                  Next
-                </Button>
-              </InlineStack>
-            </BlockStack>
-          </Box>
-        </>
-      )}
-
-      {/* OPTION 4: Badge with neutral tone and larger spacing */}
-      {pagination && pagination.totalPages > 1 && (
-        <>
-          <Divider />
-          <Box padding="400">
-            <BlockStack gap="200">
-              <Text variant="bodySm" as="p" tone="subdued" alignment="center">OPTION 4: Gray badge, spacious layout</Text>
-              <InlineStack align="center" gap="500">
-                <Button
-                  accessibilityLabel="Previous page"
-                  onClick={handlePreviousPage}
-                  disabled={!pagination.hasPrevPage}
-                >
-                  Previous
-                </Button>
-                <Box paddingInline="200">
-                  <InlineStack gap="200" blockAlign="center">
-                    <Text variant="bodySm" as="span" tone="subdued">Page</Text>
-                    <Badge>{pagination.currentPage}</Badge>
-                    <Text variant="bodySm" as="span" tone="subdued">of {pagination.totalPages}</Text>
-                  </InlineStack>
-                </Box>
-                <Button
-                  accessibilityLabel="Next page"
-                  onClick={handleNextPage}
-                  disabled={!pagination.hasNextPage}
-                >
-                  Next
-                </Button>
-              </InlineStack>
-            </BlockStack>
+              <Button
+                accessibilityLabel="Next page"
+                onClick={handleNextPage}
+                disabled={!pagination.hasNextPage}
+                size="slim"
+              >
+                Next
+              </Button>
+            </InlineStack>
           </Box>
         </>
       )}
