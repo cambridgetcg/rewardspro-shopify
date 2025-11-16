@@ -22,13 +22,21 @@ import {
   Checkbox,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
+import db from "~/db.server";
 
 // ============================================
 // TYPES
 // ============================================
 
+interface Tier {
+  id: string;
+  name: string;
+  cashbackPercent: number;
+}
+
 interface LoaderData {
   shop: string;
+  tiers: Tier[];
 }
 
 type AutomationStep = 1 | 2 | 3 | 4;
@@ -39,9 +47,22 @@ type AutomationStep = 1 | 2 | 3 | 4;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  // Fetch tiers for the shop
+  const tiers = await db.tier.findMany({
+    where: { shop },
+    select: {
+      id: true,
+      name: true,
+      cashbackPercent: true,
+    },
+    orderBy: { minSpend: 'asc' },
+  });
 
   return json<LoaderData>({
-    shop: session.shop,
+    shop,
+    tiers,
   });
 };
 
@@ -414,10 +435,10 @@ export default function CreateAutomation() {
                           label="Target specific tier"
                           options={[
                             { label: "All tiers", value: "" },
-                            { label: "Bronze", value: "bronze" },
-                            { label: "Silver", value: "silver" },
-                            { label: "Gold", value: "gold" },
-                            { label: "Platinum", value: "platinum" },
+                            ...data.tiers.map((tier) => ({
+                              label: `${tier.name} (${tier.cashbackPercent}% cashback)`,
+                              value: tier.id,
+                            })),
                           ]}
                           value={tierFilter}
                           onChange={setTierFilter}
@@ -683,7 +704,9 @@ export default function CreateAutomation() {
                           {tierFilter && (
                             <InlineStack gap="200" blockAlign="center">
                               <Text variant="bodyMd" tone="subdued">Tier Filter:</Text>
-                              <Badge>{tierFilter}</Badge>
+                              <Badge>
+                                {data.tiers.find(t => t.id === tierFilter)?.name || tierFilter}
+                              </Badge>
                             </InlineStack>
                           )}
                           {minSpend && (
