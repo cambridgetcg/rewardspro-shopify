@@ -2170,8 +2170,8 @@ export default function Customers() {
 
         {/* Customer Table - Now loads immediately! */}
         <CustomersTableContent
-          customers={data.customersData.customers}
-          pagination={data.customersData.pagination}
+          customers={data.customersData?.customers || []}
+          pagination={data.customersData?.pagination}
           shopSettings={data.shopSettings}
           tiers={data.tiers}
           isCalculating={isCalculating}
