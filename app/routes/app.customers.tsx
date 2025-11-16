@@ -176,7 +176,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   /**
    * PHASE 1: Fetch essential fields only for immediate UI render (FASTEST)
    */
-  async function fetchEssentialCustomersData(
+  function fetchEssentialCustomersData(
     customers: any[],
     totalCount: number,
     page: number,
