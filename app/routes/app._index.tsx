@@ -918,57 +918,6 @@ export default function Dashboard() {
                     </Text>
                   </BlockStack>
                 </Card>
-
-                {/* Webhook Processing Component */}
-                <Card>
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="start">
-                      <Box
-                        padding="200"
-                        background="bg-surface-secondary"
-                        borderRadius="200"
-                      >
-                        <Icon source={AlertCircleIcon} tone="base" />
-                      </Box>
-                      <Badge tone={
-                        data.webhookStats.status === 'healthy' ? 'success' :
-                        data.webhookStats.status === 'degraded' ? 'warning' : 'critical'
-                      }>
-                        {data.webhookStats.status === 'healthy' ? 'Healthy' :
-                         data.webhookStats.status === 'degraded' ? 'Degraded' : 'Critical'}
-                      </Badge>
-                    </InlineStack>
-
-                    <Text variant="headingSm" as="h3" fontWeight="semibold">
-                      Webhook Processing
-                    </Text>
-
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Processed (24h):</Text>
-                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.processedLast24h}</Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Errors (24h):</Text>
-                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.errorsLast24h}</Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Recent (1h):</Text>
-                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.errorsLastHour}</Text>
-                      </InlineStack>
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Success Rate:</Text>
-                        <Text variant="bodySm" fontWeight="medium">{data.webhookStats.successRate}%</Text>
-                      </InlineStack>
-                    </BlockStack>
-
-                    <Divider />
-
-                    <Text variant="bodySm" tone="subdued">
-                      Order webhook processing and error tracking
-                    </Text>
-                  </BlockStack>
-                </Card>
               </InlineGrid>
             </BlockStack>
                 </Card>

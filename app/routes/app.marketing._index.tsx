@@ -245,7 +245,7 @@ export default function MarketingDashboard() {
       case 'expiring_rewards':
       case 'birthday_upcoming':
         // These could go to automation workflows
-        return `/app/marketing/automation/workflows/new?${params}`;
+        return `/app/marketing/automation/create?${params}`;
 
       case 'vip_at_risk':
         // VIP retention could have its own specialized route (future enhancement)
@@ -366,6 +366,9 @@ export default function MarketingDashboard() {
                 >
                   + Smart Campaign
                 </Button>
+                <Button onClick={() => navigate('/app/marketing/automation/create')}>
+                  + Create Automation
+                </Button>
                 <Button onClick={() => navigate('/app/marketing/templates')}>
                   Edit Templates
                 </Button>
@@ -466,7 +469,7 @@ export default function MarketingDashboard() {
                   <Text variant="bodyMd" tone="subdued" as="p">
                     No automations configured yet. Get started by creating your first automated email flow.
                   </Text>
-                  <Button onClick={() => navigate('/app/marketing/automation')}>
+                  <Button onClick={() => navigate('/app/marketing/automation/create')}>
                     Create Automation
                   </Button>
                 </BlockStack>

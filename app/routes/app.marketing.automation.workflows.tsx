@@ -47,8 +47,8 @@ export default function AutomationWorkflows() {
       subtitle="Create trigger-based email workflows"
       backAction={{ content: "Marketing", url: "/app/marketing" }}
       primaryAction={{
-        content: "Create Workflow",
-        url: "/app/marketing/automation/workflows/new"
+        content: "Create Automation",
+        url: "/app/marketing/automation/create"
       }}
     >
       <Layout>
