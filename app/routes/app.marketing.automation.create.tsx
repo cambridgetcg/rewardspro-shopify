@@ -29,11 +29,12 @@ import {
   EmailIcon,
   ClockIcon,
   PersonIcon,
-  TagIcon,
+  HashtagIcon,
   ChartVerticalIcon,
   CheckCircleIcon,
   CalendarIcon,
   RefreshIcon,
+  AlertCircleIcon,
 } from "~/utils/polaris-icons";
 import { authenticate } from "../shopify.server";
 
@@ -353,7 +354,7 @@ export default function CreateAutomation() {
                     <Card background="bg-surface-secondary">
                       <BlockStack gap="400">
                         <InlineStack gap="200" blockAlign="center">
-                          <Icon source={TagIcon} />
+                          <Icon source={HashtagIcon} />
                           <Text variant="headingMd" as="h3">
                             Basic Information
                           </Text>
@@ -657,7 +658,7 @@ export default function CreateAutomation() {
                             style={{ cursor: "grab" }}
                           >
                             <InlineStack gap="200" blockAlign="center">
-                              <Icon source={TagIcon} />
+                              <Icon source={HashtagIcon} />
                               <Text variant="bodySm">Add Tag</Text>
                             </InlineStack>
                           </Box>

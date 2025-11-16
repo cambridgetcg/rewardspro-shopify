@@ -57,6 +57,7 @@
       "routes/auth.$": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing.campaigns.smart-create": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing.automation.workflows": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.marketing.automation.create": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing.recommendations": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.recalculate-cashback": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.marketing.analytics": "nodejs-eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -518,6 +519,15 @@
         "parentId": "routes/app",
         "file": "app/routes/app.marketing.automation.workflows.tsx",
         "path": "marketing/automation/workflows",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.marketing.automation.create": {
+        "id": "routes/app.marketing.automation.create",
+        "parentId": "routes/app",
+        "file": "app/routes/app.marketing.automation.create.tsx",
+        "path": "marketing/automation/create",
         "config": {
           "runtime": "nodejs"
         }
@@ -1060,6 +1070,12 @@
         "parentId": "routes/app",
         "file": "routes/app.marketing.automation.workflows.tsx",
         "path": "marketing/automation/workflows"
+      },
+      "routes/app.marketing.automation.create": {
+        "id": "routes/app.marketing.automation.create",
+        "parentId": "routes/app",
+        "file": "routes/app.marketing.automation.create.tsx",
+        "path": "marketing/automation/create"
       },
       "routes/app.marketing.recommendations": {
         "id": "routes/app.marketing.recommendations",
