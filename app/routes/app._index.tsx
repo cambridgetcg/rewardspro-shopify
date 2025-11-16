@@ -746,7 +746,7 @@ export default function Dashboard() {
                   </BlockStack>
                 </Card>
 
-                {/* Shopify API Component */}
+                {/* Webhook Processing Component */}
                 <Card>
                   <BlockStack gap="300">
                     <InlineStack align="space-between" blockAlign="start">
@@ -757,32 +757,37 @@ export default function Dashboard() {
                       >
                         <Icon source={RefreshIcon} tone="base" />
                       </Box>
-                      <Badge tone={data.shopifyMetrics?.source !== 'unavailable' ? 'success' : 'warning'}>
-                        {data.shopifyMetrics?.source !== 'unavailable' ? 'Operational' : 'Limited'}
+                      <Badge tone={
+                        data.webhookStats.status === 'healthy' ? 'success' :
+                        data.webhookStats.status === 'degraded' ? 'warning' : 'critical'
+                      }>
+                        {data.webhookStats.status === 'healthy' ? 'Operational' :
+                         data.webhookStats.status === 'degraded' ? 'Degraded' : 'Critical'}
                       </Badge>
                     </InlineStack>
 
                     <Text variant="headingSm" as="h3" fontWeight="semibold">
-                      Shopify API
+                      Webhook Processing
                     </Text>
 
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Mode:</Text>
+                        <Text variant="bodySm" tone="subdued">Processed:</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {data.shopifyMetrics?.source !== 'unavailable' ? 'GraphQL + ShopifyQL' : 'GraphQL Only'}
+                          {data.webhookStats.processedLast24h.toLocaleString()} (24h)
                         </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodySm" tone="subdued">Uptime:</Text>
+                        <Text variant="bodySm" tone="subdued">Success Rate:</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {data.shopifyMetrics?.source !== 'unavailable' ? '99.8%' : '99.5%'}
+                          {data.webhookStats.successRate.toFixed(1)}%
                         </Text>
                       </InlineStack>
                       <InlineStack gap="200" blockAlign="center">
                         <Text variant="bodySm" tone="subdued">Status:</Text>
                         <Text variant="bodySm" fontWeight="medium">
-                          {data.shopifyMetrics?.source !== 'unavailable' ? 'Operational' : 'Degraded'}
+                          {data.webhookStats.status === 'healthy' ? 'Healthy' :
+                           data.webhookStats.status === 'degraded' ? 'Degraded' : 'Critical'}
                         </Text>
                       </InlineStack>
                     </BlockStack>
@@ -790,9 +795,11 @@ export default function Dashboard() {
                     <Divider />
 
                     <Text variant="bodySm" tone="subdued">
-                      {data.shopifyMetrics?.source !== 'unavailable'
-                        ? 'Advanced analytics with ShopifyQL enabled'
-                        : 'Using GraphQL fallback for data fetching'}
+                      {data.webhookStats.status === 'healthy'
+                        ? 'Receiving and processing Shopify order events'
+                        : data.webhookStats.errorsLastHour > 0
+                          ? `${data.webhookStats.errorsLastHour} errors in the last hour`
+                          : 'Webhook processing experiencing issues'}
                     </Text>
                   </BlockStack>
                 </Card>
