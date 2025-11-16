@@ -418,6 +418,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // ============================================
     // OPTIMIZED: Parallel fetch of ALL initial data (6 queries in parallel!)
     // ============================================
+    console.log('[Customers Loader] Shop:', shop);
+    console.log('[Customers Loader] Where clause:', JSON.stringify(whereClause, null, 2));
+    console.log('[Customers Loader] Page:', page, 'PageSize:', pageSize);
+
     const [tiers, shopSettings, billingSubscription, customers, totalCount] = await Promise.all([
       // Shell data
       db.tier.findMany({
@@ -444,6 +448,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         where: whereClause,
       }),
     ]);
+
+    console.log('[Customers Loader] Found customers:', customers.length);
+    console.log('[Customers Loader] Total count:', totalCount);
+    if (customers.length > 0) {
+      console.log('[Customers Loader] First customer:', {
+        id: customers[0].id,
+        email: customers[0].email,
+        shop: customers[0].shop
+      });
+    }
 
     const currentPlan = getCurrentPlan(null, billingSubscription);
 
