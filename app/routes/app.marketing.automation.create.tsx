@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, Link } from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import { useState } from "react";
 import {
   Page,
@@ -19,7 +19,6 @@ import {
   ChoiceList,
   RadioButton,
   Banner,
-  List,
   Checkbox,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
@@ -31,6 +30,8 @@ import { authenticate } from "../shopify.server";
 interface LoaderData {
   shop: string;
 }
+
+type AutomationStep = 1 | 2 | 3 | 4;
 
 // ============================================
 // LOADER
@@ -50,14 +51,65 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function CreateAutomation() {
   const data = useLoaderData<typeof loader>();
-  const [selectedVariation, setSelectedVariation] = useState<string>("all");
+  const navigate = useNavigate();
 
-  // Shared state for all variations (for demonstration)
+  // Step state
+  const [currentStep, setCurrentStep] = useState<AutomationStep>(1);
+
+  // Step 1: Setup
   const [automationName, setAutomationName] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Step 2: Trigger
   const [trigger, setTrigger] = useState("tier_change");
-  const [conditions, setConditions] = useState<string[]>([]);
+  const [tierFilter, setTierFilter] = useState("");
+  const [minSpend, setMinSpend] = useState("");
+
+  // Step 3: Action
   const [action, setAction] = useState("send_email");
   const [template, setTemplate] = useState("");
+  const [delay, setDelay] = useState("immediate");
+  const [respectBusinessHours, setRespectBusinessHours] = useState(false);
+  const [respectTimezone, setRespectTimezone] = useState(true);
+
+  // Navigation handlers
+  const handleNext = () => {
+    if (currentStep < 4) {
+      setCurrentStep((currentStep + 1) as AutomationStep);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep((currentStep - 1) as AutomationStep);
+    }
+  };
+
+  const handleSaveDraft = () => {
+    // TODO: Save automation as draft
+    console.log("Saving draft...");
+  };
+
+  const handleActivate = () => {
+    // TODO: Activate automation
+    console.log("Activating automation...");
+  };
+
+  // Validation
+  const isStepValid = (step: AutomationStep): boolean => {
+    switch (step) {
+      case 1:
+        return automationName.trim().length > 0;
+      case 2:
+        return trigger.length > 0;
+      case 3:
+        return action.length > 0;
+      case 4:
+        return true;
+      default:
+        return false;
+    }
+  };
 
   return (
     <Page
@@ -67,517 +119,130 @@ export default function CreateAutomation() {
         url: "/app/marketing/automation/workflows",
       }}
       primaryAction={{
-        content: "Save Automation",
-        disabled: !automationName,
+        content: currentStep === 4 ? "Activate Automation" : "Save as Draft",
+        onAction: currentStep === 4 ? handleActivate : handleSaveDraft,
       }}
     >
       <Layout>
-        {/* Variation Selector */}
         <Layout.Section>
           <Card>
-            <BlockStack gap="400">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text variant="headingMd" as="h2">
-                  UI Variations Preview
-                </Text>
-                <Select
-                  label=""
-                  labelHidden
-                  options={[
-                    { label: "Show All Variations", value: "all" },
-                    { label: "Option 1: Progress Steps", value: "option1" },
-                    { label: "Option 2: Minimal Steps", value: "option2" },
-                    { label: "Option 3: Bordered Steps", value: "option3" },
-                    { label: "Option 4: Compact Steps", value: "option4" },
-                  ]}
-                  value={selectedVariation}
-                  onChange={setSelectedVariation}
-                />
-              </InlineStack>
-              <Text variant="bodyMd" tone="subdued">
-                Choose which UI variation you prefer for creating marketing automations. All options are displayed below.
-              </Text>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-
-        {/* OPTION 1: Progress Steps with Numbers */}
-        {(selectedVariation === "all" || selectedVariation === "option1") && (
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="500">
-                {/* Header */}
-                <InlineStack align="space-between" blockAlign="center">
+            <BlockStack gap="500">
+              {/* Progress Steps - Bordered Cards */}
+              <InlineGrid columns={4} gap="300">
+                <Card background={currentStep === 1 ? "bg-surface-brand-subdued" : currentStep > 1 ? "bg-surface-success-subdued" : "bg-surface"}>
                   <BlockStack gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="info">Option 1</Badge>
-                      <Text variant="headingLg" as="h2">
-                        Progress Steps
-                      </Text>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyMd" fontWeight="semibold">Step 1</Text>
+                      <Badge tone={currentStep > 1 ? "success" : currentStep === 1 ? "info" : undefined}>
+                        {currentStep > 1 ? "Done" : currentStep === 1 ? "Active" : "Pending"}
+                      </Badge>
                     </InlineStack>
-                    <Text variant="bodyMd" tone="subdued">
-                      Classic wizard with numbered progress indicators and connector lines
+                    <Text variant="headingSm">Setup</Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Basic information
                     </Text>
-                  </BlockStack>
-                </InlineStack>
-
-                <Divider />
-
-                {/* Progress Steps */}
-                <InlineStack gap="300" align="center" blockAlign="center">
-                  {/* Step 1 - Completed */}
-                  <InlineStack gap="200" blockAlign="center">
-                    <div style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "50%",
-                      background: "var(--p-color-bg-fill-success)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                    }}>✓</div>
-                    <Text variant="bodyMd" fontWeight="semibold">Setup</Text>
-                  </InlineStack>
-
-                  <div style={{ width: "60px", height: "2px", background: "var(--p-color-border)" }} />
-
-                  {/* Step 2 - Active */}
-                  <InlineStack gap="200" blockAlign="center">
-                    <div style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "50%",
-                      background: "var(--p-color-bg-fill-brand)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                    }}>2</div>
-                    <Text variant="bodyMd" fontWeight="semibold">Trigger</Text>
-                  </InlineStack>
-
-                  <div style={{ width: "60px", height: "2px", background: "var(--p-color-border)" }} />
-
-                  {/* Step 3 - Upcoming */}
-                  <InlineStack gap="200" blockAlign="center">
-                    <div style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "50%",
-                      background: "var(--p-color-border)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--p-color-text-subdued)",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                    }}>3</div>
-                    <Text variant="bodyMd" tone="subdued">Action</Text>
-                  </InlineStack>
-
-                  <div style={{ width: "60px", height: "2px", background: "var(--p-color-border)" }} />
-
-                  {/* Step 4 - Upcoming */}
-                  <InlineStack gap="200" blockAlign="center">
-                    <div style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "50%",
-                      background: "var(--p-color-border)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--p-color-text-subdued)",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                    }}>4</div>
-                    <Text variant="bodyMd" tone="subdued">Review</Text>
-                  </InlineStack>
-                </InlineStack>
-
-                {/* Current Step Content */}
-                <Card background="bg-surface-secondary">
-                  <BlockStack gap="400">
-                    <Text variant="headingMd" as="h3">
-                      Step 2: Choose Trigger
-                    </Text>
-
-                    <Text variant="bodyMd" tone="subdued">
-                      Select when this automation should run
-                    </Text>
-
-                    <Divider />
-
-                    <BlockStack gap="300">
-                      <div onClick={() => setTrigger("tier_change")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "tier_change" ? "bg-surface-active" : "bg-surface"}>
-                          <InlineStack align="space-between" blockAlign="start">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "tier_change"}
-                                onChange={() => setTrigger("tier_change")}
-                              />
-                              <BlockStack gap="100">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Tier Change
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered when a customer moves to a new tier
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </InlineStack>
-                        </Card>
-                      </div>
-
-                      <div onClick={() => setTrigger("purchase")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "purchase" ? "bg-surface-active" : "bg-surface"}>
-                          <InlineStack align="space-between" blockAlign="start">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "purchase"}
-                                onChange={() => setTrigger("purchase")}
-                              />
-                              <BlockStack gap="100">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Purchase Made
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered after a customer completes a purchase
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </InlineStack>
-                        </Card>
-                      </div>
-
-                      <div onClick={() => setTrigger("birthday")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "birthday" ? "bg-surface-active" : "bg-surface"}>
-                          <InlineStack align="space-between" blockAlign="start">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "birthday"}
-                                onChange={() => setTrigger("birthday")}
-                              />
-                              <BlockStack gap="100">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Customer Birthday
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered on the customer's birthday
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </InlineStack>
-                        </Card>
-                      </div>
-
-                      <div onClick={() => setTrigger("inactive")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "inactive" ? "bg-surface-active" : "bg-surface"}>
-                          <InlineStack align="space-between" blockAlign="start">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "inactive"}
-                                onChange={() => setTrigger("inactive")}
-                              />
-                              <BlockStack gap="100">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Inactive Customer
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered when a customer hasn't purchased in 30+ days
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </InlineStack>
-                        </Card>
-                      </div>
-                    </BlockStack>
                   </BlockStack>
                 </Card>
 
-                {/* Navigation */}
-                <InlineStack align="end" gap="300">
-                  <Button>Back</Button>
-                  <Button variant="primary">Next: Choose Action</Button>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        )}
-
-        {/* OPTION 2: Minimal Steps */}
-        {(selectedVariation === "all" || selectedVariation === "option2") && (
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="500">
-                {/* Header */}
-                <InlineStack align="space-between" blockAlign="center">
+                <Card background={currentStep === 2 ? "bg-surface-brand-subdued" : currentStep > 2 ? "bg-surface-success-subdued" : "bg-surface"}>
                   <BlockStack gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="success">Option 2</Badge>
-                      <Text variant="headingLg" as="h2">
-                        Minimal Steps
-                      </Text>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyMd" fontWeight="semibold" tone={currentStep < 2 ? "subdued" : undefined}>Step 2</Text>
+                      <Badge tone={currentStep > 2 ? "success" : currentStep === 2 ? "info" : undefined}>
+                        {currentStep > 2 ? "Done" : currentStep === 2 ? "Active" : "Pending"}
+                      </Badge>
                     </InlineStack>
-                    <Text variant="bodyMd" tone="subdued">
-                      Clean, text-focused design with subtle progress indication
+                    <Text variant="headingSm" tone={currentStep < 2 ? "subdued" : undefined}>Trigger</Text>
+                    <Text variant="bodySm" tone="subdued">
+                      When to run
                     </Text>
                   </BlockStack>
-                </InlineStack>
+                </Card>
 
-                <Divider />
-
-                {/* Progress Steps - Minimal */}
-                <Box padding="400" background="bg-surface-secondary" borderRadius="200">
-                  <InlineStack gap="600" align="center">
-                    <BlockStack gap="100">
-                      <Text variant="bodySm" tone="subdued">Step 1 of 4</Text>
-                      <Text variant="headingSm" fontWeight="semibold">Setup</Text>
-                      <Badge tone="success">Completed</Badge>
-                    </BlockStack>
-
-                    <BlockStack gap="100">
-                      <Text variant="bodySm" tone="subdued">Step 2 of 4</Text>
-                      <Text variant="headingSm" fontWeight="semibold">Trigger</Text>
-                      <Badge tone="info">In Progress</Badge>
-                    </BlockStack>
-
-                    <BlockStack gap="100">
-                      <Text variant="bodySm" tone="subdued">Step 3 of 4</Text>
-                      <Text variant="headingSm" tone="subdued">Action</Text>
-                      <Badge>Not Started</Badge>
-                    </BlockStack>
-
-                    <BlockStack gap="100">
-                      <Text variant="bodySm" tone="subdued">Step 4 of 4</Text>
-                      <Text variant="headingSm" tone="subdued">Review</Text>
-                      <Badge>Not Started</Badge>
-                    </BlockStack>
-                  </InlineStack>
-                </Box>
-
-                {/* Current Step Content */}
-                <BlockStack gap="400">
+                <Card background={currentStep === 3 ? "bg-surface-brand-subdued" : currentStep > 3 ? "bg-surface-success-subdued" : "bg-surface"}>
                   <BlockStack gap="200">
-                    <Text variant="headingLg" as="h2">
-                      Choose Trigger
-                    </Text>
-                    <Text variant="bodyMd" tone="subdued">
-                      Select the event that will start this automation
-                    </Text>
-                  </BlockStack>
-
-                  <Divider />
-
-                  <BlockStack gap="300">
-                    <div onClick={() => setTrigger("tier_change")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="400"
-                        background={trigger === "tier_change" ? "bg-surface-active" : "bg-surface"}
-                        borderRadius="200"
-                        borderWidth="025"
-                        borderColor={trigger === "tier_change" ? "border-brand" : "border"}
-                      >
-                        <InlineStack gap="300" blockAlign="start">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "tier_change"}
-                            onChange={() => setTrigger("tier_change")}
-                          />
-                          <BlockStack gap="100">
-                            <Text variant="headingSm" fontWeight="semibold">
-                              Tier Change
-                            </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              Triggered when a customer moves to a new tier
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
-
-                    <div onClick={() => setTrigger("purchase")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="400"
-                        background={trigger === "purchase" ? "bg-surface-active" : "bg-surface"}
-                        borderRadius="200"
-                        borderWidth="025"
-                        borderColor={trigger === "purchase" ? "border-brand" : "border"}
-                      >
-                        <InlineStack gap="300" blockAlign="start">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "purchase"}
-                            onChange={() => setTrigger("purchase")}
-                          />
-                          <BlockStack gap="100">
-                            <Text variant="headingSm" fontWeight="semibold">
-                              Purchase Made
-                            </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              Triggered after a customer completes a purchase
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
-
-                    <div onClick={() => setTrigger("birthday")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="400"
-                        background={trigger === "birthday" ? "bg-surface-active" : "bg-surface"}
-                        borderRadius="200"
-                        borderWidth="025"
-                        borderColor={trigger === "birthday" ? "border-brand" : "border"}
-                      >
-                        <InlineStack gap="300" blockAlign="start">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "birthday"}
-                            onChange={() => setTrigger("birthday")}
-                          />
-                          <BlockStack gap="100">
-                            <Text variant="headingSm" fontWeight="semibold">
-                              Customer Birthday
-                            </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              Triggered on the customer's birthday
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
-
-                    <div onClick={() => setTrigger("inactive")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="400"
-                        background={trigger === "inactive" ? "bg-surface-active" : "bg-surface"}
-                        borderRadius="200"
-                        borderWidth="025"
-                        borderColor={trigger === "inactive" ? "border-brand" : "border"}
-                      >
-                        <InlineStack gap="300" blockAlign="start">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "inactive"}
-                            onChange={() => setTrigger("inactive")}
-                          />
-                          <BlockStack gap="100">
-                            <Text variant="headingSm" fontWeight="semibold">
-                              Inactive Customer
-                            </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              Triggered when a customer hasn't purchased in 30+ days
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
-                  </BlockStack>
-                </BlockStack>
-
-                {/* Navigation */}
-                <Divider />
-                <InlineStack align="space-between">
-                  <Button>Back to Setup</Button>
-                  <InlineStack gap="300">
-                    <Button>Save Draft</Button>
-                    <Button variant="primary">Continue to Action</Button>
-                  </InlineStack>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        )}
-
-        {/* OPTION 3: Bordered Steps */}
-        {(selectedVariation === "all" || selectedVariation === "option3") && (
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="500">
-                {/* Header */}
-                <InlineStack align="space-between" blockAlign="center">
-                  <BlockStack gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="warning">Option 3</Badge>
-                      <Text variant="headingLg" as="h2">
-                        Bordered Steps
-                      </Text>
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyMd" fontWeight="semibold" tone={currentStep < 3 ? "subdued" : undefined}>Step 3</Text>
+                      <Badge tone={currentStep > 3 ? "success" : currentStep === 3 ? "info" : undefined}>
+                        {currentStep > 3 ? "Done" : currentStep === 3 ? "Active" : "Pending"}
+                      </Badge>
                     </InlineStack>
-                    <Text variant="bodyMd" tone="subdued">
-                      Card-based steps with clear visual separation and status colors
+                    <Text variant="headingSm" tone={currentStep < 3 ? "subdued" : undefined}>Action</Text>
+                    <Text variant="bodySm" tone="subdued">
+                      What to do
                     </Text>
                   </BlockStack>
-                </InlineStack>
+                </Card>
 
-                <Divider />
+                <Card background={currentStep === 4 ? "bg-surface-brand-subdued" : "bg-surface"}>
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodyMd" fontWeight="semibold" tone={currentStep < 4 ? "subdued" : undefined}>Step 4</Text>
+                      <Badge tone={currentStep === 4 ? "info" : undefined}>
+                        {currentStep === 4 ? "Active" : "Pending"}
+                      </Badge>
+                    </InlineStack>
+                    <Text variant="headingSm" tone={currentStep < 4 ? "subdued" : undefined}>Review</Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Confirm & launch
+                    </Text>
+                  </BlockStack>
+                </Card>
+              </InlineGrid>
 
-                {/* Progress Steps - Bordered Cards */}
-                <InlineGrid columns={4} gap="300">
-                  <Card background="bg-surface-success-subdued">
-                    <BlockStack gap="200">
+              <Divider />
+
+              {/* STEP 1: SETUP */}
+              {currentStep === 1 && (
+                <Card background="bg-surface-secondary">
+                  <BlockStack gap="500">
+                    <BlockStack gap="300">
                       <InlineStack align="space-between" blockAlign="center">
-                        <Text variant="bodyMd" fontWeight="semibold">Step 1</Text>
-                        <Badge tone="success">Done</Badge>
+                        <Text variant="headingLg" as="h2">
+                          Basic Information
+                        </Text>
+                        <Text variant="bodyMd" tone="subdued">
+                          Step 1 of 4
+                        </Text>
                       </InlineStack>
-                      <Text variant="headingSm">Setup</Text>
-                      <Text variant="bodySm" tone="subdued">
-                        Basic information
+                      <Text variant="bodyMd" tone="subdued">
+                        Give your automation a name and description
                       </Text>
                     </BlockStack>
-                  </Card>
 
-                  <Card background="bg-surface-brand-subdued">
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <Text variant="bodyMd" fontWeight="semibold">Step 2</Text>
-                        <Badge tone="info">Active</Badge>
-                      </InlineStack>
-                      <Text variant="headingSm">Trigger</Text>
-                      <Text variant="bodySm" tone="subdued">
-                        When to run
-                      </Text>
+                    <Divider />
+
+                    <BlockStack gap="400">
+                      <TextField
+                        label="Automation Name"
+                        value={automationName}
+                        onChange={setAutomationName}
+                        placeholder="e.g., Welcome New VIP Members"
+                        helpText="Choose a descriptive name to identify this automation"
+                        autoComplete="off"
+                        requiredIndicator
+                      />
+
+                      <TextField
+                        label="Description"
+                        value={description}
+                        onChange={setDescription}
+                        placeholder="Brief description of what this automation does"
+                        multiline={4}
+                        helpText="Optional: Add notes about this automation's purpose"
+                        autoComplete="off"
+                      />
+
+                      <Banner>
+                        This automation will run automatically based on the trigger you configure in the next step. You can pause or modify it at any time.
+                      </Banner>
                     </BlockStack>
-                  </Card>
+                  </BlockStack>
+                </Card>
+              )}
 
-                  <Card>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <Text variant="bodyMd" fontWeight="semibold" tone="subdued">Step 3</Text>
-                        <Badge>Pending</Badge>
-                      </InlineStack>
-                      <Text variant="headingSm" tone="subdued">Action</Text>
-                      <Text variant="bodySm" tone="subdued">
-                        What to do
-                      </Text>
-                    </BlockStack>
-                  </Card>
-
-                  <Card>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between" blockAlign="center">
-                        <Text variant="bodyMd" fontWeight="semibold" tone="subdued">Step 4</Text>
-                        <Badge>Pending</Badge>
-                      </InlineStack>
-                      <Text variant="headingSm" tone="subdued">Review</Text>
-                      <Text variant="bodySm" tone="subdued">
-                        Confirm & launch
-                      </Text>
-                    </BlockStack>
-                  </Card>
-                </InlineGrid>
-
-                {/* Current Step Content */}
+              {/* STEP 2: TRIGGER */}
+              {currentStep === 2 && (
                 <Card background="bg-surface-secondary">
                   <BlockStack gap="500">
                     <BlockStack gap="300">
@@ -596,285 +261,540 @@ export default function CreateAutomation() {
 
                     <Divider />
 
-                    <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-                      <div onClick={() => setTrigger("tier_change")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "tier_change" ? "bg-surface-brand" : "bg-surface"}>
-                          <BlockStack gap="300">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "tier_change"}
-                                onChange={() => setTrigger("tier_change")}
-                              />
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Tier Change
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered when a customer moves to a new tier
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </BlockStack>
-                        </Card>
-                      </div>
+                    <BlockStack gap="400">
+                      <Text variant="headingMd" as="h3">
+                        Trigger Type
+                      </Text>
 
-                      <div onClick={() => setTrigger("purchase")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "purchase" ? "bg-surface-brand" : "bg-surface"}>
-                          <BlockStack gap="300">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "purchase"}
-                                onChange={() => setTrigger("purchase")}
-                              />
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Purchase Made
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered after a customer completes a purchase
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </BlockStack>
-                        </Card>
-                      </div>
+                      <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                        <div onClick={() => setTrigger("tier_change")} style={{ cursor: "pointer" }}>
+                          <Card background={trigger === "tier_change" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={trigger === "tier_change"}
+                                  onChange={() => setTrigger("tier_change")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Tier Change
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Triggered when a customer moves to a new tier
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
 
-                      <div onClick={() => setTrigger("birthday")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "birthday" ? "bg-surface-brand" : "bg-surface"}>
-                          <BlockStack gap="300">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "birthday"}
-                                onChange={() => setTrigger("birthday")}
-                              />
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Customer Birthday
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered on the customer's birthday
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </BlockStack>
-                        </Card>
-                      </div>
+                        <div onClick={() => setTrigger("purchase")} style={{ cursor: "pointer" }}>
+                          <Card background={trigger === "purchase" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={trigger === "purchase"}
+                                  onChange={() => setTrigger("purchase")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Purchase Made
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Triggered after a customer completes a purchase
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
 
-                      <div onClick={() => setTrigger("inactive")} style={{ cursor: "pointer" }}>
-                        <Card background={trigger === "inactive" ? "bg-surface-brand" : "bg-surface"}>
-                          <BlockStack gap="300">
-                            <InlineStack gap="300" blockAlign="start">
-                              <RadioButton
-                                label=""
-                                checked={trigger === "inactive"}
-                                onChange={() => setTrigger("inactive")}
-                              />
-                              <BlockStack gap="200">
-                                <Text variant="headingSm" fontWeight="semibold">
-                                  Inactive Customer
-                                </Text>
-                                <Text variant="bodySm" tone="subdued">
-                                  Triggered when a customer hasn't purchased in 30+ days
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </BlockStack>
-                        </Card>
-                      </div>
-                    </InlineGrid>
+                        <div onClick={() => setTrigger("birthday")} style={{ cursor: "pointer" }}>
+                          <Card background={trigger === "birthday" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={trigger === "birthday"}
+                                  onChange={() => setTrigger("birthday")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Customer Birthday
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Triggered on the customer's birthday
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+
+                        <div onClick={() => setTrigger("inactive")} style={{ cursor: "pointer" }}>
+                          <Card background={trigger === "inactive" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={trigger === "inactive"}
+                                  onChange={() => setTrigger("inactive")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Inactive Customer
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Triggered when a customer hasn't purchased in 30+ days
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+
+                        <div onClick={() => setTrigger("cashback_earned")} style={{ cursor: "pointer" }}>
+                          <Card background={trigger === "cashback_earned" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={trigger === "cashback_earned"}
+                                  onChange={() => setTrigger("cashback_earned")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Cashback Earned
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Triggered when a customer earns cashback
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+
+                        <div onClick={() => setTrigger("points_milestone")} style={{ cursor: "pointer" }}>
+                          <Card background={trigger === "points_milestone" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={trigger === "points_milestone"}
+                                  onChange={() => setTrigger("points_milestone")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Points Milestone
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Triggered when customer reaches specific points
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+                      </InlineGrid>
+
+                      <Divider />
+
+                      <Text variant="headingMd" as="h3">
+                        Conditions (Optional)
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        Add filters to target specific customers
+                      </Text>
+
+                      {trigger === "tier_change" && (
+                        <Select
+                          label="Target specific tier"
+                          options={[
+                            { label: "All tiers", value: "" },
+                            { label: "Bronze", value: "bronze" },
+                            { label: "Silver", value: "silver" },
+                            { label: "Gold", value: "gold" },
+                            { label: "Platinum", value: "platinum" },
+                          ]}
+                          value={tierFilter}
+                          onChange={setTierFilter}
+                          helpText="Leave blank to trigger for all tier changes"
+                        />
+                      )}
+
+                      {trigger === "purchase" && (
+                        <TextField
+                          label="Minimum purchase amount"
+                          type="number"
+                          value={minSpend}
+                          onChange={setMinSpend}
+                          prefix="$"
+                          helpText="Only trigger for purchases above this amount"
+                          autoComplete="off"
+                        />
+                      )}
+                    </BlockStack>
                   </BlockStack>
                 </Card>
+              )}
 
-                {/* Navigation */}
-                <Divider />
-                <InlineStack align="space-between">
-                  <Text variant="bodyMd" tone="subdued">
-                    2 of 4 steps completed
-                  </Text>
-                  <InlineStack gap="300">
-                    <Button>Previous</Button>
-                    <Button variant="primary">Next Step</Button>
-                  </InlineStack>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        )}
-
-        {/* OPTION 4: Compact Steps */}
-        {(selectedVariation === "all" || selectedVariation === "option4") && (
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="500">
-                {/* Header */}
-                <InlineStack align="space-between" blockAlign="center">
-                  <BlockStack gap="200">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="attention">Option 4</Badge>
-                      <Text variant="headingLg" as="h2">
-                        Compact Steps
+              {/* STEP 3: ACTION */}
+              {currentStep === 3 && (
+                <Card background="bg-surface-secondary">
+                  <BlockStack gap="500">
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text variant="headingLg" as="h2">
+                          Configure Action
+                        </Text>
+                        <Text variant="bodyMd" tone="subdued">
+                          Step 3 of 4
+                        </Text>
+                      </InlineStack>
+                      <Text variant="bodyMd" tone="subdued">
+                        Choose what happens when this automation is triggered
                       </Text>
-                    </InlineStack>
-                    <Text variant="bodyMd" tone="subdued">
-                      Space-efficient inline layout with progress bar
-                    </Text>
+                    </BlockStack>
+
+                    <Divider />
+
+                    <BlockStack gap="400">
+                      <Text variant="headingMd" as="h3">
+                        Action Type
+                      </Text>
+
+                      <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                        <div onClick={() => setAction("send_email")} style={{ cursor: "pointer" }}>
+                          <Card background={action === "send_email" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={action === "send_email"}
+                                  onChange={() => setAction("send_email")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Send Email
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Send a templated email to the customer
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+
+                        <div onClick={() => setAction("add_tag")} style={{ cursor: "pointer" }}>
+                          <Card background={action === "add_tag" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={action === "add_tag"}
+                                  onChange={() => setAction("add_tag")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Add Customer Tag
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Add a tag to the customer in Shopify
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+
+                        <div onClick={() => setAction("award_points")} style={{ cursor: "pointer" }}>
+                          <Card background={action === "award_points" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={action === "award_points"}
+                                  onChange={() => setAction("award_points")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Award Bonus Points
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Give the customer bonus loyalty points
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+
+                        <div onClick={() => setAction("create_discount")} style={{ cursor: "pointer" }}>
+                          <Card background={action === "create_discount" ? "bg-surface-brand" : "bg-surface"}>
+                            <BlockStack gap="300">
+                              <InlineStack gap="300" blockAlign="start">
+                                <RadioButton
+                                  label=""
+                                  checked={action === "create_discount"}
+                                  onChange={() => setAction("create_discount")}
+                                />
+                                <BlockStack gap="200">
+                                  <Text variant="headingSm" fontWeight="semibold">
+                                    Create Discount Code
+                                  </Text>
+                                  <Text variant="bodySm" tone="subdued">
+                                    Generate a unique discount code for the customer
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </BlockStack>
+                          </Card>
+                        </div>
+                      </InlineGrid>
+
+                      <Divider />
+
+                      {action === "send_email" && (
+                        <BlockStack gap="400">
+                          <Text variant="headingMd" as="h3">
+                            Email Settings
+                          </Text>
+
+                          <Select
+                            label="Email Template"
+                            options={[
+                              { label: "Select a template...", value: "" },
+                              { label: "Tier Upgrade Congratulations", value: "tier_upgrade" },
+                              { label: "Welcome to VIP", value: "welcome_vip" },
+                              { label: "Birthday Special Offer", value: "birthday" },
+                              { label: "We Miss You", value: "winback" },
+                              { label: "Cashback Earned Notification", value: "cashback_earned" },
+                            ]}
+                            value={template}
+                            onChange={setTemplate}
+                          />
+
+                          <InlineStack gap="300">
+                            <Button>Preview Template</Button>
+                            <Button>Create New Template</Button>
+                          </InlineStack>
+                        </BlockStack>
+                      )}
+
+                      <Divider />
+
+                      <Text variant="headingMd" as="h3">
+                        Timing & Delivery
+                      </Text>
+
+                      <Select
+                        label="Send Delay"
+                        options={[
+                          { label: "Immediately", value: "immediate" },
+                          { label: "1 hour later", value: "1h" },
+                          { label: "24 hours later", value: "24h" },
+                          { label: "3 days later", value: "3d" },
+                          { label: "1 week later", value: "7d" },
+                        ]}
+                        value={delay}
+                        onChange={setDelay}
+                        helpText="How long to wait before performing the action"
+                      />
+
+                      <Checkbox
+                        label="Only send during business hours (9 AM - 5 PM)"
+                        checked={respectBusinessHours}
+                        onChange={setRespectBusinessHours}
+                        helpText="Delays sending until the next business day if outside hours"
+                      />
+
+                      <Checkbox
+                        label="Respect customer's time zone"
+                        checked={respectTimezone}
+                        onChange={setRespectTimezone}
+                        helpText="Send based on the customer's local time zone"
+                      />
+                    </BlockStack>
                   </BlockStack>
-                </InlineStack>
+                </Card>
+              )}
 
-                <Divider />
+              {/* STEP 4: REVIEW */}
+              {currentStep === 4 && (
+                <Card background="bg-surface-secondary">
+                  <BlockStack gap="500">
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="center">
+                        <Text variant="headingLg" as="h2">
+                          Review & Activate
+                        </Text>
+                        <Text variant="bodyMd" tone="subdued">
+                          Step 4 of 4
+                        </Text>
+                      </InlineStack>
+                      <Text variant="bodyMd" tone="subdued">
+                        Review your automation settings before activating
+                      </Text>
+                    </BlockStack>
 
-                {/* Compact Progress */}
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <InlineStack gap="600">
-                      <Text variant="bodySm" fontWeight="semibold">1. Setup ✓</Text>
-                      <Text variant="bodySm" fontWeight="semibold" tone="info">2. Trigger →</Text>
-                      <Text variant="bodySm" tone="subdued">3. Action</Text>
-                      <Text variant="bodySm" tone="subdued">4. Review</Text>
-                    </InlineStack>
-                    <Text variant="bodySm" tone="subdued">50% Complete</Text>
-                  </InlineStack>
+                    <Divider />
 
-                  <div style={{
-                    width: "100%",
-                    height: "8px",
-                    background: "var(--p-color-bg-fill-tertiary)",
-                    borderRadius: "4px",
-                    overflow: "hidden",
-                  }}>
-                    <div style={{
-                      width: "50%",
-                      height: "100%",
-                      background: "var(--p-color-bg-fill-brand)",
-                    }} />
-                  </div>
-                </BlockStack>
-
-                {/* Current Step Content */}
-                <BlockStack gap="400">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text variant="headingLg" as="h2">
-                      Trigger Event
-                    </Text>
-                    <Badge tone="info">Step 2</Badge>
-                  </InlineStack>
-
-                  <Banner>
-                    Select the event that will start this automation. You can add conditions in the next step to further refine when it runs.
-                  </Banner>
-
-                  <BlockStack gap="200">
-                    <div onClick={() => setTrigger("tier_change")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="300"
-                        background={trigger === "tier_change" ? "bg-surface-brand-subdued" : "bg-surface"}
-                        borderRadius="200"
-                      >
-                        <InlineStack gap="200" blockAlign="center">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "tier_change"}
-                            onChange={() => setTrigger("tier_change")}
-                          />
-                          <BlockStack gap="050">
+                    <BlockStack gap="400">
+                      <Card>
+                        <BlockStack gap="300">
+                          <Text variant="headingMd" as="h3">
+                            Basic Information
+                          </Text>
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text variant="bodyMd" tone="subdued">Name:</Text>
                             <Text variant="bodyMd" fontWeight="semibold">
-                              Tier Change
+                              {automationName || "Untitled Automation"}
                             </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              When a customer moves to a new tier
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
+                          </InlineStack>
+                          {description && (
+                            <InlineStack gap="200" blockAlign="start">
+                              <Text variant="bodyMd" tone="subdued">Description:</Text>
+                              <Text variant="bodyMd">{description}</Text>
+                            </InlineStack>
+                          )}
+                        </BlockStack>
+                      </Card>
 
-                    <div onClick={() => setTrigger("purchase")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="300"
-                        background={trigger === "purchase" ? "bg-surface-brand-subdued" : "bg-surface"}
-                        borderRadius="200"
-                      >
-                        <InlineStack gap="200" blockAlign="center">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "purchase"}
-                            onChange={() => setTrigger("purchase")}
-                          />
-                          <BlockStack gap="050">
+                      <Card>
+                        <BlockStack gap="300">
+                          <Text variant="headingMd" as="h3">
+                            Trigger
+                          </Text>
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text variant="bodyMd" tone="subdued">Event:</Text>
                             <Text variant="bodyMd" fontWeight="semibold">
-                              Purchase Made
+                              {trigger === "tier_change" && "Tier Change"}
+                              {trigger === "purchase" && "Purchase Made"}
+                              {trigger === "birthday" && "Customer Birthday"}
+                              {trigger === "inactive" && "Inactive Customer"}
+                              {trigger === "cashback_earned" && "Cashback Earned"}
+                              {trigger === "points_milestone" && "Points Milestone"}
                             </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              After a customer completes a purchase
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
+                          </InlineStack>
+                          {tierFilter && (
+                            <InlineStack gap="200" blockAlign="center">
+                              <Text variant="bodyMd" tone="subdued">Tier Filter:</Text>
+                              <Badge>{tierFilter}</Badge>
+                            </InlineStack>
+                          )}
+                          {minSpend && (
+                            <InlineStack gap="200" blockAlign="center">
+                              <Text variant="bodyMd" tone="subdued">Minimum Spend:</Text>
+                              <Text variant="bodyMd" fontWeight="semibold">${minSpend}</Text>
+                            </InlineStack>
+                          )}
+                        </BlockStack>
+                      </Card>
 
-                    <div onClick={() => setTrigger("birthday")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="300"
-                        background={trigger === "birthday" ? "bg-surface-brand-subdued" : "bg-surface"}
-                        borderRadius="200"
-                      >
-                        <InlineStack gap="200" blockAlign="center">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "birthday"}
-                            onChange={() => setTrigger("birthday")}
-                          />
-                          <BlockStack gap="050">
+                      <Card>
+                        <BlockStack gap="300">
+                          <Text variant="headingMd" as="h3">
+                            Action
+                          </Text>
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text variant="bodyMd" tone="subdued">Type:</Text>
                             <Text variant="bodyMd" fontWeight="semibold">
-                              Customer Birthday
+                              {action === "send_email" && "Send Email"}
+                              {action === "add_tag" && "Add Customer Tag"}
+                              {action === "award_points" && "Award Bonus Points"}
+                              {action === "create_discount" && "Create Discount Code"}
                             </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              On the customer's birthday
+                          </InlineStack>
+                          {action === "send_email" && template && (
+                            <InlineStack gap="200" blockAlign="center">
+                              <Text variant="bodyMd" tone="subdued">Template:</Text>
+                              <Badge tone="info">{template}</Badge>
+                            </InlineStack>
+                          )}
+                          <InlineStack gap="200" blockAlign="center">
+                            <Text variant="bodyMd" tone="subdued">Delay:</Text>
+                            <Text variant="bodyMd">
+                              {delay === "immediate" && "Immediately"}
+                              {delay === "1h" && "1 hour"}
+                              {delay === "24h" && "24 hours"}
+                              {delay === "3d" && "3 days"}
+                              {delay === "7d" && "1 week"}
                             </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
+                          </InlineStack>
+                          {respectBusinessHours && (
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="success">Business hours only</Badge>
+                            </InlineStack>
+                          )}
+                          {respectTimezone && (
+                            <InlineStack gap="200" blockAlign="center">
+                              <Badge tone="success">Respects timezone</Badge>
+                            </InlineStack>
+                          )}
+                        </BlockStack>
+                      </Card>
 
-                    <div onClick={() => setTrigger("inactive")} style={{ cursor: "pointer" }}>
-                      <Box
-                        padding="300"
-                        background={trigger === "inactive" ? "bg-surface-brand-subdued" : "bg-surface"}
-                        borderRadius="200"
-                      >
-                        <InlineStack gap="200" blockAlign="center">
-                          <RadioButton
-                            label=""
-                            checked={trigger === "inactive"}
-                            onChange={() => setTrigger("inactive")}
-                          />
-                          <BlockStack gap="050">
-                            <Text variant="bodyMd" fontWeight="semibold">
-                              Inactive Customer
-                            </Text>
-                            <Text variant="bodySm" tone="subdued">
-                              When a customer hasn't purchased in 30+ days
-                            </Text>
-                          </BlockStack>
-                        </InlineStack>
-                      </Box>
-                    </div>
+                      <Banner tone="info">
+                        Once activated, this automation will run automatically based on your settings. You can pause, edit, or delete it at any time from the Automations page.
+                      </Banner>
+
+                      <Card background="bg-surface-success-subdued">
+                        <BlockStack gap="200">
+                          <Text variant="headingSm" fontWeight="semibold">
+                            Estimated Impact
+                          </Text>
+                          <Text variant="bodySm" tone="subdued">
+                            Based on your current customer base and activity:
+                          </Text>
+                          <InlineStack gap="400">
+                            <BlockStack gap="100">
+                              <Text variant="bodySm" tone="subdued">Estimated Reach</Text>
+                              <Text variant="headingMd" fontWeight="bold">~150 customers/month</Text>
+                            </BlockStack>
+                            <BlockStack gap="100">
+                              <Text variant="bodySm" tone="subdued">Potential Engagement</Text>
+                              <Text variant="headingMd" fontWeight="bold">~45 actions/month</Text>
+                            </BlockStack>
+                          </InlineStack>
+                        </BlockStack>
+                      </Card>
+                    </BlockStack>
                   </BlockStack>
-                </BlockStack>
+                </Card>
+              )}
 
-                {/* Navigation */}
-                <Divider />
-                <InlineStack align="end" gap="200">
-                  <Button>Back</Button>
-                  <Button variant="primary">Next</Button>
+              {/* Navigation */}
+              <Divider />
+              <InlineStack align="space-between">
+                <Text variant="bodyMd" tone="subdued">
+                  {currentStep} of 4 steps completed
+                </Text>
+                <InlineStack gap="300">
+                  {currentStep > 1 && (
+                    <Button onClick={handleBack}>Previous</Button>
+                  )}
+                  {currentStep < 4 ? (
+                    <Button
+                      variant="primary"
+                      onClick={handleNext}
+                      disabled={!isStepValid(currentStep)}
+                    >
+                      Next Step
+                    </Button>
+                  ) : (
+                    <Button variant="primary" onClick={handleActivate}>
+                      Activate Automation
+                    </Button>
+                  )}
                 </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-        )}
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
       </Layout>
     </Page>
   );
