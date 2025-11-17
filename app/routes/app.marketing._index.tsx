@@ -366,6 +366,9 @@ export default function MarketingDashboard() {
                 >
                   + Smart Campaign
                 </Button>
+                <Button onClick={() => navigate('/app/marketing/campaigns/create')}>
+                  + Create Campaign
+                </Button>
                 <Button onClick={() => navigate('/app/marketing/automation/create')}>
                   + Create Automation
                 </Button>
