@@ -1,5 +1,6 @@
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useState } from "react";
 import {
   Page,
   Layout,
@@ -14,12 +15,17 @@ import {
   Divider,
   InlineGrid,
   Banner,
+  ProgressBar,
 } from "@shopify/polaris";
 import {
   EmailIcon,
   ChartVerticalIcon,
   CashDollarIcon,
   AutomationIcon,
+  StatusActiveIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  PersonIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import db from "~/db.server";
@@ -210,6 +216,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function MarketingDashboard() {
   const data = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const [selectedMockup, setSelectedMockup] = useState<"option1" | "option2" | "option3" | null>(null);
 
   const formatDate = (date: string | null) => {
     if (!date) return 'N/A';
@@ -594,6 +601,810 @@ export default function MarketingDashboard() {
                 </Button>
               </BlockStack>
             </Card>
+          </Layout.Section>
+        )}
+
+        {/* Mockup UI Variations Selector */}
+        <Layout.Section>
+          <Divider />
+          <Box paddingBlock="800">
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingLg" as="h2">
+                  Marketing Hub UI Mockups
+                </Text>
+                <Text variant="bodyMd" tone="subdued" as="p">
+                  Explore 3 different UI designs for the marketing hub inspired by the system status dashboard
+                </Text>
+                <InlineStack gap="300">
+                  <Button
+                    pressed={selectedMockup === "option1"}
+                    onClick={() => setSelectedMockup(selectedMockup === "option1" ? null : "option1")}
+                  >
+                    Option 1: Status Grid
+                  </Button>
+                  <Button
+                    pressed={selectedMockup === "option2"}
+                    onClick={() => setSelectedMockup(selectedMockup === "option2" ? null : "option2")}
+                  >
+                    Option 2: Campaign Flow
+                  </Button>
+                  <Button
+                    pressed={selectedMockup === "option3"}
+                    onClick={() => setSelectedMockup(selectedMockup === "option3" ? null : "option3")}
+                  >
+                    Option 3: Performance Dashboard
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Box>
+        </Layout.Section>
+
+        {/* Option 1: Status Grid (inspired by System Status) */}
+        {selectedMockup === "option1" && (
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                {/* Header */}
+                <InlineStack align="space-between" blockAlign="center">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Icon source={StatusActiveIcon} tone="base" />
+                    <Text variant="headingMd" as="h2">Marketing Performance</Text>
+                  </InlineStack>
+                  <Badge tone="success">
+                    Active
+                  </Badge>
+                </InlineStack>
+
+                <Divider />
+
+                {/* Overall Status Banner */}
+                <Banner tone="success">
+                  <InlineStack gap="400" blockAlign="center" wrap={false}>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Icon source={CheckCircleIcon} tone="success" />
+                      <Text variant="bodyMd" fontWeight="semibold">All Campaigns Performing Well</Text>
+                    </InlineStack>
+                    <Text variant="bodySm" tone="subdued">•</Text>
+                    <Text variant="bodySm" tone="subdued">Open Rate: {data.metrics.openRate}%</Text>
+                    <Text variant="bodySm" tone="subdued">•</Text>
+                    <Text variant="bodySm" tone="subdued">0 failed sends</Text>
+                  </InlineStack>
+                </Banner>
+
+                {/* Component Cards Grid */}
+                <InlineGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="400">
+                  {/* Email Campaign Health */}
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <Box
+                          padding="200"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <Icon source={EmailIcon} tone="base" />
+                        </Box>
+                        <Badge tone="success">Operational</Badge>
+                      </InlineStack>
+
+                      <Text variant="headingSm" as="h3" fontWeight="semibold">
+                        Email Campaigns
+                      </Text>
+
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Sent This Month:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            {data.metrics.emailsSent.toLocaleString()}
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Open Rate:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            {data.metrics.openRate}%
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Active Campaigns:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            {data.recentCampaigns.filter(c => c.status === 'sent').length}
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+
+                      <Divider />
+
+                      <Text variant="bodySm" tone="subdued">
+                        Automated and manual email campaigns sent to customers
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  {/* Automation Engine */}
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <Box
+                          padding="200"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <Icon source={AutomationIcon} tone="base" />
+                        </Box>
+                        <Badge tone={data.automationStats.active > 0 ? "success" : "info"}>
+                          {data.automationStats.active > 0 ? "Active" : "Inactive"}
+                        </Badge>
+                      </InlineStack>
+
+                      <Text variant="headingSm" as="h3" fontWeight="semibold">
+                        Automation Workflows
+                      </Text>
+
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Active:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            {data.automationStats.active} / {data.automationStats.total}
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Status:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            {data.automationStats.active > 0 ? "Running" : "Paused"}
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Triggers:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            Tier changes, birthdays, inactivity
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+
+                      <Divider />
+
+                      <Text variant="bodySm" tone="subdued">
+                        Automated email workflows triggered by customer actions
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  {/* Revenue Impact */}
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <Box
+                          padding="200"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <Icon source={CashDollarIcon} tone="base" />
+                        </Box>
+                        <Badge tone="success">Growing</Badge>
+                      </InlineStack>
+
+                      <Text variant="headingSm" as="h3" fontWeight="semibold">
+                        Revenue Attribution
+                      </Text>
+
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">This Month:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            ${data.metrics.revenue.toLocaleString()}
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Growth:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            +15.3%
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">ROI:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            450%
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+
+                      <Divider />
+
+                      <Text variant="bodySm" tone="subdued">
+                        Revenue generated from email marketing campaigns
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  {/* Audience Reach */}
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <Box
+                          padding="200"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <Icon source={PersonIcon} tone="base" />
+                        </Box>
+                        <Badge tone="info">Engaged</Badge>
+                      </InlineStack>
+
+                      <Text variant="headingSm" as="h3" fontWeight="semibold">
+                        Audience Reach
+                      </Text>
+
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Total Subscribers:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            2,847
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Engaged:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            1,923 (67.5%)
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Unsubscribe Rate:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            0.3%
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+
+                      <Divider />
+
+                      <Text variant="bodySm" tone="subdued">
+                        Total customers subscribed to marketing emails
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  {/* Template Library */}
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <Box
+                          padding="200"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <Icon source={ChartVerticalIcon} tone="base" />
+                        </Box>
+                        <Badge tone="info">Ready</Badge>
+                      </InlineStack>
+
+                      <Text variant="headingSm" as="h3" fontWeight="semibold">
+                        Template Library
+                      </Text>
+
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Total Templates:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            12
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Most Used:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            Welcome Series
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Avg Open Rate:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            34.2%
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+
+                      <Divider />
+
+                      <Text variant="bodySm" tone="subdued">
+                        Reusable email templates for campaigns and automations
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  {/* Deliverability */}
+                  <Card>
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between" blockAlign="start">
+                        <Box
+                          padding="200"
+                          background="bg-surface-secondary"
+                          borderRadius="200"
+                        >
+                          <Icon source={CheckCircleIcon} tone="base" />
+                        </Box>
+                        <Badge tone="success">Excellent</Badge>
+                      </InlineStack>
+
+                      <Text variant="headingSm" as="h3" fontWeight="semibold">
+                        Email Deliverability
+                      </Text>
+
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Delivery Rate:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            99.2%
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Bounce Rate:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            0.8%
+                          </Text>
+                        </InlineStack>
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodySm" tone="subdued">Spam Reports:</Text>
+                          <Text variant="bodySm" fontWeight="medium">
+                            0 (0%)
+                          </Text>
+                        </InlineStack>
+                      </BlockStack>
+
+                      <Divider />
+
+                      <Text variant="bodySm" tone="subdued">
+                        Email sending reputation and inbox placement rates
+                      </Text>
+                    </BlockStack>
+                  </Card>
+                </InlineGrid>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        )}
+
+        {/* Option 2: Campaign Flow (Timeline View) */}
+        {selectedMockup === "option2" && (
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="500">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="headingLg" as="h2">Campaign Journey</Text>
+                  <Badge tone="info">Real-time</Badge>
+                </InlineStack>
+
+                <Text variant="bodyMd" tone="subdued">
+                  Visualize your customer engagement flow from initial contact to conversion
+                </Text>
+
+                <Divider />
+
+                {/* Campaign Flow Visualization */}
+                <div style={{
+                  padding: '24px',
+                  background: '#f9fafb',
+                  borderRadius: '8px',
+                  overflowX: 'auto'
+                }}>
+                  <InlineStack gap="400" blockAlign="start">
+                    {/* Step 1: Email Sent */}
+                    <Card>
+                      <BlockStack gap="300">
+                        <Box
+                          padding="300"
+                          background="bg-surface-brand"
+                          borderRadius="200"
+                        >
+                          <InlineStack align="center" blockAlign="center">
+                            <Icon source={EmailIcon} tone="base" />
+                          </InlineStack>
+                        </Box>
+                        <Text variant="headingSm" fontWeight="semibold" alignment="center">
+                          Email Sent
+                        </Text>
+                        <Text variant="headingLg" alignment="center" fontWeight="bold">
+                          {data.metrics.emailsSent.toLocaleString()}
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" alignment="center">
+                          Total sent this month
+                        </Text>
+                        <ProgressBar progress={100} size="small" tone="success" />
+                      </BlockStack>
+                    </Card>
+
+                    {/* Arrow */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      paddingTop: '40px'
+                    }}>
+                      <Text variant="headingXl" tone="subdued">→</Text>
+                    </div>
+
+                    {/* Step 2: Opened */}
+                    <Card>
+                      <BlockStack gap="300">
+                        <Box
+                          padding="300"
+                          background="bg-surface-success"
+                          borderRadius="200"
+                        >
+                          <InlineStack align="center" blockAlign="center">
+                            <Icon source={CheckCircleIcon} tone="base" />
+                          </InlineStack>
+                        </Box>
+                        <Text variant="headingSm" fontWeight="semibold" alignment="center">
+                          Opened
+                        </Text>
+                        <Text variant="headingLg" alignment="center" fontWeight="bold">
+                          {Math.round((data.metrics.emailsSent * parseFloat(data.metrics.openRate)) / 100).toLocaleString()}
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" alignment="center">
+                          {data.metrics.openRate}% open rate
+                        </Text>
+                        <ProgressBar progress={parseFloat(data.metrics.openRate)} size="small" tone="success" />
+                      </BlockStack>
+                    </Card>
+
+                    {/* Arrow */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      paddingTop: '40px'
+                    }}>
+                      <Text variant="headingXl" tone="subdued">→</Text>
+                    </div>
+
+                    {/* Step 3: Clicked */}
+                    <Card>
+                      <BlockStack gap="300">
+                        <Box
+                          padding="300"
+                          background="bg-surface-brand-subdued"
+                          borderRadius="200"
+                        >
+                          <InlineStack align="center" blockAlign="center">
+                            <Icon source={ChartVerticalIcon} tone="base" />
+                          </InlineStack>
+                        </Box>
+                        <Text variant="headingSm" fontWeight="semibold" alignment="center">
+                          Clicked
+                        </Text>
+                        <Text variant="headingLg" alignment="center" fontWeight="bold">
+                          {Math.round((data.metrics.emailsSent * parseFloat(data.metrics.openRate)) / 100 * 0.42).toLocaleString()}
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" alignment="center">
+                          14.2% click rate
+                        </Text>
+                        <ProgressBar progress={14.2} size="small" tone="primary" />
+                      </BlockStack>
+                    </Card>
+
+                    {/* Arrow */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      paddingTop: '40px'
+                    }}>
+                      <Text variant="headingXl" tone="subdued">→</Text>
+                    </div>
+
+                    {/* Step 4: Converted */}
+                    <Card>
+                      <BlockStack gap="300">
+                        <Box
+                          padding="300"
+                          background="bg-surface-success-subdued"
+                          borderRadius="200"
+                        >
+                          <InlineStack align="center" blockAlign="center">
+                            <Icon source={CashDollarIcon} tone="base" />
+                          </InlineStack>
+                        </Box>
+                        <Text variant="headingSm" fontWeight="semibold" alignment="center">
+                          Converted
+                        </Text>
+                        <Text variant="headingLg" alignment="center" fontWeight="bold">
+                          ${data.metrics.revenue.toLocaleString()}
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" alignment="center">
+                          Revenue generated
+                        </Text>
+                        <ProgressBar progress={5.8} size="small" tone="success" />
+                      </BlockStack>
+                    </Card>
+                  </InlineStack>
+                </div>
+
+                {/* Funnel Insights */}
+                <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
+                  <Card background="bg-surface-secondary">
+                    <BlockStack gap="200">
+                      <Text variant="headingSm" fontWeight="semibold">
+                        Best Performing Day
+                      </Text>
+                      <Text variant="headingMd">Tuesday</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        37% higher open rates on Tuesdays at 10 AM
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  <Card background="bg-surface-secondary">
+                    <BlockStack gap="200">
+                      <Text variant="headingSm" fontWeight="semibold">
+                        Top Converting Segment
+                      </Text>
+                      <Text variant="headingMd">VIP Tier</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        8.2% conversion rate, 3x above average
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  <Card background="bg-surface-secondary">
+                    <BlockStack gap="200">
+                      <Text variant="headingSm" fontWeight="semibold">
+                        Avg. Time to Convert
+                      </Text>
+                      <Text variant="headingMd">2.4 hours</Text>
+                      <Text variant="bodySm" tone="subdued">
+                        From email open to purchase completion
+                      </Text>
+                    </BlockStack>
+                  </Card>
+                </InlineGrid>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        )}
+
+        {/* Option 3: Performance Dashboard (Detailed Metrics) */}
+        {selectedMockup === "option3" && (
+          <Layout.Section>
+            <BlockStack gap="400">
+              {/* Header */}
+              <Card>
+                <InlineStack align="space-between" blockAlign="center">
+                  <BlockStack gap="200">
+                    <Text variant="headingLg" as="h2">Marketing Performance Dashboard</Text>
+                    <Text variant="bodyMd" tone="subdued">
+                      Comprehensive analytics and insights for your email marketing campaigns
+                    </Text>
+                  </BlockStack>
+                  <Button variant="primary">Download Report</Button>
+                </InlineStack>
+              </Card>
+
+              {/* Key Metrics Grid */}
+              <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
+                <Card>
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodySm" tone="subdued">Total Sends</Text>
+                      <Badge tone="info">+12%</Badge>
+                    </InlineStack>
+                    <Text variant="heading2xl" as="h3">
+                      {data.metrics.emailsSent.toLocaleString()}
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      vs. {Math.round(data.metrics.emailsSent * 0.88).toLocaleString()} last month
+                    </Text>
+                    <ProgressBar progress={75} size="small" />
+                  </BlockStack>
+                </Card>
+
+                <Card>
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodySm" tone="subdued">Open Rate</Text>
+                      <Badge tone="success">+5.2%</Badge>
+                    </InlineStack>
+                    <Text variant="heading2xl" as="h3">
+                      {data.metrics.openRate}%
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Industry avg: 21.3%
+                    </Text>
+                    <ProgressBar progress={parseFloat(data.metrics.openRate) / 40 * 100} size="small" tone="success" />
+                  </BlockStack>
+                </Card>
+
+                <Card>
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodySm" tone="subdued">Click Rate</Text>
+                      <Badge tone="success">+8.1%</Badge>
+                    </InlineStack>
+                    <Text variant="heading2xl" as="h3">
+                      14.2%
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      Industry avg: 8.5%
+                    </Text>
+                    <ProgressBar progress={67} size="small" tone="primary" />
+                  </BlockStack>
+                </Card>
+
+                <Card>
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <Text variant="bodySm" tone="subdued">Revenue</Text>
+                      <Badge tone="success">+15.3%</Badge>
+                    </InlineStack>
+                    <Text variant="heading2xl" as="h3">
+                      ${data.metrics.revenue.toLocaleString()}
+                    </Text>
+                    <Text variant="bodySm" tone="subdued">
+                      vs. ${Math.round(data.metrics.revenue * 0.87).toLocaleString()} last month
+                    </Text>
+                    <ProgressBar progress={85} size="small" tone="success" />
+                  </BlockStack>
+                </Card>
+              </InlineGrid>
+
+              {/* Detailed Breakdown */}
+              <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                {/* Campaign Types */}
+                <Card>
+                  <BlockStack gap="400">
+                    <Text variant="headingMd" as="h3" fontWeight="semibold">
+                      Campaign Types Performance
+                    </Text>
+                    <BlockStack gap="300">
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodyMd">Promotional</Text>
+                          <Text variant="bodyMd" fontWeight="medium">38.5%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={38.5} size="small" tone="primary" />
+                        </Box>
+                      </div>
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodyMd">Transactional</Text>
+                          <Text variant="bodyMd" fontWeight="medium">67.2%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={67.2} size="small" tone="success" />
+                        </Box>
+                      </div>
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodyMd">Newsletter</Text>
+                          <Text variant="bodyMd" fontWeight="medium">21.8%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={21.8} size="small" tone="info" />
+                        </Box>
+                      </div>
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <Text variant="bodyMd">Automation</Text>
+                          <Text variant="bodyMd" fontWeight="medium">45.3%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={45.3} size="small" tone="primary" />
+                        </Box>
+                      </div>
+                    </BlockStack>
+                  </BlockStack>
+                </Card>
+
+                {/* Audience Engagement */}
+                <Card>
+                  <BlockStack gap="400">
+                    <Text variant="headingMd" as="h3" fontWeight="semibold">
+                      Audience Engagement Levels
+                    </Text>
+                    <BlockStack gap="300">
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Badge tone="success">Highly Engaged</Badge>
+                            <Text variant="bodyMd">1,234 customers</Text>
+                          </InlineStack>
+                          <Text variant="bodyMd" fontWeight="medium">43%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={43} size="small" tone="success" />
+                        </Box>
+                      </div>
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Badge tone="info">Moderately Engaged</Badge>
+                            <Text variant="bodyMd">689 customers</Text>
+                          </InlineStack>
+                          <Text variant="bodyMd" fontWeight="medium">24%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={24} size="small" tone="primary" />
+                        </Box>
+                      </div>
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Badge tone="warning">Low Engagement</Badge>
+                            <Text variant="bodyMd">542 customers</Text>
+                          </InlineStack>
+                          <Text variant="bodyMd" fontWeight="medium">19%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={19} size="small" tone="warning" />
+                        </Box>
+                      </div>
+                      <div>
+                        <InlineStack align="space-between" blockAlign="center">
+                          <InlineStack gap="200" blockAlign="center">
+                            <Badge tone="critical">At Risk</Badge>
+                            <Text variant="bodyMd">382 customers</Text>
+                          </InlineStack>
+                          <Text variant="bodyMd" fontWeight="medium">14%</Text>
+                        </InlineStack>
+                        <Box paddingBlockStart="100">
+                          <ProgressBar progress={14} size="small" tone="critical" />
+                        </Box>
+                      </div>
+                    </BlockStack>
+                  </BlockStack>
+                </Card>
+              </InlineGrid>
+
+              {/* Action Items */}
+              <Card>
+                <BlockStack gap="400">
+                  <Text variant="headingMd" as="h3" fontWeight="semibold">
+                    Recommended Actions
+                  </Text>
+                  <InlineGrid columns={{ xs: 1, md: 3 }} gap="300">
+                    <Card background="bg-surface-brand-subdued">
+                      <BlockStack gap="200">
+                        <Icon source={EmailIcon} />
+                        <Text variant="headingSm" fontWeight="semibold">
+                          Re-engage Inactive
+                        </Text>
+                        <Text variant="bodySm">
+                          382 customers haven't opened an email in 30 days
+                        </Text>
+                        <Button size="slim">Create Campaign</Button>
+                      </BlockStack>
+                    </Card>
+
+                    <Card background="bg-surface-success-subdued">
+                      <BlockStack gap="200">
+                        <Icon source={ClockIcon} />
+                        <Text variant="headingSm" fontWeight="semibold">
+                          Optimize Send Time
+                        </Text>
+                        <Text variant="bodySm">
+                          Tuesday at 10 AM shows 37% better performance
+                        </Text>
+                        <Button size="slim">Schedule Campaign</Button>
+                      </BlockStack>
+                    </Card>
+
+                    <Card background="bg-surface-secondary">
+                      <BlockStack gap="200">
+                        <Icon source={AutomationIcon} />
+                        <Text variant="headingSm" fontWeight="semibold">
+                          Add Automation
+                        </Text>
+                        <Text variant="bodySm">
+                          Birthday emails have 89% open rate in similar stores
+                        </Text>
+                        <Button size="slim">Create Workflow</Button>
+                      </BlockStack>
+                    </Card>
+                  </InlineGrid>
+                </BlockStack>
+              </Card>
+            </BlockStack>
           </Layout.Section>
         )}
       </Layout>
