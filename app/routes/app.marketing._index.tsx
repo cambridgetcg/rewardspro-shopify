@@ -409,20 +409,11 @@ export default function MarketingDashboard() {
                   </div>
                   <div>
                     <InlineStack align="space-between" blockAlign="center">
-                      <Text variant="bodyMd">Transactional</Text>
+                      <Text variant="bodyMd">Newsletter</Text>
                       <Text variant="bodyMd" fontWeight="medium">67.2%</Text>
                     </InlineStack>
                     <Box paddingBlockStart="100">
                       <ProgressBar progress={67.2} size="small" tone="success" />
-                    </Box>
-                  </div>
-                  <div>
-                    <InlineStack align="space-between" blockAlign="center">
-                      <Text variant="bodyMd">Newsletter</Text>
-                      <Text variant="bodyMd" fontWeight="medium">21.8%</Text>
-                    </InlineStack>
-                    <Box paddingBlockStart="100">
-                      <ProgressBar progress={21.8} size="small" tone="info" />
                     </Box>
                   </div>
                   <div>

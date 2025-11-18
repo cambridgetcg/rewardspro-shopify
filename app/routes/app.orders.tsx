@@ -411,6 +411,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Calculate pagination
     const totalPages = Math.ceil(totalCount / pageSize);
 
+    console.log('[Orders Loader] Orders fetched:', orders.length);
+    console.log('[Orders Loader] Total count:', totalCount);
+    console.log('[Orders Loader] Search query:', searchQuery);
+    console.log('[Orders Loader] Status filter:', statusFilter);
+    console.log('[Orders Loader] Cashback filter:', cashbackFilter);
+
     // Serialize orders to ensure Decimal values are converted to numbers
     const serializedOrders = orders.map(order => {
       const cashbackAmountNumber = order.cashbackAmount ? Number(order.cashbackAmount) : null;
@@ -446,6 +452,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }))
       };
     });
+
+    console.log('[Orders Loader] Serialized orders count:', serializedOrders.length);
+    console.log('[Orders Loader] Returning data...');
 
     return json({
       orders: serializedOrders,
