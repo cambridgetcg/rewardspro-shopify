@@ -300,10 +300,11 @@ export class AnalyticsRecommendationsService {
     // 4. VIP at Risk - Find high-tier customers with no recent orders
     const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
 
-    // Get top 2 tiers (highest minSpend values)
-    const topTiers = tiers.slice(-2).map(t => t.id);
+    // Get top 2 tiers (highest minSpend values) - skip if no tiers
+    const topTiers = tiers.length > 0 ? tiers.slice(-2).map(t => t.id) : [];
 
-    const vipAtRisk = await db.customer.findMany({
+    // Only query if we have tiers to search for
+    const vipAtRisk = topTiers.length > 0 ? await db.customer.findMany({
       where: {
         shop: this.shop,
         currentTierId: { in: topTiers },
@@ -316,7 +317,7 @@ export class AnalyticsRecommendationsService {
         totalSpent: true,
         currentTierId: true
       }
-    });
+    }) : [];
 
     if (vipAtRisk.length > 0) {
       const avgVipSpent = vipAtRisk.reduce((sum, c) => sum + Number(c.totalSpent || 0), 0) / vipAtRisk.length;
