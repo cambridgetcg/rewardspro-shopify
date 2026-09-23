@@ -1,3 +1,4 @@
+import { NEW_PAID_SUBSCRIPTIONS_RETIRED, paidSubscriptionsRetiredResult } from "~/constants/commercial-retirement";
 /**
  * GraphQL Billing Service
  * Handles all GraphQL billing operations for the app
@@ -194,6 +195,7 @@ export class GraphQLBillingService {
    * Create a new subscription
    */
   async createSubscription(options: CreateSubscriptionOptions): Promise<SubscriptionResult> {
+    if (NEW_PAID_SUBSCRIPTIONS_RETIRED) return paidSubscriptionsRetiredResult();
     const { shop, planType, isUpgrade } = options;
     const planConfig = getPlanConfig(planType);
 

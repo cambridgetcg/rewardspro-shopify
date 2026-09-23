@@ -1,3 +1,4 @@
+import { PAID_SUBSCRIPTIONS_RETIRED_MESSAGE, PAID_SUBSCRIPTIONS_RETIRED_STATUS, paidSubscriptionsRetiredResult } from "~/constants/commercial-retirement";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useFetcher, useNavigation } from "@remix-run/react";
@@ -500,6 +501,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const shop = session.shop;
 
+    const formData = await request.formData();
+    const intent = formData.get("intent") as string;
+
+    // New paid plans and paid plan changes are retired.
+    if (intent === "upgrade") {
+      return json(paidSubscriptionsRetiredResult(), { status: PAID_SUBSCRIPTIONS_RETIRED_STATUS });
+    }
+
     // Get active subscription for downgrade handling
     let activeSubscription = null;
     if (billing) {
@@ -516,9 +525,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // Rate limiting
     checkRateLimit(shop);
-
-    const formData = await request.formData();
-    const intent = formData.get("intent") as string;
 
     // Handle order sync
     if (intent === "sync-orders") {
@@ -578,47 +584,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         inProgress: false,
         progress: 100
       });
-    }
-
-    // Handle billing upgrade
-    if (intent === "upgrade") {
-      const planName = formData.get("plan") as string;
-
-      if (!billing) {
-        return json({ error: "Billing not configured" }, { status: 500 });
-      }
-
-      try {
-        // Import plan names
-        const { FREE_PLAN, MONTHLY_PLAN, ANNUAL_PLAN } = await import("../shopify.server");
-
-        // Determine which plan to request
-        let requestPlan = MONTHLY_PLAN; // Default to monthly
-        if (planName === "RewardsPro Annual") {
-          requestPlan = ANNUAL_PLAN;
-        } else if (planName === "RewardsPro Free") {
-          requestPlan = FREE_PLAN;
-        }
-
-        // Request the billing plan
-        const billingResponse = await billing.request({
-          plan: requestPlan,
-          isTest: process.env.NODE_ENV === 'development',
-          returnUrl: `${process.env.SHOPIFY_APP_URL}/app/settings`,
-        });
-
-        // This will return a redirect response to Shopify's billing page
-        return billingResponse;
-      } catch (billingError: any) {
-        // If billing.request throws a Response, return it
-        if (billingError instanceof Response) {
-          console.log("[Settings Action] Billing request returned Response, forwarding it");
-          return billingError;
-        }
-
-        console.error("[Settings Action] Error requesting plan:", billingError);
-        return json({ error: "Failed to request billing plan" }, { status: 500 });
-      }
     }
 
     // Handle subscription cancellation
@@ -1547,7 +1512,7 @@ export default function SettingsPage() {
                           projectedOrders: monthlyOrderUsage?.projectedOrders || 0,
                           currentMonth: currentMonth
                         }}
-                        showUpgradeButton={true}
+                        showUpgradeButton={false}
                         showOverageBanner={false}
                         showCountStrategy={false}
                         showProjectedUsage={true}
@@ -1566,7 +1531,7 @@ export default function SettingsPage() {
                         {activeSubscription && activeSubscription.name !== "RewardsPro Free" ? (
                           <BlockStack gap="300">
                             <Text variant="bodyMd" tone="subdued">
-                              Need to reduce costs? You can downgrade your subscription or cancel it completely.
+                              You can review your existing subscription or cancel it. New paid plans and paid plan changes are retired.
                             </Text>
 
                             <InlineStack gap="200">
@@ -1574,7 +1539,7 @@ export default function SettingsPage() {
                                 variant="secondary"
                                 onClick={() => navigate("/app/billing")}
                               >
-                                Change Plan
+                                Subscription Records
                               </Button>
 
                               <Button
@@ -1596,143 +1561,15 @@ export default function SettingsPage() {
                         ) : (
                           <BlockStack gap="300">
                             <Text variant="bodyMd">
-                              You're currently on the free plan. Ready to grow?
+                              New paid subscriptions and paid plan changes are retired.
                             </Text>
-                            <Button
-                              variant="primary"
-                              onClick={() => navigate("/app/billing")}
-                            >
-                              View Upgrade Options
-                            </Button>
                           </BlockStack>
                         )}
                       </BlockStack>
 
                       <Divider />
 
-                      {/* Plan Selection */}
-                      <BlockStack gap="400">
-                        <Text variant="headingMd" as="h3">
-                          Available Plans
-                        </Text>
-
-                        {/* Billing Interval Toggle */}
-                        <InlineStack align="end" blockAlign="center">
-                          <ButtonGroup variant="segmented">
-                            <Button
-                              pressed={billingInterval === 'monthly'}
-                              onClick={() => setBillingInterval('monthly')}
-                              size="slim"
-                            >
-                              Monthly
-                            </Button>
-                            <Button
-                              pressed={billingInterval === 'annual'}
-                              onClick={() => setBillingInterval('annual')}
-                              size="slim"
-                            >
-                              Annual
-                            </Button>
-                          </ButtonGroup>
-                        </InlineStack>
-
-                        {/* Plan Cards */}
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                          gap: '16px',
-                        }}>
-                          {planCards.map((plan) => {
-                            const planIdToUse = billingInterval === 'annual' ? plan.idAnnual : plan.id;
-                            const isCurrentPlan = currentPlan === `RewardsPro ${plan.name}` ||
-                                                 currentPlan === `RewardsPro ${plan.name} Annual`;
-
-                            return (
-                              <Card key={plan.id}>
-                                <Box padding="600">
-                                  <BlockStack gap="400">
-                                    {/* Plan Header */}
-                                    <InlineStack align="space-between">
-                                      <Text as="h3" variant="headingLg">
-                                        {plan.name}
-                                      </Text>
-                                      {plan.recommended && (
-                                        <Badge tone="info">Recommended</Badge>
-                                      )}
-                                      {isCurrentPlan && (
-                                        <Badge tone="success">Current</Badge>
-                                      )}
-                                    </InlineStack>
-
-                                    {/* Price */}
-                                    <BlockStack gap="200">
-                                      {billingInterval === 'monthly' ? (
-                                        <InlineStack align="start" gap="100">
-                                          <Text as="p" variant="heading2xl">
-                                            {plan.monthlyPrice}
-                                          </Text>
-                                          <Text as="span" variant="bodyLg" tone="subdued">
-                                            /month
-                                          </Text>
-                                        </InlineStack>
-                                      ) : (
-                                        <BlockStack gap="100">
-                                          <InlineStack align="start" gap="100">
-                                            <Text as="p" variant="heading2xl">
-                                              {plan.annualMonthlyEquivalent}
-                                            </Text>
-                                            <Text as="span" variant="bodyLg" tone="subdued">
-                                              /month
-                                            </Text>
-                                          </InlineStack>
-                                          <Text as="p" variant="bodyMd" tone="subdued">
-                                            {plan.annualPrice}/year • {plan.annualSavings}
-                                          </Text>
-                                        </BlockStack>
-                                      )}
-                                    </BlockStack>
-
-                                    {/* Description */}
-                                    <Text as="p" variant="bodyMd" tone="subdued">
-                                      {plan.description}
-                                    </Text>
-
-                                    {/* Action Button */}
-                                    <Button
-                                      fullWidth
-                                      size="large"
-                                      variant={isCurrentPlan ? "secondary" : (plan.recommended ? "primary" : "primary")}
-                                      disabled={isCurrentPlan}
-                                      onClick={() => navigate(`/app/billing?plan=${planIdToUse}`)}
-                                    >
-                                      {isCurrentPlan ? "Current Plan" : `Upgrade to ${plan.name}`}
-                                    </Button>
-
-                                    <Divider />
-
-                                    {/* Features List */}
-                                    <BlockStack gap="300" align="start">
-                                      <Text as="p" variant="bodyMd" fontWeight="semibold" alignment="start">
-                                        What's included:
-                                      </Text>
-                                      <BlockStack gap="200" align="start">
-                                        {plan.features.map((feature, index) => (
-                                          <InlineStack key={index} gap="200" align="start" blockAlign="start">
-                                            <div style={{ flexShrink: 0 }}>
-                                              <Icon source={CheckCircleIcon} tone="success" />
-                                            </div>
-                                            <Text as="p" variant="bodyMd" alignment="start">{feature}</Text>
-                                          </InlineStack>
-                                        ))}
-                                      </BlockStack>
-                                    </BlockStack>
-                                  </BlockStack>
-                                </Box>
-                              </Card>
-                            );
-                          })}
-                        </div>
-                      </BlockStack>
+                      <Banner tone="info"><Text as="p">{PAID_SUBSCRIPTIONS_RETIRED_MESSAGE}</Text></Banner>
                     </BlockStack>
                   )}
                 </Box>

@@ -64,29 +64,25 @@ export default function LockedPage() {
           </BlockStack>
         </Banner>
 
-        {/* Empty State with Upgrade CTA */}
+        {/* Existing plan limits and records */}
         <Card>
           <Box padding="600">
             <EmptyState
               heading="App Access Temporarily Limited"
               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
               action={{
-                content: "Upgrade Plan",
+                content: "Subscription records",
                 onAction: () => navigate('/app/billing'),
                 variant: "primary",
-              }}
-              secondaryAction={{
-                content: "View Billing Details",
-                onAction: () => navigate('/app/billing'),
               }}
             >
               <BlockStack gap="400">
                 <Text as="p" variant="bodyLg" alignment="center">
-                  You've reached your monthly order processing limit. Upgrade your plan to continue using all features.
+                  You've reached your monthly order processing limit. Existing plan restrictions still apply.
                 </Text>
 
                 <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                  Your usage will automatically reset at the beginning of next month, or you can upgrade now for immediate access.
+                  Your usage will automatically reset at the beginning of next month. New paid plans and paid plan changes are retired.
                 </Text>
               </BlockStack>
             </EmptyState>
@@ -226,10 +222,10 @@ export default function LockedPage() {
               <InlineStack align="space-between" blockAlign="center">
                 <BlockStack gap="200">
                   <Text as="h2" variant="headingMd">
-                    Ready to upgrade?
+                    Existing subscription
                   </Text>
                   <Text as="p" variant="bodyMd" tone="subdued">
-                    Get more orders, advanced features, and priority support
+                    Review your current subscription and its existing terms.
                   </Text>
                 </BlockStack>
                 <Button
@@ -237,7 +233,7 @@ export default function LockedPage() {
                   size="large"
                   onClick={() => navigate('/app/billing')}
                 >
-                  View Plans
+                  Subscription records
                 </Button>
               </InlineStack>
             </BlockStack>

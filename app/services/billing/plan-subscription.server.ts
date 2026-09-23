@@ -1,3 +1,4 @@
+import { NEW_PAID_SUBSCRIPTIONS_RETIRED, paidSubscriptionsRetiredResult } from "~/constants/commercial-retirement";
 /**
  * Plan Subscription Service
  * Clean, comprehensive service for handling Shopify billing subscriptions
@@ -271,6 +272,9 @@ export async function createSubscription(
   admin?: AdminApiContext,
   metadata?: Record<string, any>
 ): Promise<BillingResult> {
+  if (NEW_PAID_SUBSCRIPTIONS_RETIRED && planId !== "free") {
+    return paidSubscriptionsRetiredResult();
+  }
   console.log(`[BillingService] Creating subscription for ${shop}, plan: ${planId}`);
 
   // Determine test mode using centralized utility

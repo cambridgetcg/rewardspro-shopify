@@ -1,3 +1,5 @@
+import { PAID_SUBSCRIPTIONS_RETIRED_STATUS, paidSubscriptionsRetiredResult } from "~/constants/commercial-retirement";
+import { hasRetiredBillingMutation } from "~/utils/retired-billing-mutations.server";
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useActionData, Form } from "@remix-run/react";
@@ -972,7 +974,9 @@ query TestProxyQuery($customerId: ID!) {
 
   return json({
     shop: session.shop,
-    exampleQueries,
+    exampleQueries: Object.fromEntries(Object.entries(exampleQueries).filter(([, query]) => {
+      try { return !hasRetiredBillingMutation(query); } catch { return false; }
+    })),
   });
 }
 
@@ -1137,6 +1141,14 @@ export async function action({ request }: ActionFunctionArgs) {
       error: "Please enter a GraphQL query",
       executionTime: 0,
     });
+  }
+
+  try {
+    if (hasRetiredBillingMutation(query)) {
+      return json({ ...paidSubscriptionsRetiredResult(), executionTime: 0 }, { status: PAID_SUBSCRIPTIONS_RETIRED_STATUS });
+    }
+  } catch {
+    return json({ error: "Invalid GraphQL document", executionTime: 0 }, { status: 400 });
   }
 
   try {
